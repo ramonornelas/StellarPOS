@@ -1,0 +1,32 @@
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+	
+}
+
+::-webkit-scrollbar-track {
+	background: #f5f6f8;
+	border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #CCC;
+	border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #999;
+	cursor: pointer;
+}
+
+#root {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background-color: #f5f6f8;
+}
+
+.content-shift {
+  margin-left: 250px; /* Adjust this value to match the width of your drawer */
+  transition: margin 0.3s;
+}

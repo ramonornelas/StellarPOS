@@ -1,0 +1,18 @@
+.accordion-details-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+}
+
+.accordion-split-payments-container{
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+.id {
+	font-size: 14px;
+	font-weight: lighter;
+	color: lightslategray;
+}

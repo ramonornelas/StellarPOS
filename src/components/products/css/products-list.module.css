@@ -1,0 +1,27 @@
+.products-container {
+	padding:16px;
+	border-radius: 8px;
+	overflow: auto;
+}
+
+.title-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.products-title {
+	padding: 8px;
+}
+
+/* Responsive design */
+/* XS: 0px */
+/* SM: 600px */
+/* MD: 900px */
+/* LG: 1200px */
+/* XL: 1536px*/
+@media (width > 900px) {
+	.products-container {
+		height: 80vh;
+	}
+}

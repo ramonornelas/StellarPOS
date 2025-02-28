@@ -1,0 +1,28 @@
+.main-container {
+	padding: 16px;
+	flex-grow: 1;
+	background-color: #f5f6f8;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.header {
+	margin-bottom: 8px;
+}
+
+.orders-container {
+	width: 60vw;
+}
+
+/* Responsive design */
+/* XS: 0px */
+/* SM: 600px */
+/* MD: 900px */
+/* LG: 1200px */
+/* XL: 1536px*/
+@media (width < 900px) {
+	.orders-container {
+		width: 100%;
+	}
+}

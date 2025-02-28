@@ -1,0 +1,21 @@
+.order-accordion {
+	width: 100%;
+}
+
+.accordion-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.accordion-badge-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.date {
+	font-weight: lighter;
+	color: lightslategray;
+}
