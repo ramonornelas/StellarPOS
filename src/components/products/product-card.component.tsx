@@ -12,8 +12,6 @@ import { SelectVariant } from "./modal-select-variant.component";
 import React from "react";
 import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import { formatCurrency } from "../../functions/generalFunctions";
-import { useContext } from 'react';
-import { DataContext } from '../../dataContext';
 
 interface ProductCardProps {
 	product: Product;
@@ -21,7 +19,6 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-	const { products } = useContext(DataContext);
 	const { name, stock_available, price, has_variants } = product; // Updated property name
 
 	const numericPrice = Number(price) || 0;

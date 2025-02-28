@@ -11,6 +11,7 @@ export interface Product {
   product_variant_id: string;
   display_order: number;
   quantity?: number;
+  stock_available?: number;
 }
 
 export interface ProductVariant {
