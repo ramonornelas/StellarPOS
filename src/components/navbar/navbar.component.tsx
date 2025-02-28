@@ -1,11 +1,11 @@
 import { useState, useContext } from "react";
 import {
-    AppBar,
-    Badge,
-    Button,
-    Drawer,
-    Toolbar,
-    Typography,
+	AppBar,
+	Badge,
+	Button,
+	Drawer,
+	Toolbar,
+	Typography,
 } from "@mui/material";
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -27,8 +27,8 @@ interface NavBarProps {
 }
 
 export const Navbar: React.FC<NavBarProps> = (props) => {
-  const { dateCTX } = useContext(appContext);
-  const { selectedDate, setSelectedDate } = dateCTX;
+	const { dateCTX } = useContext(appContext);
+	const { selectedDate, setSelectedDate } = dateCTX;
 	const { drawerLinks } = useContext(DataContext);
 	const { productsInCart } = React.useContext(appContext).cartCTX;
 	const { applyFilter } = props;
@@ -74,6 +74,9 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
 							Productos
 						</Typography>
 					</Button>
+					<Typography variant="h6" sx={{ ml: 1, textTransform: "none", fontSize: '1.5rem', color: 'primary.main' }}>
+						Ventas
+					</Typography>
 
 					<Box display="flex" alignItems="center">
 						<LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -81,7 +84,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
 								label="Día de trabajo"
 								value={selectedDate}
 								onChange={(date) => setSelectedDate(date)}
-        				format="dd/MM/yyyy"
+								format="dd/MM/yyyy"
 								slotProps={{
 									textField: {
 										fullWidth: true,
@@ -97,7 +100,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
 							<HomeIcon color="action" />
 						</Button>
 						<Button component={NavLink} to={"/orders"}>
-							<ListAltIcon color="action"/>
+							<ListAltIcon color="action" />
 						</Button>
 						{enableCartButton()}
 					</Box>

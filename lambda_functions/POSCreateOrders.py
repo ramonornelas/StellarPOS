@@ -6,9 +6,12 @@ import datetime
 import decimal
 
 dynamodb = boto3.resource('dynamodb')
+dynamodb_client = boto3.client('dynamodb')
 order_ticket_table = dynamodb.Table('POS_orderTicket')
 order_product_table = dynamodb.Table('POS_orderProduct')
 split_payment_table = dynamodb.Table('POS_orderSplitPayment')
+inventory_movement_table = dynamodb.Table('inventory_Movement')
+pos_product_table = dynamodb.Table('POS_product')
 
 def lambda_handler(event, context):
     try:
@@ -41,16 +44,60 @@ def lambda_handler(event, context):
                 'updated_username': order.get('updated_username', '')
             }
 
-            # Save the order ticket
-            order_ticket_table.put_item(Item=new_orderTicket)
+            # Prepare the transaction items
+            transaction_items = []
 
-            # Save each product in the order
+            # Add order ticket to transaction
+            transaction_items.append({
+                'Put': {
+                    'TableName': 'POS_orderTicket',
+                    'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in new_orderTicket.items()}
+                }
+            })
+
+            # Add products to transaction
             products = order['products']
-            create_order_product(products, new_orderTicket)            
+            grouped_products = group_products(products)
+            for product_data in grouped_products.values():
+                transaction_items.append({
+                    'Put': {
+                        'TableName': 'POS_orderProduct',
+                        'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_product_record(product_data, new_orderTicket).items()}
+                    }
+                })
+                transaction_items.append({
+                    'Put': {
+                        'TableName': 'inventory_Movement',
+                        'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_inventory_movement_record(product_data, new_orderTicket).items()}
+                    }
+                })
+                transaction_items.append({
+                    'Update': {
+                        'TableName': 'POS_product',
+                        'Key': {'id': {'S': product_data['id']}},
+                        'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :start) - :quantity',
+                        'ExpressionAttributeValues': {
+                            ':start': {'N': '0'},
+                            ':quantity': {'N': str(product_data['quantity'])}
+                        }
+                    }
+                })
 
-            # Save the split payment
+            # Add split payments to transaction
             if len(split_payments) > 0:
-                create_order_split_payment(split_payments, new_orderTicket)  
+                for split_payment in split_payments:
+                    transaction_items.append({
+                        'Put': {
+                            'TableName': 'POS_orderSplitPayment',
+                            'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_split_payment_record(split_payment, new_orderTicket).items()}
+                        }
+                    })
+
+            # Log the transaction items for debugging
+            print("Transaction Items:", json.dumps(transaction_items, indent=4))
+
+            # Execute the transaction
+            dynamodb_client.transact_write_items(TransactItems=transaction_items)
 
             return {
                 'statusCode': 201,
@@ -71,10 +118,8 @@ def lambda_handler(event, context):
 def get_current_datetime():
     return datetime.datetime.now().isoformat()
 
-def create_order_product(products, new_orderTicket):
+def group_products(products):
     grouped_products = {}
-
-    # Group products by ID
     for product in products:
         product_id = product['id']
         product_variant_id = product.get('product_variant_id', 'no_variant')
@@ -94,30 +139,10 @@ def create_order_product(products, new_orderTicket):
                 'price': price,
                 'category_name': product.get('category_name', '')
             }
-
-    # Create records from grouped data
-    for product_id, product_data in grouped_products.items():
-        create_order_product_record(product_data, new_orderTicket)
-
-def create_order_split_payment(split_payments, new_orderTicket):
-    for split_payment in split_payments:
-        amount = decimal.Decimal(str(split_payment['amount']))
-        new_split_payment = {
-            'id': str(uuid.uuid4()),
-            'orderTicket_id': new_orderTicket['id'],
-            'payment_method': split_payment['payment_method'],
-            'amount': amount,
-            'created_datetime': get_current_datetime(),
-            'updated_datetime': get_current_datetime()
-        }
-        # Save the split payment
-        split_payment_table.put_item(Item=new_split_payment)
+    return grouped_products
 
 def create_order_product_record(product_data, new_orderTicket):
-    # Function to create a record in the database
-    print(f"Creating record for product ID {product_data['id']} with quantity {product_data['quantity']} and total {product_data['total']}")
-    # Save each product in the order
-    new_orderProduct = {
+    return {
         'id': str(uuid.uuid4()),
         'orderTicket_id': new_orderTicket['id'],
         'product_id': product_data['id'],
@@ -130,4 +155,29 @@ def create_order_product_record(product_data, new_orderTicket):
         'created_datetime': get_current_datetime(),
         'updated_datetime': get_current_datetime()
     }
-    order_product_table.put_item(Item=new_orderProduct)
+
+def create_inventory_movement_record(product_data, new_orderTicket):
+    return {
+        'id': str(uuid.uuid4()),
+        'product_id': product_data['id'],
+        'product_variant_id': product_data.get('product_variant_id', 'no_variant'),
+        'product_name': product_data['name'],
+        'movement_type': 'sale',
+        'date': new_orderTicket['date'],
+        'transactionTicket_id': new_orderTicket['id'],
+        'quantity': product_data['quantity'],
+        'product_price': product_data['price'],
+        'product_cost': product_data.get('cost', decimal.Decimal('0.00')),  # Assuming cost is provided in product data
+        'notes': new_orderTicket.get('notes', '')
+    }
+
+def create_order_split_payment_record(split_payment, new_orderTicket):
+    amount = decimal.Decimal(str(split_payment['amount']))
+    return {
+        'id': str(uuid.uuid4()),
+        'orderTicket_id': new_orderTicket['id'],
+        'payment_method': split_payment['payment_method'],
+        'amount': amount,
+        'created_datetime': get_current_datetime(),
+        'updated_datetime': get_current_datetime()
+    }

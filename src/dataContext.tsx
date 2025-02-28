@@ -7,6 +7,7 @@ interface DataContextType {
   products: Product[];
   productVariants: ProductVariant[];
   drawerLinks: { title: string; filter: string }[];
+  fetchData: () => Promise<void>;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -14,6 +15,7 @@ export const DataContext = createContext<DataContextType>({
   products: [],
   productVariants: [],
   drawerLinks: [],
+  fetchData: async () => {},
 });
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -21,30 +23,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [products, setProducts] = useState<Product[]>([]);
   const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
 
+  const fetchData = async () => {
+    const fetchedCategories = await fetchCategories();
+    const fetchedProducts = await fetchProducts();
+    const fetchedProductVariants = await fetchProductVariants();
+
+    setCategories(fetchedCategories);
+
+    const processedProducts = fetchedProducts.map((product: Product) => ({
+      ...product,
+      price: product.price ? Number(product.price) : 0,
+      product_variant_id: product.product_variant_id ? product.product_variant_id : product.id
+    }));
+    setProducts(processedProducts);
+
+    const processedProductVariants = fetchedProductVariants.map((variant: ProductVariant) => ({
+      ...variant,
+      price: variant.price ? Number(variant.price) : 0,
+      display_order: variant.display_order ? Number(variant.display_order) : 0
+    }));
+    setProductVariants(processedProductVariants);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      const fetchedCategories = await fetchCategories();
-      const fetchedProducts = await fetchProducts();
-      const fetchedProductVariants = await fetchProductVariants();
-
-      setCategories(fetchedCategories);
-
-      const processedProducts = fetchedProducts.map((product: Product) => ({
-        ...product,
-        price: product.price ? Number(product.price) : 0,
-        product_variant_id: product.product_variant_id ? product.product_variant_id : product.id
-      }));
-      setProducts(processedProducts);
-
-      const processedProductVariants = fetchedProductVariants.map((variant: ProductVariant) => ({
-        ...variant,
-        price: variant.price ? Number(variant.price) : 0,
-        display_order: variant.display_order ? Number(variant.display_order) : 0
-      }));
-      setProductVariants(processedProductVariants);
-
-    };
-
     fetchData();
   }, []);
 
@@ -59,7 +60,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ];
 
   return (
-    <DataContext.Provider value={{ categories, products, productVariants, drawerLinks }}>
+    <DataContext.Provider value={{ categories, products, productVariants, drawerLinks, fetchData }}>
       {children}
     </DataContext.Provider>
   );

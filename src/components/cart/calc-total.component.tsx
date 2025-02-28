@@ -17,6 +17,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import { PaymentItem } from "./cart-payment-item.component";
+import { DataContext } from '../../dataContext';
 
 export const CalcTotal: React.FC = () => {
 	const navigate = useNavigate();
@@ -48,6 +49,7 @@ export const CalcTotal: React.FC = () => {
 	const [notes, setNotes] = useState<string>("");
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
+	const { fetchData } = useContext(DataContext);
 
 	useEffect(() => {
 		if (splitPayments.length <= 0) {
@@ -125,6 +127,7 @@ export const CalcTotal: React.FC = () => {
 					setProductsInCart([]);
 					setSplitPayments([]);
 					handleClose();
+					await fetchData();
 					if (location.pathname !== "/") {
 						navigate("/");
 					}
