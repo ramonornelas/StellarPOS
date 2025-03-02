@@ -1,13 +1,13 @@
-import React, { useContext } from "react";
-import { Box, Grid, Paper, Typography } from "@mui/material";
+import React, { useContext, useState, useEffect } from "react";
+import { Box, Grid, Paper, Typography, Button } from "@mui/material";
 import { filterProducts, returnCategoryName, searchProductById, searchProductByBarcode } from "./products.motor";
 import { ProductCard } from "./product-card.component";
 import classes from "./css/products-list.module.css";
 import { BasicModal } from "./modal-add-product.component";
 import { appContext } from "../../appContext";
 import { DataContext } from "../../dataContext";
-import { ProductSearch } from "./product-search.component";
 import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
+import BarcodeScannerComponent from "react-qr-barcode-scanner";
 
 interface ProductsListProps {
     filter: string;
@@ -19,6 +19,8 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
     const productsFiltered = filterProducts(products, filter);
     const categoryName = <strong>{returnCategoryName(filter)}</strong>;
     const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
+    const [showScanner, setShowScanner] = useState(false);
+    const [scannedCode, setScannedCode] = useState("");
 
     const addProductToCart = (product: any) => {
         setProductsInCart([...productsInCart, product]);
@@ -32,7 +34,33 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
 
     const handleAddToCartByBarcode = (barcode: string) => {
         const productFinded = searchProductByBarcode(products, barcode);
-        addProductToCart(productFinded);
+        if (productFinded) {
+            addProductToCart(productFinded);
+            setShowScanner(false); // Hide the scanner when a product is found
+        } else {
+            console.error(`Error: Product with barcode ${barcode} not found.`);
+        }
+    };
+
+    const handleScanBarcode = () => {
+        setShowScanner(!showScanner);
+    };
+
+    useEffect(() => {
+        if (scannedCode) {
+            console.log("Scanned code:", scannedCode);
+        }
+    }, [scannedCode]);
+
+    const handleScan = (err: unknown, result: any) => {
+        if (err) {
+            console.error("Error scanning barcode:", err);
+            return;
+        }
+        if (result?.text) {
+            setScannedCode(result.text);
+            handleAddToCartByBarcode(result.text);
+        }
     };
 
     return (
@@ -47,7 +75,14 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
                 </Typography>
                 <BasicModal />
             </Box>
-            <ProductSearch onScan={handleAddToCartByBarcode} />
+            <p>
+                <Button variant="contained" color="primary" onClick={handleScanBarcode}>
+                    {showScanner ? "Ocultar escáner" : "Leer código de barras"}
+                </Button>
+            </p>
+            {showScanner && (
+                <BarcodeScannerComponent width={450} height={300} onUpdate={handleScan} />
+            )}
             <Grid container spacing={2}>
                 {productsFiltered
                     .sort((a, b) => a.display_order - b.display_order)
