@@ -66,13 +66,15 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
     return (
         <Paper className={classes["products-container"]} elevation={5} square>
             <Box className={classes["title-container"]}>
-                <Typography
-                    className={classes["products-title"]}
-                    variant="h6"
-                    component="h2"
-                >
-                    Categoría: {categoryName}
-                </Typography>
+                {filter !== "all" && (
+                    <Typography
+                        className={classes["products-title"]}
+                        variant="h6"
+                        component="h2"
+                    >
+                        Categoría: {categoryName}
+                    </Typography>
+                )}
                 <BasicModal />
             </Box>
             <p>
@@ -81,7 +83,7 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
                 </Button>
             </p>
             {showScanner && (
-                <BarcodeScannerComponent width={450} height={300} onUpdate={handleScan} />
+                <BarcodeScannerComponent width={350} height={300} onUpdate={handleScan} />
             )}
             <Grid container spacing={2}>
                 {productsFiltered

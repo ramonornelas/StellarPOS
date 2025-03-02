@@ -22,7 +22,7 @@ export const Orders: React.FC = () => {
     return (
         <Container maxWidth="xl" className={classes["main-container"]}>
             <Typography variant="h5" component="h1" className={classes.header} >
-                {orders.length === 0 ? "No hay ventas para la fecha seleccionada." : `Ventas del día ${formatDate(dateString)}`}
+                {orders.length === 0 ? `No hay ventas en el día ${formatDate(dateString)}` : `Ventas del día ${formatDate(dateString)}`}
             </Typography>
             <Typography variant="h5" component="h1" className={classes.header} >
                 {totalSum > 0 ? `Total ${formatCurrency(totalSum)}` : ""}
