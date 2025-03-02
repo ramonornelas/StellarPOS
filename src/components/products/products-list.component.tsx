@@ -1,15 +1,13 @@
+import React, { useContext } from "react";
 import { Box, Grid, Paper, Typography } from "@mui/material";
-import {
-    filterProducts,
-    returnCategoryName,
-} from "./products.motor";
+import { filterProducts, returnCategoryName, searchProductById, searchProductByBarcode } from "./products.motor";
 import { ProductCard } from "./product-card.component";
 import classes from "./css/products-list.module.css";
 import { BasicModal } from "./modal-add-product.component";
-import React, { useContext } from "react";
-import { searchProductById } from "./products.motor";
 import { appContext } from "../../appContext";
 import { DataContext } from "../../dataContext";
+import { ProductSearch } from "./product-search.component";
+import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 
 interface ProductsListProps {
     filter: string;
@@ -20,11 +18,21 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
     const products = useContext(DataContext).products;
     const productsFiltered = filterProducts(products, filter);
     const categoryName = <strong>{returnCategoryName(filter)}</strong>;
-	const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
+    const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
+
+    const addProductToCart = (product: any) => {
+        setProductsInCart([...productsInCart, product]);
+        openSnackBarProductAdded(product.name, product.price);
+    };
 
     const handleAddToCart = (id: string) => {
         const productFinded = searchProductById(products, id);
-        setProductsInCart([...productsInCart, productFinded]);
+        addProductToCart(productFinded);
+    };
+
+    const handleAddToCartByBarcode = (barcode: string) => {
+        const productFinded = searchProductByBarcode(products, barcode);
+        addProductToCart(productFinded);
     };
 
     return (
@@ -39,6 +47,7 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
                 </Typography>
                 <BasicModal />
             </Box>
+            <ProductSearch onScan={handleAddToCartByBarcode} />
             <Grid container spacing={2}>
                 {productsFiltered
                     .sort((a, b) => a.display_order - b.display_order)

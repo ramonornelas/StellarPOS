@@ -69,8 +69,8 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
 						aria-label="menu"
 						onClick={() => setOpen(true)}
 					>
-						<MenuIcon />
-						<Typography variant="h6" sx={{ ml: 1, textTransform: "none" }}>
+						<MenuIcon color="primary" />
+						<Typography variant="h6" sx={{ ml: 1, textTransform: "none", color: 'primary.main' }}>
 							Productos
 						</Typography>
 					</Button>

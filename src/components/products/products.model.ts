@@ -12,6 +12,7 @@ export interface Product {
   display_order: number;
   quantity?: number;
   stock_available?: number;
+  barcode?: string;
 }
 
 export interface ProductVariant {
