@@ -10,7 +10,6 @@ import { Product } from "./products.model";
 import classes from "./css/products-card.module.css";
 import { SelectVariant } from "./modal-select-variant.component";
 import React from "react";
-import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import { formatCurrency } from "../../functions/generalFunctions";
 
 interface ProductCardProps {
@@ -36,7 +35,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 					variant="outlined"
 					onClick={() => {
 						onAddToCart(product.id);
-						openSnackBarProductAdded(name, numericPrice);
 					}}
 				>
 					Agregar

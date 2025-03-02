@@ -35,6 +35,10 @@ export const searchVariantById = (productVariants: ProductVariant[], id: string)
     return productVariants.find((productVariant) => productVariant.id === id)!;
 }
 
+export const searchProductByBarcode = (products: any[], barcode: string) => {
+    return products.find(product => product.barcode === barcode);
+};
+
 export const generateCustomID = (productsInCart: Product[]): string => {
     let newCustomId;
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

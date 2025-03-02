@@ -56,6 +56,7 @@ def create_product(product, category_id):
         'id': str(uuid.uuid4()),
         'name': product['name'],
         'description': product.get('description', ''),
+        'barcode': product.get('barcode', ''),
         'is_active': product.get('is_active', True),
         'category_id': category_id,
         'category_name': product.get('category_name', ''),
