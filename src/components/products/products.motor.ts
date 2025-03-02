@@ -20,11 +20,11 @@ export const returnCategoryName = (filter: string): string => {
     const { categories } = useContext(DataContext);
 
     if (filter === "all") {
-        return "Todos los productos";
+        return "Todo";
     }
 
     const category = categories.find(category => category.id === filter);
-    return category ? category.name : "Todos los productos";
+    return category ? category.name : "Todo";
 }
 
 export const searchProductById = (products: Product[], id: string): Product => {

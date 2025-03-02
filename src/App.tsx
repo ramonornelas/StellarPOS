@@ -10,6 +10,7 @@ import { Orders } from "./pages/orders";
 import { NotFoundPage } from "./pages/notFoundPage";
 import { Order } from "./components/orders/order.model";
 import { DataProvider } from "./dataContext";
+import { DatePickerPage } from "./pages/datePickerPage";
 
 function App() {
     const [productsInCart, setProductsInCart] = React.useState<Product[]>(
@@ -62,6 +63,7 @@ function App() {
                         <Route path="/" element={<Home filter={filter} />} />
                         <Route path="/orders" element={<Orders />} />
                         <Route path="/cart" element={<CartPage />} />
+                        <Route path="/date-picker" element={<DatePickerPage />} />
                         <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </appContext.Provider>
