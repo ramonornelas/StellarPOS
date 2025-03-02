@@ -19,10 +19,10 @@
     "axios": "^1.7.9",
     "date-fns": "^2.29.3",
     "notistack": "^3.0.1",
-    "react": "^18.3.1",
+    "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.23.1",
-    "react-qr-barcode-scanner": "^1.0.0"
+    "react-qr-barcode-scanner": "^2.0.0"
   },
   "devDependencies": {
     "@types/axios": "^0.14.4",
