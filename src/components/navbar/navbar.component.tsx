@@ -70,9 +70,6 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
 						onClick={() => setOpen(true)}
 					>
 						<MenuIcon color="primary" />
-						<Typography variant="h6" sx={{ ml: 1, textTransform: "none", color: 'primary.main' }}>
-							Productos
-						</Typography>
 					</Button>
 					<Typography variant="h6" sx={{ ml: 1, textTransform: "none", fontSize: '1.5rem', color: 'primary.main' }}>
 						Ventas
