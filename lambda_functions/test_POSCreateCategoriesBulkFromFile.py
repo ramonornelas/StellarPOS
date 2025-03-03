@@ -3,7 +3,7 @@ import pandas as pd
 from POSCreateCategoriesBulk import lambda_handler
 
 # Read data from Excel file
-excel_file_path = '/Users/carlos.ornelas/Documents/Code-projects/React/Stellar/Customer files/Padrey/test_bulk.xlsx'
+excel_file_path = '/Users/carlos.ornelas/Documents/Code-projects/React/Stellar/Customer files/Test/test_bulk.xlsx'
 df = pd.read_excel(excel_file_path, sheet_name='categories')
 
 # Convert DataFrame to list of dictionaries
