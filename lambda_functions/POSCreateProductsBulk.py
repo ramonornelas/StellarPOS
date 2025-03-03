@@ -5,6 +5,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 import datetime
 import decimal
 from decimal import Decimal
+import math
 
 dynamodb = boto3.resource('dynamodb')
 product_table = dynamodb.Table('POS_product')
@@ -15,6 +16,18 @@ def lambda_handler(event, context):
     try:
         if 'body' in event:
             products = json.loads(event['body'])
+
+            # Sanitize product values
+            for product in products:
+                for key, value in product.items():
+                    if key in ['price', 'cost', 'display_order']:
+                        product[key] = sanitize_nan(value, 0)
+                    elif key == 'category_name':
+                        product[key] = sanitize_nan(value, '')
+                    elif key in ['is_active', 'has_variants', 'is_combo']:
+                        product[key] = sanitize_nan(value, False)
+                    else:
+                        product[key] = sanitize_nan(value, '')
 
             # Save each product in the table
             for product in products:
@@ -45,11 +58,15 @@ def lambda_handler(event, context):
                 'body': json.dumps('Bad Request: Missing body in event')
             }
     except (BotoCoreError, ClientError) as error:
-        print(error)
         return {
             'statusCode': 500,
             'body': json.dumps({'message': str(error)})
         }
+
+def sanitize_nan(value, default=''):
+    if isinstance(value, float) and math.isnan(value):
+        return default
+    return value
 
 def create_product(product, category_id):
     new_product = {
@@ -70,8 +87,8 @@ def create_product(product, category_id):
     
     # Conditionally add the price field if has_variants is False
     if not product.get('has_variants', False):
-        new_product['price'] = decimal.Decimal(str(product['price']))
-        new_product['cost'] = decimal.Decimal(str(product['cost']))
+        new_product['price'] = Decimal(product.get('price', 0))
+        new_product['cost'] = Decimal(product.get('cost', 0))
 
     product_table.put_item(Item=new_product)
     return new_product
@@ -83,8 +100,8 @@ def create_variant(product, variant_data, category_id):
         'product_name': product['name'],
         'name': variant_data.get('variant_name', ''),
         'description': variant_data.get('variant_description', ''),
-        'price': decimal.Decimal(str(variant_data['price'])),
-        'cost': decimal.Decimal(str(variant_data['cost'])),
+        'price': Decimal(variant_data.get('price', 0)),
+        'cost': Decimal(variant_data.get('cost', 0)),
         'display_order': variant_data.get('variant_display_order', 0),
         'category_id': category_id,
         'category_name': variant_data.get('category_name', '')
