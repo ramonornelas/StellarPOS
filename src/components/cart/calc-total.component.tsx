@@ -50,6 +50,7 @@ export const CalcTotal: React.FC = () => {
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
 	const { fetchData } = useContext(DataContext);
+	const [isButtonDisabled, setIsButtonDisabled] = useState(false);
 
 	useEffect(() => {
 		if (splitPayments.length <= 0) {
@@ -84,6 +85,14 @@ export const CalcTotal: React.FC = () => {
 	];
 
 	//Functions
+	const handleButtonClick = (paymentMethod: string) => {
+		if (showSplitFields) {
+				addNewSplitPayment(paymentMethod);
+		} else {
+				addNewOrder(paymentMethod);
+		}
+	};
+
 	const addNewOrder = async (paymentMethod: string) => {
 		if (paymentMethod === 'split') {
 			const { remainingAmount } = calculateRemainingAmount();
@@ -101,6 +110,7 @@ export const CalcTotal: React.FC = () => {
 			}
 		}
 
+		setIsButtonDisabled(true);
 		const dateString = selectedDate ? selectedDate.toLocaleDateString('en-CA') : "2024-12-31";
 		getLastOrderId(dateString).then(lastOrderId => {
 			const newOrderId = generateNewOrderId(lastOrderId);
@@ -331,6 +341,8 @@ export const CalcTotal: React.FC = () => {
 		//Notes
 		setShowNotes(false);
 		setNotes("");
+		//Buttons
+		setIsButtonDisabled(false);
 	}
 
 	const { totalSplitPayments, remainingAmount } = calculateRemainingAmount();
@@ -580,7 +592,7 @@ export const CalcTotal: React.FC = () => {
 								sx={{ mt: 2 }}
 								onClick={handleSplitClick}
 							>
-								{"Agregar varios pagos >>"}
+								{"Dividir pago >>"}
 							</Button>
 						)}
 						<Button
@@ -588,13 +600,8 @@ export const CalcTotal: React.FC = () => {
 							color="success"
 							variant={showSplitFields ? "outlined" : "contained"}
 							sx={{ mt: 2 }}
-							onClick={() => {
-								if (showSplitFields) {
-									addNewSplitPayment('cash');
-								} else {
-									addNewOrder('cash');
-								}
-							}}
+							onClick={() => handleButtonClick('cash')}
+							disabled={isButtonDisabled}
 						>
 							{showSplitFields ? "Agregar importe en efectivo" : "Pago total en efectivo"}
 						</Button>
@@ -603,13 +610,8 @@ export const CalcTotal: React.FC = () => {
 							color="success"
 							variant={showSplitFields ? "outlined" : "contained"}
 							sx={{ mt: 2 }}
-							onClick={() => {
-								if (showSplitFields) {
-									addNewSplitPayment('card');
-								} else {
-									addNewOrder('card');
-								}
-							}}
+							onClick={() => handleButtonClick('card')}
+							disabled={isButtonDisabled}
 						>
 							{showSplitFields ? "Agregar importe en tarjeta" : "Pago total en tarjeta"}
 						</Button>
@@ -618,13 +620,8 @@ export const CalcTotal: React.FC = () => {
 							color="success"
 							variant={showSplitFields ? "outlined" : "contained"}
 							sx={{ mt: 2 }}
-							onClick={() => {
-								if (showSplitFields) {
-									addNewSplitPayment('transfer');
-								} else {
-									addNewOrder('transfer');
-								}
-							}}
+							onClick={() => handleButtonClick('transfer')}
+							disabled={isButtonDisabled}
 						>
 							{showSplitFields ? "Agregar importe en transferencia" : "Pago total en transferencia"}
 						</Button>
@@ -647,6 +644,7 @@ export const CalcTotal: React.FC = () => {
 									onClick={() => {
 										addNewOrder('split');
 									}}
+									disabled={isButtonDisabled}
 								>
 									Finalizar Pago
 								</Button>
