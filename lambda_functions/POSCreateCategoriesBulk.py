@@ -4,8 +4,8 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 import datetime
 
-dynamodb = boto3.resource('dynamodb')
-category_table = dynamodb.Table('POS_category')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+category_table = dynamodb.Table('stellar_POC_category')
 
 def lambda_handler(event, context):
     try:
