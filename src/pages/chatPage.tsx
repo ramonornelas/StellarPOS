@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { fetchAIResponse } from "../services/aiService";
+import { FiMessageSquare } from "react-icons/fi"; // Importa el ícono de mensaje
 
 export const ChatPage: React.FC = () => {
     const [messages, setMessages] = useState<{ user: string; bot: string }[]>([]);
     const [input, setInput] = useState("");
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-    // Función para desplazar el área de mensajes hacia abajo
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -15,22 +15,12 @@ export const ChatPage: React.FC = () => {
         scrollToBottom();
     }, [messages]);
 
-    // Función para formatear la respuesta del bot
     const formatBotResponse = (response: string): string => {
-        // Reemplaza los dobles saltos de línea (\n\n) por un solo salto de línea (\n)
         let formattedResponse = response.replace(/\n\n/g, "\n");
-
-        // Siempre inicia la respuesta con saltos de línea
-
         formattedResponse = "\n" + formattedResponse;
-
-        // Reemplaza los asteriscos dobles por etiquetas <strong>
         formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-
-        // Reemplaza los saltos de línea (\n) por etiquetas <br />
         formattedResponse = formattedResponse.replace(/\n/g, "<br />");
 
-        // Opcional: Formato adicional si es necesario
         const regex = /\*\*Nombre del producto:\*\* (.*?) - \*\*Precio:\*\* (.*?) - \*\*Explicación:\*\* (.*)/;
         const match = formattedResponse.match(regex);
 
@@ -43,7 +33,7 @@ export const ChatPage: React.FC = () => {
             `;
         }
 
-        return formattedResponse; // Si no coincide, devuelve la respuesta con negritas y saltos de línea
+        return formattedResponse;
     };
 
     const handleSendMessage = async () => {
@@ -68,11 +58,36 @@ export const ChatPage: React.FC = () => {
 
     return (
         <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h1>Chat con PadreyIA</h1>
-                <h5>de StellarSmart</h5>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingBottom: "2px" }}>
+                <h1>&nbsp;Chat con PadreyIA</h1>
+                <h5>de StellarSmart&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</h5>
+                <button
+                    onClick={() => setMessages([])}
+                    style={{
+                        padding: "5px 10px",
+                        backgroundColor: "transparent",
+                        color: "#1e67b0",
+                        border: "none",
+                        borderRadius: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "5px",
+                        cursor: "pointer",
+                        transition: "transform 0.2s ease",
+                    }}
+                    onMouseOver={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1)";
+                    }}
+                    onMouseOut={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+                    }}
+                >
+                    <FiMessageSquare size={20} />
+                    <span>Nuevo chat</span>
+                </button>
             </div>
-            <div style={{ border: "1px solid #ccc", padding: "10px", height: "400px", overflowY: "scroll" }}>
+            <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "40px" }}>
                 {messages.map((message, index) => (
                     <div key={index}>
                         <p><strong>Cliente:</strong> {message.user}</p>
@@ -81,7 +96,17 @@ export const ChatPage: React.FC = () => {
                 ))}
                 <div ref={messagesEndRef} />
             </div>
-            <div style={{ marginTop: "10px" }}>
+            <div
+                style={{
+                    marginTop: "10px", // Reducido para que esté más arriba
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "10px",
+                    position: "relative", // Permite ajustar la posición si es necesario
+                    top: "-20px", // Mueve el contenedor hacia arriba
+                }}
+            >
                 <input
                     type="text"
                     value={input}
@@ -92,33 +117,25 @@ export const ChatPage: React.FC = () => {
                         }
                     }}
                     placeholder="Escribe tu mensaje..."
-                    style={{ width: "70%", padding: "5px" }}
+                    style={{
+                        width: "60%",
+                        padding: "10px",
+                        borderRadius: "4px",
+                        border: "1px solid #ccc",
+                    }}
                 />
                 <button
                     onClick={handleSendMessage}
                     style={{
-                        padding: "5px 10px",
-                        marginLeft: "5px",
+                        padding: "10px 15px",
                         backgroundColor: "#007BFF", // Azul
                         color: "white",
                         border: "none",
                         borderRadius: "4px",
+                        cursor: "pointer",
                     }}
                 >
                     Enviar
-                </button>
-                <button
-                    onClick={() => setMessages([])} // Limpia el chat al hacer clic
-                    style={{
-                        padding: "5px 10px",
-                        marginLeft: "5px",
-                        backgroundColor: "#f44336", // Rojo
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                    }}
-                >
-                    Reiniciar Chat
                 </button>
             </div>
         </div>
