@@ -7,10 +7,10 @@ import decimal
 from decimal import Decimal
 import math
 
-dynamodb = boto3.resource('dynamodb')
-product_table = dynamodb.Table('POS_product')
-category_table = dynamodb.Table('POS_category')
-variant_table = dynamodb.Table('POS_product_variant')  # Add this line to reference the variant table
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+product_table = dynamodb.Table('stellar_POC_product')
+category_table = dynamodb.Table('stellar_POC_category')
+variant_table = dynamodb.Table('stellar_POC_product_variant')
 
 def lambda_handler(event, context):
     try:
@@ -73,6 +73,7 @@ def create_product(product, category_id):
         'id': str(uuid.uuid4()),
         'name': product['name'],
         'description': product.get('description', ''),
+        'expiration': product.get('expiration', ''),
         'barcode': product.get('barcode', ''),
         'is_active': product.get('is_active', True),
         'category_id': category_id,
@@ -100,6 +101,7 @@ def create_variant(product, variant_data, category_id):
         'product_name': product['name'],
         'name': variant_data.get('variant_name', ''),
         'description': variant_data.get('variant_description', ''),
+        'expiration': variant_data.get('variant_expiration', ''),
         'price': Decimal(variant_data.get('price', 0)),
         'cost': Decimal(variant_data.get('cost', 0)),
         'display_order': variant_data.get('variant_display_order', 0),
