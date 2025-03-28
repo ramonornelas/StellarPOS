@@ -87,7 +87,7 @@ export const ChatPage: React.FC = () => {
                     <span>Nuevo chat</span>
                 </button>
             </div>
-            <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "40px" }}>
+            <div style={{ border: "1px solid #ccc", padding: "10px", height: "250px", overflowY: "scroll", marginBottom: "10px" }}>
                 {messages.map((message, index) => (
                     <div key={index}>
                         <p><strong>Cliente:</strong> {message.user}</p>
@@ -98,13 +98,13 @@ export const ChatPage: React.FC = () => {
             </div>
             <div
                 style={{
-                    marginTop: "10px", // Reducido para que esté más arriba
+                    marginTop: "40px",
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
                     gap: "10px",
-                    position: "relative", // Permite ajustar la posición si es necesario
-                    top: "-20px", // Mueve el contenedor hacia arriba
+                    position: "relative",
+                    top: "-20px",
                 }}
             >
                 <input
