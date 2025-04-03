@@ -26,10 +26,19 @@ export const PaymentItem: React.FC<PaymentItemProps> = ({ payment }) => {
 		openSnackBarDeletePayment(payment.id.toString());
 	};
 
+	const ischange = payment.amount < 0; // Verificar si el movimiento es negativo
+	const formattedAmount = ischange
+		? `(${formatCurrency(Math.abs(payment.amount))})` // Mostrar entre paréntesis y en positivo
+		: formatCurrency(payment.amount);
+
+	const description = ischange
+		? `Cambio ${mapPaymentMethod(payment.payment_method, true)}` // Agregar "Cambio" al inicio si es negativo
+		: mapPaymentMethod(payment.payment_method, true);
+
 	return (
 		<TableRow key={payment.id}>
-				<TableCell>{formatCurrency(payment.amount)}</TableCell>
-				<TableCell>{mapPaymentMethod(payment.payment_method, true)}</TableCell>
+				<TableCell>{formattedAmount}</TableCell>
+				<TableCell>{description}</TableCell>
 				<TableCell>
 						<IconButton onClick={() => deletePayment(payment.id)}>
 								<DeleteIcon style={{ fontSize: '20px' }} />

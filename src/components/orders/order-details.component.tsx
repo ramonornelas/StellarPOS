@@ -24,7 +24,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 						{product.qty} x {product.desc}
 					</Typography>
 					<Typography variant="body1" component="p">
-						({formatCurrency(product.unit)})
+						{formatCurrency(product.unit)}
 					</Typography>
 				</Box>
 			))}
@@ -53,19 +53,33 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 					<Divider sx={{ m: 1 }} />
 				</>
 			)}
-			{splitPayments && splitPayments.map((payment) => (
-				<>
-					<Box key={payment.id} className={classes["accordion-split-payments-container"]}>
-						<Typography variant="body1" component="p">
-							{mapPaymentMethod(payment.payment_method)}:
-						</Typography>
-						<Box m={1} />
-						<Typography variant="body1" component="p">
-							{formatCurrency(payment.amount)}
-						</Typography>
-					</Box>
-				</>
-			))}
+			{splitPayments && (() => {
+				const positivePayments = splitPayments.filter(payment => payment.amount >= 0);
+				const negativePayments = splitPayments.filter(payment => payment.amount < 0);
+				const sortedPayments = [...positivePayments, ...negativePayments];
+
+				return sortedPayments.map((payment) => {
+					const isNegative = payment.amount < 0;
+					const paymentDescription = isNegative
+						? `Cambio ${mapPaymentMethod(payment.payment_method)}`
+						: mapPaymentMethod(payment.payment_method);
+					const paymentAmount = isNegative
+						? `(${formatCurrency(Math.abs(payment.amount))})`
+						: formatCurrency(payment.amount);
+
+					return (
+						<Box key={payment.id} className={classes["accordion-split-payments-container"]}>
+							<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+								{paymentDescription}:
+							</Typography>
+							<Box m={1} />
+							<Typography variant="body1" component="p">
+								{paymentAmount}
+							</Typography>
+						</Box>
+					);
+				});
+			})()}
 			{order.tip > 0 && (
 				<>
 					<Divider sx={{ m: 1 }} />
