@@ -43,6 +43,7 @@ export const CalcTotal: React.FC = () => {
 	const [tipPercentage, setTipPercentage] = useState<number | "custom">(0);
 	const [tipAmount, setTipAmount] = useState<number>(0);
 	const [totalWithTip, setTotalWithTip] = useState<number>(total);
+	const [changeAmount, setChangeAmount] = useState<number>(0);
 	const [showCustomTip, setShowCustomTip] = useState(false);
 	const [customTipError, setCustomTipError] = useState<boolean>(false);
 	const [showNotes, setShowNotes] = useState(false);
@@ -87,21 +88,69 @@ export const CalcTotal: React.FC = () => {
 	//Functions
 	const handleButtonClick = (paymentMethod: string) => {
 		if (showSplitFields) {
-				addNewSplitPayment(paymentMethod);
+			addNewSplitPayment(paymentMethod);
 		} else {
-				addNewOrder(paymentMethod);
+			addNewOrder(paymentMethod);
 		}
 	};
 
 	const addNewOrder = async (paymentMethod: string) => {
+		let transactionChangeAmount = 0;
+
 		if (paymentMethod === 'split') {
-			const { remainingAmount } = calculateRemainingAmount();
+			const { remainingAmount, totalToPay } = calculateRemainingAmount();
+
+			// Verificar si hay devolución en efectivo y el restante es mayor a 0
+			if (remainingAmount > 0 && splitPayments.some(payment => payment.amount < 0)) {
+				// Eliminar devoluciones en efectivo
+				const updatedSplitPayments = splitPayments.filter(payment => payment.amount >= 0);
+				setSplitPayments(updatedSplitPayments);
+
+				// Mensaje de alerta con el total a pagar y pagos realizados
+				let messageCurrentDetails = `El total a pagar es de: ${formatCurrency(totalToPay)}. \nSe han pagado: ${formatCurrency(totalSplitPayments)}.`;
+				let messageRequestToUser = `Se ha eliminado el Cambio Efectivo. \nConfirma la información antes de finalizar el pago.`;
+				let message = `${messageCurrentDetails} \n\n${messageRequestToUser}`;
+
+				alert(message);
+
+				return;
+			}
+
 			if (remainingAmount != 0) {
 				if (remainingAmount > 0) {
-					alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.')
-				} else
-					alert('No se puede finalizar el pago. El monto pagado es mayor al total de la cuenta.')
-				return; // Exit the function if the remaining amount is greater than 0 and payment method is Split
+					alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.');
+				} else {
+					transactionChangeAmount = Math.abs(remainingAmount);
+
+					// Mensaje de alerta con el total a pagar y pagos realizados
+					let messageCurrentDetails = `El total a pagar es de: ${formatCurrency(totalToPay)}. \nSe han pagado: ${formatCurrency(totalSplitPayments)}.`;
+					let messageRequestToUser = `Devuelve ${formatCurrency(transactionChangeAmount)} en efectivo. \nSe registrará como Cambio Efectivo. \nConfirma la información antes de finalizar el pago.`;
+					let message = `${messageCurrentDetails} \n\n${messageRequestToUser}`;
+
+					alert(message);
+
+					// Registrar devolución completa como movimiento inverso
+					const existingChangePayment = splitPayments.find(payment => payment.amount < 0);
+
+					if (existingChangePayment) {
+						// Si ya existe un movimiento inverso, actualiza su importe
+						let newChangeAmount = Math.abs(existingChangePayment.amount) + transactionChangeAmount;
+						existingChangePayment.amount = -newChangeAmount;
+						setSplitPayments([...splitPayments]);
+						setChangeAmount(newChangeAmount);
+					} else {
+						// Si no existe, crea uno nuevo
+						const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
+						const changePayment = {
+							id: newId,
+							amount: -transactionChangeAmount,
+							payment_method: 'cash', // Devolución en efectivo
+						};
+						setSplitPayments([...splitPayments, changePayment]);
+						setChangeAmount(transactionChangeAmount);
+					}
+				}
+				return; // Salir de la función si hay un monto restante
 			}
 		} else {
 			if (showCustomTip && tipAmount === 0) {
@@ -123,6 +172,7 @@ export const CalcTotal: React.FC = () => {
 				split_payments: (paymentMethod === 'split' && splitPayments.length > 0) ? splitPayments : [],
 				discount: discount,
 				tip: tipAmount,
+				change: changeAmount,
 				notes: notes
 			};
 
@@ -133,7 +183,7 @@ export const CalcTotal: React.FC = () => {
 				if (result) {
 					setShowSplitFields(false);
 					openSnackBarOrderRegistered(newOrderTicket.ticket);
-					// Update the local state after the order is successfully created in the database
+					// Actualizar el estado local después de registrar el pedido
 					setProductsInCart([]);
 					setSplitPayments([]);
 					handleClose();
@@ -147,15 +197,19 @@ export const CalcTotal: React.FC = () => {
 	};
 
 	const calculateRemainingAmount = () => {
-		const totalSplitPayments = splitPayments.reduce((acc, payment) => acc + payment.amount, 0);
-		let remainingAmount = 0;
-		if (tipAmount > 0)
-			remainingAmount = totalWithTip - totalSplitPayments
-		else if (discount > 0)
-			remainingAmount = totalWithDiscount - totalSplitPayments
-		else
-			remainingAmount = total - totalSplitPayments
-		return { totalSplitPayments, remainingAmount };
+		const totalSplitPayments = parseFloat(splitPayments.reduce((acc, payment) => acc + payment.amount, 0).toFixed(2));
+		let totalToPay, remainingAmount = 0;
+
+		if (tipAmount > 0) {
+			totalToPay = parseFloat(totalWithTip.toFixed(2));
+		} else if (discount > 0) {
+			totalToPay = parseFloat(totalWithDiscount.toFixed(2));
+		} else {
+			totalToPay = parseFloat(total.toFixed(2));
+		}
+
+		remainingAmount = parseFloat((totalToPay - totalSplitPayments).toFixed(2));
+		return { totalSplitPayments, remainingAmount, totalToPay };
 	};
 
 	//Toggle functions
@@ -213,8 +267,9 @@ export const CalcTotal: React.FC = () => {
 
 	const handleSplitAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		let splitAmount = 0;
-		if (event.target.value != '')
-			splitAmount = parseFloat(event.target.value)
+		if (event.target.value !== '') {
+			splitAmount = parseFloat(parseFloat(event.target.value).toFixed(2));
+		}
 		setSplitAmount(splitAmount);
 	};
 
@@ -251,8 +306,8 @@ export const CalcTotal: React.FC = () => {
 
 	//Tip functions
 	const addTipToOrder = (tipAmount: number) => {
-		setTipAmount(tipAmount);
-		const totalWithTip = totalWithDiscount + tipAmount;
+		setTipAmount(parseFloat(tipAmount.toFixed(2)));
+		const totalWithTip = parseFloat((totalWithDiscount + tipAmount).toFixed(2));
 		setTotalWithTip(totalWithTip);
 	};
 
@@ -269,8 +324,9 @@ export const CalcTotal: React.FC = () => {
 
 	const handleCustomTipChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		let tipAmount = 0;
-		if (event.target.value != '')
-			tipAmount = parseFloat(event.target.value);
+		if (event.target.value !== '') {
+			tipAmount = parseFloat(parseFloat(event.target.value).toFixed(2));
+		}
 		addTipToOrder(tipAmount);
 	};
 
@@ -281,8 +337,8 @@ export const CalcTotal: React.FC = () => {
 
 	//Discount functions
 	const addDiscountToOrder = (discount: number) => {
-		setDiscount(discount);
-		const totalWithDiscount = total - (discount);
+		setDiscount(parseFloat(discount.toFixed(2)));
+		const totalWithDiscount = parseFloat((total - discount).toFixed(2));
 		setTotalWithDiscount(totalWithDiscount);
 	};
 
@@ -308,7 +364,7 @@ export const CalcTotal: React.FC = () => {
 			setCustomDiscountError(true);
 		} else {
 			setCustomDiscountError(false);
-			addDiscountToOrder(value);
+			addDiscountToOrder(parseFloat(value.toFixed(2)));
 		}
 	};
 
