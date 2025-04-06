@@ -12,9 +12,9 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { NavListDrawer } from "./navbar-list-drawer.component";
 import HomeIcon from "@mui/icons-material/Home";
 import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
-import { NavLink, useLocation } from "react-router-dom";
-import ListAltIcon from '@mui/icons-material/ListAlt';
-import DateRangeIcon from '@mui/icons-material/DateRange';
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import DateRangeIcon from "@mui/icons-material/DateRange";
 
 import React from "react";
 import { appContext } from "../../appContext";
@@ -23,14 +23,16 @@ import { DataContext } from "../../dataContext";
 
 interface NavBarProps {
     applyFilter: (category: string) => void;
+    onLogoff: () => void; // Ensure onLogoff is defined in props
 }
 
 export const Navbar: React.FC<NavBarProps> = (props) => {
+    const { applyFilter, onLogoff } = props;
     const { drawerLinks } = useContext(DataContext);
     const { productsInCart } = React.useContext(appContext).cartCTX;
-    const { applyFilter } = props;
     const [open, setOpen] = useState(false);
     const location = useLocation();
+    const navigate = useNavigate(); // Hook to navigate between routes
 
     const enableCartButton = () => {
         let cartButton;
@@ -51,12 +53,23 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
         return cartButton;
     };
 
+    const handleLogoff = () => {
+        // Clear session storage
+        sessionStorage.clear();
+
+        // Notify App.tsx to update the isLoggedIn state
+        onLogoff();
+
+        // Redirect to the root "/"
+        navigate("/");
+    };
+
     const showVentasFeatureFlag = false; // Feature flag to control the visibility of "Ventas"
 
     return (
         <>
             <Box sx={{ display: "flex" }}></Box>
-            <AppBar position="static" sx={{ height: '80px', backgroundColor: 'white' }}> {/* Adjust the height as needed */}
+            <AppBar position="static" sx={{ height: "80px", backgroundColor: "white" }}>
                 <Toolbar
                     sx={{
                         justifyContent: location.pathname === "/" ? "space-between" : "flex-end",
@@ -69,25 +82,45 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         onClick={() => setOpen(true)}
                     >
                         <MenuIcon color="primary" />
-
                     </Button>
                     {showVentasFeatureFlag && (
-                        <Typography variant="h6" sx={{ ml: 1, textTransform: "none", fontSize: '1.5rem', color: 'primary.main' }}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                ml: 1,
+                                textTransform: "none",
+                                fontSize: "1.5rem",
+                                color: "primary.main",
+                            }}
+                        >
                             Ventas
                         </Typography>
                     )}
 
                     <Box>
+                        {/* Logoff Button */}
+                        <Button onClick={handleLogoff}>
+                            <Typography color="error" sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+                                Log off
+                            </Typography>
+                        </Button>
 
+                        {/* Home Button */}
                         <Button component={NavLink} to={"/"}>
                             <HomeIcon color="action" fontSize="large" />
                         </Button>
+
+                        {/* Date Picker Button */}
                         <Button component={NavLink} to={"/date-picker"}>
                             <DateRangeIcon color="action" fontSize="large" />
                         </Button>
+
+                        {/* Orders Button */}
                         <Button component={NavLink} to={"/orders"}>
                             <ListAltIcon color="action" fontSize="large" />
                         </Button>
+
+                        {/* Cart Button */}
                         {enableCartButton()}
                     </Box>
                 </Toolbar>
