@@ -15,6 +15,7 @@ import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import DateRangeIcon from "@mui/icons-material/DateRange";
+import ChatIcon from "@mui/icons-material/Chat";
 
 import React from "react";
 import { appContext } from "../../appContext";
@@ -65,6 +66,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     };
 
     const showVentasFeatureFlag = false; // Feature flag to control the visibility of "Ventas"
+    const showDatePickerFeatureFlag = false; // Feature flag to control the visibility of the date picker button
 
     return (
         <>
@@ -109,18 +111,17 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         <Button component={NavLink} to={"/"}>
                             <HomeIcon color="action" fontSize="large" />
                         </Button>
-
-                        {/* Date Picker Button */}
-                        <Button component={NavLink} to={"/date-picker"}>
-                            <DateRangeIcon color="action" fontSize="large" />
-                        </Button>
-
-                        {/* Orders Button */}
+                        {showDatePickerFeatureFlag && ( // Conditionally render the date picker button
+                            <Button component={NavLink} to={"/date-picker"}>
+                                <DateRangeIcon color="action" fontSize="large" />
+                            </Button>
+                        )}
                         <Button component={NavLink} to={"/orders"}>
                             <ListAltIcon color="action" fontSize="large" />
                         </Button>
-
-                        {/* Cart Button */}
+                        <Button component={NavLink} to={"/chat"}> {/* Nuevo botón para el chat */}
+                            <ChatIcon color="action" fontSize="large" />
+                        </Button>
                         {enableCartButton()}
                     </Box>
                 </Toolbar>

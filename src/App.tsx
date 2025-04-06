@@ -14,6 +14,7 @@ import { DatePickerPage } from "./pages/datePickerPage";
 import Login from "./components/login/Login";
 import Register from "./components/register/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ChatPage } from "./pages/chatPage";
 
 function App() {
     const [productsInCart, setProductsInCart] = React.useState<Product[]>(
@@ -114,6 +115,14 @@ function App() {
                                 element={
                                     <ProtectedRoute isLoggedIn={isLoggedIn}>
                                         <DatePickerPage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/chat"
+                                element={
+                                    <ProtectedRoute isLoggedIn={isLoggedIn}>
+                                        <ChatPage />
                                     </ProtectedRoute>
                                 }
                             />
