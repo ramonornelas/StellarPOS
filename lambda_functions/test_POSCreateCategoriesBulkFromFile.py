@@ -1,10 +1,10 @@
 import json
 import pandas as pd
 from POSCreateCategoriesBulk import lambda_handler
+from config import EXCEL_FILE_PATH
 
 # Read data from Excel file
-excel_file_path = '/Users/carlos.ornelas/Documents/Code-projects/React/Stellar/Customer files/Test/test_bulk.xlsx'
-df = pd.read_excel(excel_file_path, sheet_name='categories')
+df = pd.read_excel(EXCEL_FILE_PATH, sheet_name='categories')
 
 # Convert DataFrame to list of dictionaries
 categories = df.to_dict(orient='records')

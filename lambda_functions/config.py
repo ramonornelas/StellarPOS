@@ -1,0 +1,8 @@
+AWS_REGION = 'us-west-1'
+# PRODUCT_TABLE_NAME = 'stellar_POC_product'
+# CATEGORY_TABLE_NAME = 'stellar_POC_category'
+# VARIANT_TABLE_NAME = 'stellar_POC_product_variant'
+PRODUCT_TABLE_NAME = 'POS_product'
+CATEGORY_TABLE_NAME = 'POS_category'
+VARIANT_TABLE_NAME = 'POS_product_variant'
+EXCEL_FILE_PATH = '/Users/carlos.ornelas/Documents/Code-projects/React/Stellar/Customer files/Test/test_bulk.xlsx'
