@@ -18,13 +18,13 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
-	const { name, stock_available, price, has_variants } = product; // Updated property name
+	const { name, stock_available, price, has_variants } = product;
 
 	const numericPrice = Number(price) || 0;
 	const formattedPrice = numericPrice === 0 ? "" : `${formatCurrency(numericPrice)}`;
 
 	const createButton = () => {
-		if (has_variants) { // Updated property name
+		if (has_variants) {
 			return <SelectVariant product={product} />;
 		} else {
 			return (
@@ -49,7 +49,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 				component="img"
 				alt={name}
 				image={product.image_url}
-				style={{ width: '200px', height: '200px', objectFit: 'cover' }} // Set fixed width and height
+				style={{ width: '200px', height: '200px', objectFit: 'cover' }}
 			/>
 			<CardContent className={classes["card-content"]}>
 				<Typography gutterBottom variant="body2" component="h3">

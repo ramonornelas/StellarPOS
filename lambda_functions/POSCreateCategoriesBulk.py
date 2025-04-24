@@ -3,9 +3,10 @@ import uuid
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 import datetime
+from config import AWS_REGION, CATEGORY_TABLE_NAME
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-category_table = dynamodb.Table('stellar_POC_category')
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+category_table = dynamodb.Table(CATEGORY_TABLE_NAME)
 
 def lambda_handler(event, context):
     try:

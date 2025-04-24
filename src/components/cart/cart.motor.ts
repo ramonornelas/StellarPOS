@@ -17,7 +17,8 @@ export const groupProducts = (products: Product[]): ProductsInCart[] => {
 					unit: product.price,
 					id: product.id,
 					product_variant_id: product.product_variant_id,
-					category: product.category_id
+					category: product.category_id,
+					is_combo: product.is_combo
 				});
 
 		}

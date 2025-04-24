@@ -417,7 +417,7 @@ export const CalcTotal: React.FC = () => {
 			>
 				<Box className={classes["modal-style"]}>
 					<Typography id="modal-modal-title" variant="h5">
-						<strong>Pagar cuenta</strong>
+						<strong>Pagar</strong>
 					</Typography>
 					<Box sx={{ mt: 2 }} />
 					<Typography id="modal-modal-title" variant="h5">

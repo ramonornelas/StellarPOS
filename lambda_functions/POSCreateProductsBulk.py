@@ -6,11 +6,12 @@ import datetime
 import decimal
 from decimal import Decimal
 import math
+from config import AWS_REGION, PRODUCT_TABLE_NAME, CATEGORY_TABLE_NAME, VARIANT_TABLE_NAME 
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-product_table = dynamodb.Table('stellar_POC_product')
-category_table = dynamodb.Table('stellar_POC_category')
-variant_table = dynamodb.Table('stellar_POC_product_variant')
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+product_table = dynamodb.Table(PRODUCT_TABLE_NAME)
+category_table = dynamodb.Table(CATEGORY_TABLE_NAME)
+variant_table = dynamodb.Table(VARIANT_TABLE_NAME)
 
 def lambda_handler(event, context):
     try:

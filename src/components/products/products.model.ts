@@ -1,4 +1,5 @@
 export interface Product {
+  is_active: unknown;
   name: string;
   price: number;
   category_id: string;

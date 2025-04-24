@@ -10,7 +10,7 @@ export const openSnackBarProductAdded = (name: string, price:number) => {
 };
 
 export const openSnackBarOrderRegistered = (id:string) => {
-	enqueueSnackbar(`Comanda ${id} registrada exitosamente!`, {
+	enqueueSnackbar(`Orden ${id} registrada exitosamente!`, {
 		variant: "success",
 		style: { opacity: "90%" },
     autoHideDuration: 3000,
@@ -40,3 +40,19 @@ export const openSnackBarDeletePayment = (name: string) => {
     autoHideDuration: 3000,
 	});
 }
+
+export const openSnackBarComboAdded = (name: string, price:number) => {
+	enqueueSnackbar(`Combo ${name} agregado! (${price.toFixed(2)})`, {
+		variant: "success",
+		style: { opacity: "90%" },
+    autoHideDuration: 3000,
+	});
+};
+
+export const openSnackBarComboRemoved = (name: string, price:number) => {
+	enqueueSnackbar(`Combo ${name} eliminado! (${price.toFixed(2)})`, {
+		variant: "success",
+		style: { opacity: "90%" },
+    autoHideDuration: 3000,
+	});
+};
