@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { fetchAIResponse } from "../services/aiService";
-import { FiMessageSquare } from "react-icons/fi"; // Importa el ícono de mensaje
+import { FiMessageSquare } from "react-icons/fi";
 
 export const ChatPage: React.FC = () => {
     const [messages, setMessages] = useState<{ user: string; bot: string }[]>([]);
@@ -128,7 +128,7 @@ export const ChatPage: React.FC = () => {
                     onClick={handleSendMessage}
                     style={{
                         padding: "10px 15px",
-                        backgroundColor: "#007BFF", // Azul
+                        backgroundColor: "#007BFF",
                         color: "white",
                         border: "none",
                         borderRadius: "4px",

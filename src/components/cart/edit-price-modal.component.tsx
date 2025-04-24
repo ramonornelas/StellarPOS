@@ -3,14 +3,14 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Modal from "@mui/material/Modal";
-import { IconButton, InputAdornment, TextField } from "@mui/material";
+import { IconButton, TextField } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import { ProductsInCart } from "./cart.model";
 import { appContext } from "../../appContext";
 import { generateCustomID } from "../products/products.motor";
 import { countNumberOfSameProducts, deleteProductFromCart } from "./cart.motor";
 import { Product } from "../products/products.model";
-import classes from "./css/edit-price-modal.module.css"
+import classes from "./css/edit-price-modal.module.css";
 
 interface EditPriceModalProps {
 	productInfo: ProductsInCart;
@@ -58,13 +58,12 @@ export const EditPriceModal: React.FC<EditPriceModalProps> = (props) => {
 				<form onSubmit={addCustomProduct}>
 				<Box className={classes["modal-style"]}>
 						<Typography id="modal-modal-title" variant="h6" component="h2">
-							<strong>Enter a New Price</strong>
+							<strong>Nuevo precio</strong>
 						</Typography>
 
 						<TextField
-							required
 							id="product-name-required"
-							label="Product name"
+							label="Producto"
 							variant="standard"
 							size="small"
 							margin="dense"
@@ -75,9 +74,8 @@ export const EditPriceModal: React.FC<EditPriceModalProps> = (props) => {
 							required
 							inputRef={priceRef}
 							id="product-price-required"
-							label="Price"
+							label="Precio"
 							InputProps={{
-								endAdornment: <InputAdornment position="end">€</InputAdornment>,
 								inputProps: { min: 0, step: "any" },
 							}}
 							variant="standard"
@@ -93,7 +91,7 @@ export const EditPriceModal: React.FC<EditPriceModalProps> = (props) => {
 							type="submit"
 							sx={{ mt: 2 }}
 						>
-							Modify Price
+							Cambiar precio
 						</Button>
 					</Box>
 				</form>

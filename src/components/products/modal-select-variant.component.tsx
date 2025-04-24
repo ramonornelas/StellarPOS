@@ -11,6 +11,7 @@ import classes from "./css/modal-select-variant.module.css";
 import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import { DataContext } from "../../dataContext";
 import { formatCurrency } from "../../functions/generalFunctions";
+import { updateCart } from "../cart/cart.utils";
 
 interface SelectVariantProps {
 	product: Product;
@@ -18,6 +19,7 @@ interface SelectVariantProps {
 
 export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
 	const ProductVariants = useContext(DataContext).productVariants;
+	const products = useContext(DataContext).products;
 	const { product } = props;
 	const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
 
@@ -28,20 +30,21 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
 	};
 
 	const addCustomProduct = (selectedOption: string) => {
-			const productFinded = searchVariantById(ProductVariants, selectedOption);
+			const productFound = searchVariantById(ProductVariants, selectedOption);
 
-			// Combine product.name and productFinded.name
-			const combinedProductFinded = {
-				...productFinded,
+			// Combine product.name and productFound.name
+			const combinedproductFound = {
+				...productFound,
 				id: product.id,
-				product_variant_id: productFinded.id,
-				name: `${product.name} ${productFinded.name}`,
+				product_variant_id: productFound.id,
+				name: `${product.name} ${productFound.name}`,
 				image_url: "",
-				is_combo: false
+				is_combo: false,
+				is_active: true,
 			};
 
-			setProductsInCart([...productsInCart, combinedProductFinded]);
-			openSnackBarProductAdded(combinedProductFinded.name, productFinded.price);
+			updateCart("add", productsInCart, setProductsInCart, products, combinedproductFound);
+			openSnackBarProductAdded(combinedproductFound.name, productFound.price);
 			setOpen(false);
 	};
 

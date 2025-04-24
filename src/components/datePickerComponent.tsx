@@ -20,7 +20,7 @@ const DatePickerComponent: React.FC = () => {
                         textField: {
                             fullWidth: true,
                             variant: "outlined",
-                            style: { width: '200px', height: '40px', margin: '0 10px' } // Adjust the margin as needed
+                            style: { width: '200px', height: '40px', margin: '0 10px' }
                         },
                     }}
                 />

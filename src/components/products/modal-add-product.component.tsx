@@ -35,7 +35,8 @@ export const BasicModal: React.FC = () => {
             description: "",
             is_combo: false,
             product_variant_id: "",
-            display_order: 9999
+            display_order: 9999,
+            is_active: true,
         };
         setProductsInCart([...productsInCart, newCustomProduct]);
         setOpen(false);

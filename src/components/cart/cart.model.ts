@@ -8,6 +8,7 @@ export interface ProductsInCart {
 	payment_method?: string;
 	ticket?: string;
 	display_order?: number;
+	is_combo?: boolean;
 }
 
 export interface Payment {

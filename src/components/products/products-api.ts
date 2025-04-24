@@ -32,3 +32,14 @@ export const fetchProductVariants = async () => {
     return [];
   }
 };
+
+export const fetchProductCombos = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/products/combos`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching product combos:', error);
+    return [];
+  }
+};
