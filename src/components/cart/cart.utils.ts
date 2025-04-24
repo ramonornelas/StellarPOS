@@ -99,10 +99,8 @@ export const updateCart = async (
   if (action === "add") {
     updatedCart.push(productToModify);
   } else if (action === "subtract") {
-    let productFound = false;
     for (let i = updatedCart.length - 1; i >= 0; i--) {
       if (updatedCart[i].id === productToModify.id) {
-        productFound = true;
         updatedCart.splice(i, 1);
         break;
       }
