@@ -48,10 +48,19 @@ export const CalcTotal: React.FC = () => {
 	const [customTipError, setCustomTipError] = useState<boolean>(false);
 	const [showNotes, setShowNotes] = useState(false);
 	const [notes, setNotes] = useState<string>("");
+	const [receivedAmount, setReceivedAmount] = useState<number | null>(null);
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
 	const { fetchData } = useContext(DataContext);
 	const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+
+	// Utility function to calculate change
+	const calculateChange = (receivedAmount: number | null, totalToPay: number): number => {
+		if (receivedAmount === null) return 0;
+		return receivedAmount > totalToPay
+			? parseFloat((receivedAmount - totalToPay).toFixed(2))
+			: 0;
+	};
 
 	useEffect(() => {
 		if (splitPayments.length <= 0) {
@@ -70,6 +79,12 @@ export const CalcTotal: React.FC = () => {
 			handleTipPercentage(tipPercentage)
 		}
 	}, [totalWithDiscount]);
+
+	useEffect(() => {
+		// Recalculate change amount when discount, tip, or received amount changes
+		const { totalToPay } = calculateRemainingAmount();
+		setChangeAmount(calculateChange(receivedAmount, totalToPay));
+	}, [discount, tipAmount, receivedAmount]);
 
 	const tipOptions = [
 		{ value: 0, label: "0%" },
@@ -172,8 +187,9 @@ export const CalcTotal: React.FC = () => {
 				split_payments: (paymentMethod === 'split' && splitPayments.length > 0) ? splitPayments : [],
 				discount: discount,
 				tip: tipAmount,
+				received_amount: receivedAmount,
 				change: changeAmount,
-				notes: notes
+				notes: notes,
 			};
 
 			handlePostOrder();
@@ -210,6 +226,16 @@ export const CalcTotal: React.FC = () => {
 
 		remainingAmount = parseFloat((totalToPay - totalSplitPayments).toFixed(2));
 		return { totalSplitPayments, remainingAmount, totalToPay };
+	};
+
+	// Function to handle received amount change
+	const handleReceivedAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const amount = event.target.value !== '' ? parseFloat(parseFloat(event.target.value).toFixed(2)) : 0;
+		setReceivedAmount(amount);
+
+		// Calculate change using the utility function
+		const { totalToPay } = calculateRemainingAmount();
+		setChangeAmount(calculateChange(amount, totalToPay));
 	};
 
 	//Toggle functions
@@ -639,6 +665,30 @@ export const CalcTotal: React.FC = () => {
 								error={splitAmountError}
 								helperText={splitAmountError ? "Falta importe" : ""}
 							/>
+						)}
+						<Box sx={{ mt: 2 }}>
+							<TextField
+								id="receivedAmountField"
+								required
+								size="small"
+								onChange={handleReceivedAmountChange}
+								label="Monto recibido"
+								InputProps={{
+									startAdornment: <InputAdornment position="start">$</InputAdornment>,
+									inputProps: { min: 0, step: "any" },
+								}}
+								variant="standard"
+								margin="dense"
+								type="number"
+								helperText="Ingrese el monto recibido del cliente"
+							/>
+						</Box>
+						{changeAmount > 0 && (
+							<Box sx={{ mt: 2 }}>
+								<Typography variant="body1" component="h3">
+									Cambio: {formatCurrency(changeAmount)}
+								</Typography>
+							</Box>
 						)}
 						{!showSplitFields && (
 							<Button
