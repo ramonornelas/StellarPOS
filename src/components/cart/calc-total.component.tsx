@@ -709,7 +709,7 @@ export const CalcTotal: React.FC = () => {
 							onClick={() => handleButtonClick('cash')}
 							disabled={isButtonDisabled}
 						>
-							{showSplitFields ? "Agregar importe en efectivo" : "Pago total en efectivo"}
+							{showSplitFields ? "Agregar importe en efectivo" : "Finalizar pago en efectivo"}
 						</Button>
 						<Button
 							size="small"
@@ -719,7 +719,7 @@ export const CalcTotal: React.FC = () => {
 							onClick={() => handleButtonClick('card')}
 							disabled={isButtonDisabled}
 						>
-							{showSplitFields ? "Agregar importe en tarjeta" : "Pago total en tarjeta"}
+							{showSplitFields ? "Agregar importe en tarjeta" : "Finalizar pago en tarjeta"}
 						</Button>
 						<Button
 							size="small"
@@ -729,7 +729,7 @@ export const CalcTotal: React.FC = () => {
 							onClick={() => handleButtonClick('transfer')}
 							disabled={isButtonDisabled}
 						>
-							{showSplitFields ? "Agregar importe en transferencia" : "Pago total en transferencia"}
+							{showSplitFields ? "Agregar importe en transferencia" : "Finalizar pago en transferencia"}
 						</Button>
 						{showSplitFields && (
 							<>

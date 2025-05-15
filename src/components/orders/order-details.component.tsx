@@ -91,6 +91,16 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 					</Typography>
 				</>
 			)}
+			{order.received_amount !== undefined && (
+				<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+					Recibido: {formatCurrency(order.received_amount)}
+				</Typography>
+			)}
+			{order.change !== undefined && (
+				<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+					Cambio: {formatCurrency(order.change)}
+				</Typography>
+			)}
 		</AccordionDetails>
 	);
 }

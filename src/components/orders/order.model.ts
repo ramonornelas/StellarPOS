@@ -14,6 +14,8 @@ export interface Order {
 	tip: number;
 	total_with_tip: number;
 	subtotal: number;
+	received_amount: number;
+	change: number;
 }
 
 export interface OrderForOrderDetails {
