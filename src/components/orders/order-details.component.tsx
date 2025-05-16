@@ -51,6 +51,18 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 			{(splitPayments?.length ?? 0) > 0 && (
 				<>
 					<Divider sx={{ m: 1 }} />
+					<Typography
+						variant="subtitle2"
+						sx={{
+							textAlign: "right",
+							color: "primary.main",
+							fontWeight: 600,
+							fontSize: "1rem"
+						}}
+					>
+						Pagos
+					</Typography>
+					<Box m={0.5} />
 				</>
 			)}
 			{splitPayments && (() => {
@@ -69,11 +81,11 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 
 					return (
 						<Box key={payment.id} className={classes["accordion-split-payments-container"]}>
-							<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+							<Typography variant="body1" component="p" sx={{ textAlign: "right", fontSize: "0.9rem" }}>
 								{paymentDescription}:
 							</Typography>
 							<Box m={1} />
-							<Typography variant="body1" component="p">
+							<Typography variant="body1" component="p" sx={{ fontSize: "0.9rem" }}>
 								{paymentAmount}
 							</Typography>
 						</Box>
@@ -83,21 +95,24 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
 			{order.tip > 0 && (
 				<>
 					<Divider sx={{ m: 1 }} />
-					<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+					<Typography variant="body1" component="p" sx={{ textAlign: "right", fontSize: "0.9rem" }}>
 						Propina: (+{formatCurrency(order.tip)})
 					</Typography>
-					<Typography variant="h6" component="p" sx={{ textAlign: "right" }}>
+					<Typography variant="h6" component="p" sx={{ textAlign: "right", fontSize: "1rem" }}>
 						Total con propina: ({formatCurrency(order.total_with_tip)})
 					</Typography>
 				</>
 			)}
 			{order.received_amount !== undefined && (
-				<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
-					Recibido: {formatCurrency(order.received_amount)}
-				</Typography>
+				<>
+					<Divider sx={{ m: 1 }} />
+					<Typography variant="body1" component="p" sx={{ textAlign: "right", fontSize: "0.9rem" }}>
+						Recibido: {formatCurrency(order.received_amount)}
+					</Typography>
+				</>
 			)}
 			{order.change !== undefined && (
-				<Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
+				<Typography variant="body1" component="p" sx={{ textAlign: "right", fontSize: "0.9rem" }}>
 					Cambio: {formatCurrency(order.change)}
 				</Typography>
 			)}

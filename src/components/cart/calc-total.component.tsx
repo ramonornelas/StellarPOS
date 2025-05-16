@@ -30,8 +30,6 @@ export const CalcTotal: React.FC = () => {
 	const total = calcTotal(productsGrouped);
 	const [open, setOpen] = React.useState(false);
 	const [showSplitFields, setShowSplitFields] = useState(false);
-	const [splitAmount, setSplitAmount] = useState<number | null>(null);
-	const [splitAmountError, setSplitAmountError] = useState<boolean>(false);
 	const [showSplitDetails, setShowSplitDetails] = useState(false);
 	const [showDiscount, setShowDiscount] = useState(false);
 	const [discount, setDiscount] = useState<number>(0);
@@ -54,14 +52,6 @@ export const CalcTotal: React.FC = () => {
 	const { fetchData } = useContext(DataContext);
 	const [isButtonDisabled, setIsButtonDisabled] = useState(false);
 
-	// Utility function to calculate change
-	const calculateChange = (receivedAmount: number | null, totalToPay: number): number => {
-		if (receivedAmount === null) return 0;
-		return receivedAmount > totalToPay
-			? parseFloat((receivedAmount - totalToPay).toFixed(2))
-			: 0;
-	};
-
 	useEffect(() => {
 		if (splitPayments.length <= 0) {
 			setShowSplitDetails(false);
@@ -82,8 +72,7 @@ export const CalcTotal: React.FC = () => {
 
 	useEffect(() => {
 		// Recalculate change amount when discount, tip, or received amount changes
-		const { totalToPay } = calculateRemainingAmount();
-		setChangeAmount(calculateChange(receivedAmount, totalToPay));
+		updateChangeAmount(receivedAmount);
 	}, [discount, tipAmount, receivedAmount]);
 
 	const tipOptions = [
@@ -110,7 +99,18 @@ export const CalcTotal: React.FC = () => {
 	};
 
 	const addNewOrder = async (paymentMethod: string) => {
-		let transactionChangeAmount = 0;
+		//let transactionChangeAmount = 0;
+
+		const { totalToPay } = calculateRemainingAmount();
+
+		// Validación de monto recibido
+		if (!showSplitFields) {
+			// Pago normal
+			if (receivedAmount === null || receivedAmount < totalToPay) {
+				alert('El monto recibido debe ser mayor o igual al total a pagar.');
+				return;
+			}
+		}
 
 		if (paymentMethod === 'split') {
 			const { remainingAmount, totalToPay } = calculateRemainingAmount();
@@ -131,41 +131,10 @@ export const CalcTotal: React.FC = () => {
 				return;
 			}
 
-			if (remainingAmount != 0) {
-				if (remainingAmount > 0) {
-					alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.');
-				} else {
-					transactionChangeAmount = Math.abs(remainingAmount);
 
-					// Mensaje de alerta con el total a pagar y pagos realizados
-					let messageCurrentDetails = `El total a pagar es de: ${formatCurrency(totalToPay)}. \nSe han pagado: ${formatCurrency(totalSplitPayments)}.`;
-					let messageRequestToUser = `Devuelve ${formatCurrency(transactionChangeAmount)} en efectivo. \nSe registrará como Cambio Efectivo. \nConfirma la información antes de finalizar el pago.`;
-					let message = `${messageCurrentDetails} \n\n${messageRequestToUser}`;
-
-					alert(message);
-
-					// Registrar devolución completa como movimiento inverso
-					const existingChangePayment = splitPayments.find(payment => payment.amount < 0);
-
-					if (existingChangePayment) {
-						// Si ya existe un movimiento inverso, actualiza su importe
-						let newChangeAmount = Math.abs(existingChangePayment.amount) + transactionChangeAmount;
-						existingChangePayment.amount = -newChangeAmount;
-						setSplitPayments([...splitPayments]);
-						setChangeAmount(newChangeAmount);
-					} else {
-						// Si no existe, crea uno nuevo
-						const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
-						const changePayment = {
-							id: newId,
-							amount: -transactionChangeAmount,
-							payment_method: 'cash', // Devolución en efectivo
-						};
-						setSplitPayments([...splitPayments, changePayment]);
-						setChangeAmount(transactionChangeAmount);
-					}
-				}
-				return; // Salir de la función si hay un monto restante
+			if (remainingAmount > 0) {
+				alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.');
+				return;
 			}
 		} else {
 			if (showCustomTip && tipAmount === 0) {
@@ -178,6 +147,19 @@ export const CalcTotal: React.FC = () => {
 		const dateString = selectedDate ? selectedDate.toLocaleDateString('en-CA') : "2024-12-31";
 		getLastOrderId(dateString).then(lastOrderId => {
 			const newOrderId = generateNewOrderId(lastOrderId);
+
+			// Calculate receivedAmount and changeAmount for split payments
+			let orderReceivedAmount = receivedAmount;
+			let orderChangeAmount = changeAmount;
+			if (paymentMethod === 'split') {
+				orderReceivedAmount = splitPayments.reduce((acc, payment) => acc + payment.amount, 0);
+				// Use the same logic as calculateChange for split
+				const { totalToPay } = calculateRemainingAmount();
+				orderChangeAmount = orderReceivedAmount > totalToPay
+					? parseFloat((orderReceivedAmount - totalToPay).toFixed(2))
+					: 0;
+			}
+
 			const newOrderTicket = {
 				date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : new Date().toISOString().slice(0, 10),
 				ticket: newOrderId,
@@ -187,8 +169,8 @@ export const CalcTotal: React.FC = () => {
 				split_payments: (paymentMethod === 'split' && splitPayments.length > 0) ? splitPayments : [],
 				discount: discount,
 				tip: tipAmount,
-				received_amount: receivedAmount,
-				change: changeAmount,
+				received_amount: orderReceivedAmount,
+				change: orderChangeAmount,
 				notes: notes,
 			};
 
@@ -228,14 +210,32 @@ export const CalcTotal: React.FC = () => {
 		return { totalSplitPayments, remainingAmount, totalToPay };
 	};
 
-	// Function to handle received amount change
 	const handleReceivedAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const amount = event.target.value !== '' ? parseFloat(parseFloat(event.target.value).toFixed(2)) : 0;
-		setReceivedAmount(amount);
+		const value = event.target.value;
+		if (value === '') {
+			setReceivedAmount(null);
+			updateChangeAmount(null);
+		} else {
+			const amount = parseFloat(parseFloat(value).toFixed(2));
+			setReceivedAmount(amount);
+			updateChangeAmount(amount);
+		}
+	};
 
-		// Calculate change using the utility function
-		const { totalToPay } = calculateRemainingAmount();
-		setChangeAmount(calculateChange(amount, totalToPay));
+	const calculateChange = (receivedAmount: number | null, remainingAmount: number): number => {
+		if (receivedAmount === null) return 0;
+		return receivedAmount > remainingAmount
+			? parseFloat((receivedAmount - remainingAmount).toFixed(2))
+			: 0;
+	};
+
+	const updateChangeAmount = (receivedAmount: number | null) => {
+		const { totalToPay, remainingAmount } = calculateRemainingAmount();
+		if (showSplitFields) {
+			setChangeAmount(calculateChange(receivedAmount, remainingAmount));
+		} else {
+			setChangeAmount(calculateChange(receivedAmount, totalToPay));
+		}
 	};
 
 	//Toggle functions
@@ -291,42 +291,28 @@ export const CalcTotal: React.FC = () => {
 		setShowSplitFields(!showSplitFields);
 	};
 
-	const handleSplitAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		let splitAmount = 0;
-		if (event.target.value !== '') {
-			splitAmount = parseFloat(parseFloat(event.target.value).toFixed(2));
-		}
-		setSplitAmount(splitAmount);
-	};
-
 	const addNewSplitPayment = (paymentMethod: string) => {
-		if (typeof splitAmount === 'number' && !Number.isNaN(splitAmount)) {
-			const { remainingAmount } = calculateRemainingAmount();
-			if (splitAmount <= 0) {
+		if (typeof receivedAmount === 'number' && !Number.isNaN(receivedAmount)) {
+			if (receivedAmount <= 0) {
 				alert('El pago debe ser mayor a $0.00');
-				return; // Exit the function if the split amount is greater than the remaining amount
-			}
-			if (splitAmount > remainingAmount) {
-				alert('El pago (' + formatCurrency(splitAmount) + ') no puede ser mayor al restante por pagar (' + formatCurrency(remainingAmount) + ').');
-				return; // Exit the function if the split amount is greater than the remaining amount
+				return;
 			}
 			const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
 			const splitPayment = {
 				id: newId,
-				amount: splitAmount,
+				amount: receivedAmount,
 				payment_method: paymentMethod,
 			};
 			setSplitPayments([...splitPayments, splitPayment]);
-			setSplitAmountError(false);
-			setSplitAmount(null);
-			const splitAmountField = document.getElementById('splitAmountField') as HTMLInputElement;
-			if (splitAmountField) {
-				splitAmountField.value = '';
+			setReceivedAmount(null);
+			const receivedAmountField = document.getElementById('receivedAmountField') as HTMLInputElement;
+			if (receivedAmountField) {
+				receivedAmountField.value = '';
 			}
 			setShowCustomTip(false);
-			openSnackBarSplitPaymentRegistered(splitAmount, mapPaymentMethod(paymentMethod));
+			openSnackBarSplitPaymentRegistered(receivedAmount, mapPaymentMethod(paymentMethod));
 		} else {
-			setSplitAmountError(true);
+			// Puedes mostrar un error si lo deseas
 		}
 	};
 
@@ -401,14 +387,19 @@ export const CalcTotal: React.FC = () => {
 
 	//Initial state for the modal
 	const modalInitialState = () => {
-		//Split payments
-		setSplitAmount(0);
-		setShowSplitFields(false);
-		setShowSplitDetails(false);
-		setSplitAmountError(false);
+		// Split payments
+		if (splitPayments.length === 0) {
+			setShowSplitFields(false);
+			setShowSplitDetails(false);
+		} else {
+			setShowSplitFields(true);
+			setShowSplitDetails(true);
+		}
 		//Tip
 		setTipAmount(0);
 		setTipPercentage(0);
+		setReceivedAmount(null);
+		setChangeAmount(0);
 		setTotalWithTip(total);
 		setShowTip(false);
 		setShowCustomTip(false);
@@ -428,6 +419,7 @@ export const CalcTotal: React.FC = () => {
 	}
 
 	const { totalSplitPayments, remainingAmount } = calculateRemainingAmount();
+	const canAddMorePayments = showSplitFields && remainingAmount > 0;
 
 	return (
 		<Paper className={classes["container-total"]} elevation={5} square>
@@ -451,7 +443,9 @@ export const CalcTotal: React.FC = () => {
 					</Typography>
 					{showSplitFields && (
 						<Typography id="modal-modal-title" variant="body1" component="h3">
-							Restante: {formatCurrency(remainingAmount)}
+							{remainingAmount < 0
+								? `Cambio: ${formatCurrency(Math.abs(remainingAmount))}`
+								: `Restante: ${formatCurrency(remainingAmount)}`}
 						</Typography>
 					)}
 					<Box sx={{ mt: 2, display: "flex", flexDirection: "column" }}></Box>
@@ -463,11 +457,11 @@ export const CalcTotal: React.FC = () => {
 							<Typography id="modal-modal-title" variant="body1" component="h2" align="left">
 								{discount > 0 ? (
 									<div>
-										Descuento: -{formatCurrency(discount)} = {formatCurrency(totalWithDiscount)}
+										Descuento 🙂: -{formatCurrency(discount)} = {formatCurrency(totalWithDiscount)}
 									</div>
 								) : (
 									<div>
-										Descuento
+										Descuento 🙂
 									</div>
 								)}
 							</Typography>
@@ -643,46 +637,31 @@ export const CalcTotal: React.FC = () => {
 								multiline
 								rows={2}
 								variant="outlined"
-								style={{ margin: '20px 0' }}
+								style={{ margin: '8px 0' }}
 								value={notes}
 							/>
 						)}
-						<Box sx={{ mt: 2 }} />
-						{showSplitFields && (
-							<TextField
-								id="splitAmountField"
-								required
-								size="small"
-								onChange={handleSplitAmountChange}
-								label="Importe a pagar"
-								InputProps={{
-									startAdornment: <InputAdornment position="start">$</InputAdornment>,
-									inputProps: { min: 0, step: "any" },
-								}}
-								variant="standard"
-								margin="dense"
-								type="number"
-								error={splitAmountError}
-								helperText={splitAmountError ? "Falta importe" : ""}
-							/>
+						{(!showSplitFields || canAddMorePayments) && (
+							<Box sx={{ mt: 1 }}>
+								<TextField
+									id="receivedAmountField"
+									required
+									size="small"
+									onChange={handleReceivedAmountChange}
+									label="Monto recibido"
+									InputProps={{
+										startAdornment: <InputAdornment position="start">$</InputAdornment>,
+										inputProps: { min: 0, step: "any" },
+									}}
+									variant="standard"
+									margin="dense"
+									type="number"
+									helperText={showSplitFields ? "Ingrese el monto a agregar" : "Ingrese el monto recibido del cliente"}
+									value={receivedAmount ?? ""}
+									disabled={(showSplitFields && !canAddMorePayments)}
+								/>
+							</Box>
 						)}
-						<Box sx={{ mt: 2 }}>
-							<TextField
-								id="receivedAmountField"
-								required
-								size="small"
-								onChange={handleReceivedAmountChange}
-								label="Monto recibido"
-								InputProps={{
-									startAdornment: <InputAdornment position="start">$</InputAdornment>,
-									inputProps: { min: 0, step: "any" },
-								}}
-								variant="standard"
-								margin="dense"
-								type="number"
-								helperText="Ingrese el monto recibido del cliente"
-							/>
-						</Box>
 						{changeAmount > 0 && (
 							<Box sx={{ mt: 2 }}>
 								<Typography variant="body1" component="h3">
@@ -701,47 +680,55 @@ export const CalcTotal: React.FC = () => {
 								{"Dividir pago >>"}
 							</Button>
 						)}
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('cash')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en efectivo" : "Finalizar pago en efectivo"}
-						</Button>
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('card')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en tarjeta" : "Finalizar pago en tarjeta"}
-						</Button>
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('transfer')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en transferencia" : "Finalizar pago en transferencia"}
-						</Button>
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('cash')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en efectivo" : "Finalizar pago en efectivo"}
+							</Button>
+						)}
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('card')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en tarjeta" : "Finalizar pago en tarjeta"}
+							</Button>
+						)}
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('transfer')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en transferencia" : "Finalizar pago en transferencia"}
+							</Button>
+						)}
 						{showSplitFields && (
 							<>
-								<Button
-									size="small"
-									color="primary"
-									variant="outlined"
-									sx={{ mt: 2 }}
-									onClick={handleSplitClick}
-								>
-									{"<< Regresar"}
-								</Button>
+								{splitPayments.length === 0 && (
+									<Button
+										size="small"
+										color="primary"
+										variant="outlined"
+										sx={{ mt: 2 }}
+										onClick={handleSplitClick}
+									>
+										{"<< Pago total"}
+									</Button>
+								)}
 								<Button
 									size="small"
 									color="success"
@@ -756,7 +743,7 @@ export const CalcTotal: React.FC = () => {
 								</Button>
 							</>
 						)}
-						<Box mt={2} sx={{ display: "flex", flexDirection: "column" }}>
+						<Box sx={{ display: "flex", flexDirection: "column" }}>
 							<Button
 								size="small"
 								color="error"
