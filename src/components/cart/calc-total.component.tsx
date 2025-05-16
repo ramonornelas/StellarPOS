@@ -20,6 +20,8 @@ import { PaymentItem } from "./cart-payment-item.component";
 import { DataContext } from '../../dataContext';
 
 export const CalcTotal: React.FC = () => {
+    const showTipFeatureFlag = false; // Cambia a true para habilitar la propina
+
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { dateCTX } = useContext(appContext);
@@ -515,70 +517,76 @@ export const CalcTotal: React.FC = () => {
 								<Box sx={{ mt: 2 }}></Box>
 							</>
 						)}
-						<Box display="flex" alignItems="center">
-							<IconButton onClick={handleToggleTip}>
-								{showTip ? <ExpandLess /> : <ExpandMore />}
-							</IconButton>
-							{tipAmount > 0 ? (
-								<div>
-									Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
-								</div>
-							) : (
-								<div>
-									Propina
-								</div>
-							)}
-						</Box>
-						{showTip && (
+						{/* INICIO: Feature flag para propina */}
+						{showTipFeatureFlag && (
 							<>
-								<Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
-									<div>
-										<ToggleButtonGroup
-											className={classes["toggle-button-group"]}
-											color="primary"
-											value={tipPercentage}
-											exclusive
-											onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
-											aria-label="tip percentage"
-										>
-											{tipOptions.map(option => (
-												<ToggleButton
-													key={option.value}
-													value={option.value}
-													aria-label={option.label}
-													className={classes["toggle-button"]}
-												>
-													{option.label}
-												</ToggleButton>
-											))}
-										</ToggleButtonGroup>
-									</div>
+								<Box display="flex" alignItems="center">
+									<IconButton onClick={handleToggleTip}>
+										{showTip ? <ExpandLess /> : <ExpandMore />}
+									</IconButton>
+									{tipAmount > 0 ? (
+										<div>
+											Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
+										</div>
+									) : (
+										<div>
+											Propina
+										</div>
+									)}
 								</Box>
-								{showCustomTip && (
-									<Box sx={{ display: "flex", flexDirection: "column" }}>
-										<TextField
-											id="customTipField"
-											required
-											size="small"
-											sx={{ mt: 2 }}
-											onChange={handleCustomTipChange}
-											label="Propina"
-											InputProps={{
-												startAdornment: <InputAdornment position="start">$</InputAdornment>,
-												inputProps: { min: 0, step: "any" },
-											}}
-											variant="standard"
-											margin="dense"
-											type="number"
-											error={customTipError}
-											helperText={customTipError ? "Falta importe" : ""}
-											value={tipAmount}
-										/>
-									</Box>
+								{showTip && (
+									<>
+										<Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
+											<div>
+												<ToggleButtonGroup
+													className={classes["toggle-button-group"]}
+													color="primary"
+													value={tipPercentage}
+													exclusive
+													onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
+													aria-label="tip percentage"
+												>
+													{tipOptions.map(option => (
+														<ToggleButton
+															key={option.value}
+															value={option.value}
+															aria-label={option.label}
+															className={classes["toggle-button"]}
+														>
+															{option.label}
+														</ToggleButton>
+													))}
+												</ToggleButtonGroup>
+											</div>
+										</Box>
+										{showCustomTip && (
+											<Box sx={{ display: "flex", flexDirection: "column" }}>
+												<TextField
+													id="customTipField"
+													required
+													size="small"
+													sx={{ mt: 2 }}
+													onChange={handleCustomTipChange}
+													label="Propina"
+													InputProps={{
+														startAdornment: <InputAdornment position="start">$</InputAdornment>,
+														inputProps: { min: 0, step: "any" },
+													}}
+													variant="standard"
+													margin="dense"
+													type="number"
+													error={customTipError}
+													helperText={customTipError ? "Falta importe" : ""}
+													value={tipAmount}
+												/>
+											</Box>
+										)}
+										<Box sx={{ mt: 2 }}></Box>
+									</>
 								)}
-								<Box sx={{ mt: 2 }}></Box>
 							</>
 						)}
+						{/* FIN: Feature flag para propina */}
 						{showSplitFields && (
 							<>
 								{totalSplitPayments > 0 && (
