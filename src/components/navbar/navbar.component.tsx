@@ -103,7 +103,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         {/* Logoff Button */}
                         <Button onClick={handleLogoff}>
                             <Typography color="error" sx={{ fontSize: "1rem", fontWeight: "bold" }}>
-                                Sign Out
+                                Salir
                             </Typography>
                         </Button>
 
