@@ -9,7 +9,7 @@ import { generateNewOrderId, getLastOrderId } from "../orders/order.motor";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from 'react-router-dom';
 import { openSnackBarOrderRegistered, openSnackBarSplitPaymentRegistered } from "../snackbar/snackbar.motor";
-import { postOrderToApi } from '../../functions/apiFunctions';
+import { postCreateOrder } from '../../functions/apiFunctions';
 import { mapPaymentMethod, formatCurrency } from '../../functions/generalFunctions';
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -174,12 +174,13 @@ export const CalcTotal: React.FC = () => {
 				received_amount: orderReceivedAmount,
 				change: orderChangeAmount,
 				notes: notes,
+				cash_register_id: sessionStorage.getItem("cashRegisterId") || ""
 			};
 
 			handlePostOrder();
 
 			async function handlePostOrder() {
-				const result = await postOrderToApi(newOrderTicket);
+				const result = await postCreateOrder(newOrderTicket);
 				if (result) {
 					setShowSplitFields(false);
 					openSnackBarOrderRegistered(newOrderTicket.ticket);

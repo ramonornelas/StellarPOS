@@ -16,6 +16,7 @@ export interface Order {
 	subtotal: number;
 	received_amount: number;
 	change: number;
+	cash_register_id: string;
 }
 
 export interface OrderForOrderDetails {

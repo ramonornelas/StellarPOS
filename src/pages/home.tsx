@@ -1,8 +1,10 @@
 import { Container, Grid } from "@mui/material";
 import { ProductsList } from "../components/products/products-list.component";
-import React from "react";
+import React, { useEffect } from "react";
 import { CartList } from "../components/cart/cart-list.component";
 import classes from "./css/home.module.css";
+import { useNavigate } from "react-router-dom";
+import { getCashRegister } from "../functions/apiFunctions";
 
 interface MainContainerProps {
 	filter: string;
@@ -10,6 +12,43 @@ interface MainContainerProps {
 
 export const Home: React.FC<MainContainerProps> = (props) => {
 	const { filter } = props;
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		const checkCashRegister = async () => {
+			const cashRegisterId = sessionStorage.getItem("cashRegisterId");
+			if (!cashRegisterId) {
+				navigate("/cash-register", {
+					state: { message: "Debes abrir la caja para comenzar a operar." },
+				});
+				return;
+			}
+			const cashRegister = await getCashRegister(cashRegisterId);
+
+			const cashRegisterDate = new Date(cashRegister.date);
+			const today = new Date();
+
+			const cashRegisterDateString = cashRegisterDate
+				.toISOString()
+				.slice(0, 10); // 'YYYY-MM-DD'
+			const todayString = today.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+
+			if (
+				cashRegister &&
+				cashRegister.status === "open" &&
+				cashRegisterDateString !== todayString
+			) {
+				// Caja abierta de un día anterior
+				navigate("/cash-register", {
+					state: {
+						message:
+							"Hay una caja abierta de un día anterior. Debes cerrarla para continuar.",
+					},
+				});
+			}
+		};
+		checkCashRegister();
+	}, [navigate]);
 
 	return (
 		<Container maxWidth="xl" className={classes["main-container"]}>
