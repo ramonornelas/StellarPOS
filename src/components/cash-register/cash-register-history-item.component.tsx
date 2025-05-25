@@ -12,9 +12,32 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
 
   const statusLabel = item.status === "closed" ? "Cerrado" : "Abierto";
 
+  // Determinar color de fondo según la diferencia
+  let differenceColor = "transparent";
+  if (
+    item.difference_amount !== undefined &&
+    item.difference_amount !== null &&
+    Number(item.difference_amount) === 0
+  ) {
+    differenceColor = "#E8F5E9"; // verde mucho más claro
+  } else if (item.difference_amount > 0) {
+    differenceColor = "#FFFDE7"; // amarillo mucho más claro
+  } else if (item.difference_amount < 0) {
+    differenceColor = "#FCE4EC"; // rosa mucho más claro
+  }
+
   return (
     <Accordion sx={{ width: "100%", boxSizing: "border-box" }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ width: "100%", boxSizing: "border-box" }}>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        sx={{
+          width: "100%",
+          boxSizing: "border-box",
+          backgroundColor: differenceColor, // <-- Aplica el color aquí
+          borderRadius: 1,
+          transition: "background-color 0.3s",
+        }}
+      >
         <Box sx={{ width: "100%", overflowX: "auto", boxSizing: "border-box" }}>
           {/* Header row */}
           <Box
@@ -45,6 +68,8 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
               justifyContent: "space-between",
               flexWrap: "wrap",
               boxSizing: "border-box",
+              backgroundColor: differenceColor,
+              borderRadius: 1,
             }}
           >
             <Typography variant="body1" sx={{ minWidth: 100 }}>{item.date ?? "-"}</Typography>
