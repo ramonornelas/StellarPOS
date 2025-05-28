@@ -15,6 +15,8 @@ import Login from "./components/login/Login";
 import Register from "./components/register/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ChatPage } from "./pages/chatPage";
+import { CashRegister } from "./pages/cashRegister.tsx";
+import { CashRegisterHistoryPage } from "./pages/cashRegisterHistoryPage.tsx";
 
 function App() {
     const [productsInCart, setProductsInCart] = React.useState<Product[]>(
@@ -126,6 +128,15 @@ function App() {
                                     </ProtectedRoute>
                                 }
                             />
+                            <Route
+                                path="/cash-register"
+                                element={
+                                    <ProtectedRoute isLoggedIn={isLoggedIn}>
+                                        <CashRegister />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route path="/cash-register-history" element={<CashRegisterHistoryPage />} />
                             <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                     </appContext.Provider>

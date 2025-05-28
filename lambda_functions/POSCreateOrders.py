@@ -44,6 +44,7 @@ def lambda_handler(event, context):
                 'payment_method': payment_method,
                 'customer_id': order.get('customer_id', ''),
                 'notes': order.get('notes', ''),
+                'cash_register_id': order.get('cash_register_id', ''),
                 'created_datetime': get_current_datetime(),
                 'updated_datetime': get_current_datetime(),
                 'updated_user_id': order.get('updated_user_id', ''),

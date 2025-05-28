@@ -16,6 +16,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import ChatIcon from "@mui/icons-material/Chat";
+import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 
 import React from "react";
 import { appContext } from "../../appContext";
@@ -111,7 +112,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         <Button component={NavLink} to={"/"}>
                             <HomeIcon color="action" fontSize="large" />
                         </Button>
-                        {showDatePickerFeatureFlag && ( // Conditionally render the date picker button
+                        {showDatePickerFeatureFlag && (
                             <Button component={NavLink} to={"/date-picker"}>
                                 <DateRangeIcon color="action" fontSize="large" />
                             </Button>
@@ -119,8 +120,11 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         <Button component={NavLink} to={"/orders"}>
                             <ListAltIcon color="action" fontSize="large" />
                         </Button>
-                        <Button component={NavLink} to={"/chat"}> {/* Nuevo botón para el chat */}
+                        <Button component={NavLink} to={"/chat"}>
                             <ChatIcon color="action" fontSize="large" />
+                        </Button>
+                        <Button component={NavLink} to={"/cash-register"}>
+                            <PointOfSaleIcon color="action" fontSize="large" />
                         </Button>
                         {enableCartButton()}
                     </Box>
