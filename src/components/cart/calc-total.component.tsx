@@ -20,6 +20,8 @@ import { PaymentItem } from "./cart-payment-item.component";
 import { DataContext } from '../../dataContext';
 
 export const CalcTotal: React.FC = () => {
+    const showTipFeatureFlag = false; // Cambia a true para habilitar la propina
+
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { dateCTX } = useContext(appContext);
@@ -30,8 +32,6 @@ export const CalcTotal: React.FC = () => {
 	const total = calcTotal(productsGrouped);
 	const [open, setOpen] = React.useState(false);
 	const [showSplitFields, setShowSplitFields] = useState(false);
-	const [splitAmount, setSplitAmount] = useState<number | null>(null);
-	const [splitAmountError, setSplitAmountError] = useState<boolean>(false);
 	const [showSplitDetails, setShowSplitDetails] = useState(false);
 	const [showDiscount, setShowDiscount] = useState(false);
 	const [discount, setDiscount] = useState<number>(0);
@@ -48,6 +48,7 @@ export const CalcTotal: React.FC = () => {
 	const [customTipError, setCustomTipError] = useState<boolean>(false);
 	const [showNotes, setShowNotes] = useState(false);
 	const [notes, setNotes] = useState<string>("");
+	const [receivedAmount, setReceivedAmount] = useState<number | null>(null);
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
 	const { fetchData } = useContext(DataContext);
@@ -70,6 +71,11 @@ export const CalcTotal: React.FC = () => {
 			handleTipPercentage(tipPercentage)
 		}
 	}, [totalWithDiscount]);
+
+	useEffect(() => {
+		// Recalculate change amount when discount, tip, or received amount changes
+		updateChangeAmount(receivedAmount);
+	}, [discount, tipAmount, receivedAmount]);
 
 	const tipOptions = [
 		{ value: 0, label: "0%" },
@@ -95,7 +101,18 @@ export const CalcTotal: React.FC = () => {
 	};
 
 	const addNewOrder = async (paymentMethod: string) => {
-		let transactionChangeAmount = 0;
+		//let transactionChangeAmount = 0;
+
+		const { totalToPay } = calculateRemainingAmount();
+
+		// Validación de monto recibido
+		if (!showSplitFields) {
+			// Pago normal
+			if (receivedAmount === null || receivedAmount < totalToPay) {
+				alert('El monto recibido debe ser mayor o igual al total a pagar.');
+				return;
+			}
+		}
 
 		if (paymentMethod === 'split') {
 			const { remainingAmount, totalToPay } = calculateRemainingAmount();
@@ -116,41 +133,10 @@ export const CalcTotal: React.FC = () => {
 				return;
 			}
 
-			if (remainingAmount != 0) {
-				if (remainingAmount > 0) {
-					alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.');
-				} else {
-					transactionChangeAmount = Math.abs(remainingAmount);
 
-					// Mensaje de alerta con el total a pagar y pagos realizados
-					let messageCurrentDetails = `El total a pagar es de: ${formatCurrency(totalToPay)}. \nSe han pagado: ${formatCurrency(totalSplitPayments)}.`;
-					let messageRequestToUser = `Devuelve ${formatCurrency(transactionChangeAmount)} en efectivo. \nSe registrará como Cambio Efectivo. \nConfirma la información antes de finalizar el pago.`;
-					let message = `${messageCurrentDetails} \n\n${messageRequestToUser}`;
-
-					alert(message);
-
-					// Registrar devolución completa como movimiento inverso
-					const existingChangePayment = splitPayments.find(payment => payment.amount < 0);
-
-					if (existingChangePayment) {
-						// Si ya existe un movimiento inverso, actualiza su importe
-						let newChangeAmount = Math.abs(existingChangePayment.amount) + transactionChangeAmount;
-						existingChangePayment.amount = -newChangeAmount;
-						setSplitPayments([...splitPayments]);
-						setChangeAmount(newChangeAmount);
-					} else {
-						// Si no existe, crea uno nuevo
-						const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
-						const changePayment = {
-							id: newId,
-							amount: -transactionChangeAmount,
-							payment_method: 'cash', // Devolución en efectivo
-						};
-						setSplitPayments([...splitPayments, changePayment]);
-						setChangeAmount(transactionChangeAmount);
-					}
-				}
-				return; // Salir de la función si hay un monto restante
+			if (remainingAmount > 0) {
+				alert('No se puede finalizar el pago. Aún resta ' + formatCurrency(remainingAmount) + ' por pagar.');
+				return;
 			}
 		} else {
 			if (showCustomTip && tipAmount === 0) {
@@ -163,6 +149,19 @@ export const CalcTotal: React.FC = () => {
 		const dateString = selectedDate ? selectedDate.toLocaleDateString('en-CA') : "2024-12-31";
 		getLastOrderId(dateString).then(lastOrderId => {
 			const newOrderId = generateNewOrderId(lastOrderId);
+
+			// Calculate receivedAmount and changeAmount for split payments
+			let orderReceivedAmount = receivedAmount;
+			let orderChangeAmount = changeAmount;
+			if (paymentMethod === 'split') {
+				orderReceivedAmount = splitPayments.reduce((acc, payment) => acc + payment.amount, 0);
+				// Use the same logic as calculateChange for split
+				const { totalToPay } = calculateRemainingAmount();
+				orderChangeAmount = orderReceivedAmount > totalToPay
+					? parseFloat((orderReceivedAmount - totalToPay).toFixed(2))
+					: 0;
+			}
+
 			const newOrderTicket = {
 				date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : new Date().toISOString().slice(0, 10),
 				ticket: newOrderId,
@@ -172,8 +171,9 @@ export const CalcTotal: React.FC = () => {
 				split_payments: (paymentMethod === 'split' && splitPayments.length > 0) ? splitPayments : [],
 				discount: discount,
 				tip: tipAmount,
-				change: changeAmount,
-				notes: notes
+				received_amount: orderReceivedAmount,
+				change: orderChangeAmount,
+				notes: notes,
 			};
 
 			handlePostOrder();
@@ -210,6 +210,34 @@ export const CalcTotal: React.FC = () => {
 
 		remainingAmount = parseFloat((totalToPay - totalSplitPayments).toFixed(2));
 		return { totalSplitPayments, remainingAmount, totalToPay };
+	};
+
+	const handleReceivedAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const value = event.target.value;
+		if (value === '') {
+			setReceivedAmount(null);
+			updateChangeAmount(null);
+		} else {
+			const amount = parseFloat(parseFloat(value).toFixed(2));
+			setReceivedAmount(amount);
+			updateChangeAmount(amount);
+		}
+	};
+
+	const calculateChange = (receivedAmount: number | null, remainingAmount: number): number => {
+		if (receivedAmount === null) return 0;
+		return receivedAmount > remainingAmount
+			? parseFloat((receivedAmount - remainingAmount).toFixed(2))
+			: 0;
+	};
+
+	const updateChangeAmount = (receivedAmount: number | null) => {
+		const { totalToPay, remainingAmount } = calculateRemainingAmount();
+		if (showSplitFields) {
+			setChangeAmount(calculateChange(receivedAmount, remainingAmount));
+		} else {
+			setChangeAmount(calculateChange(receivedAmount, totalToPay));
+		}
 	};
 
 	//Toggle functions
@@ -265,42 +293,28 @@ export const CalcTotal: React.FC = () => {
 		setShowSplitFields(!showSplitFields);
 	};
 
-	const handleSplitAmountChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		let splitAmount = 0;
-		if (event.target.value !== '') {
-			splitAmount = parseFloat(parseFloat(event.target.value).toFixed(2));
-		}
-		setSplitAmount(splitAmount);
-	};
-
 	const addNewSplitPayment = (paymentMethod: string) => {
-		if (typeof splitAmount === 'number' && !Number.isNaN(splitAmount)) {
-			const { remainingAmount } = calculateRemainingAmount();
-			if (splitAmount <= 0) {
+		if (typeof receivedAmount === 'number' && !Number.isNaN(receivedAmount)) {
+			if (receivedAmount <= 0) {
 				alert('El pago debe ser mayor a $0.00');
-				return; // Exit the function if the split amount is greater than the remaining amount
-			}
-			if (splitAmount > remainingAmount) {
-				alert('El pago (' + formatCurrency(splitAmount) + ') no puede ser mayor al restante por pagar (' + formatCurrency(remainingAmount) + ').');
-				return; // Exit the function if the split amount is greater than the remaining amount
+				return;
 			}
 			const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
 			const splitPayment = {
 				id: newId,
-				amount: splitAmount,
+				amount: receivedAmount,
 				payment_method: paymentMethod,
 			};
 			setSplitPayments([...splitPayments, splitPayment]);
-			setSplitAmountError(false);
-			setSplitAmount(null);
-			const splitAmountField = document.getElementById('splitAmountField') as HTMLInputElement;
-			if (splitAmountField) {
-				splitAmountField.value = '';
+			setReceivedAmount(null);
+			const receivedAmountField = document.getElementById('receivedAmountField') as HTMLInputElement;
+			if (receivedAmountField) {
+				receivedAmountField.value = '';
 			}
 			setShowCustomTip(false);
-			openSnackBarSplitPaymentRegistered(splitAmount, mapPaymentMethod(paymentMethod));
+			openSnackBarSplitPaymentRegistered(receivedAmount, mapPaymentMethod(paymentMethod));
 		} else {
-			setSplitAmountError(true);
+			// Puedes mostrar un error si lo deseas
 		}
 	};
 
@@ -375,14 +389,19 @@ export const CalcTotal: React.FC = () => {
 
 	//Initial state for the modal
 	const modalInitialState = () => {
-		//Split payments
-		setSplitAmount(0);
-		setShowSplitFields(false);
-		setShowSplitDetails(false);
-		setSplitAmountError(false);
+		// Split payments
+		if (splitPayments.length === 0) {
+			setShowSplitFields(false);
+			setShowSplitDetails(false);
+		} else {
+			setShowSplitFields(true);
+			setShowSplitDetails(true);
+		}
 		//Tip
 		setTipAmount(0);
 		setTipPercentage(0);
+		setReceivedAmount(null);
+		setChangeAmount(0);
 		setTotalWithTip(total);
 		setShowTip(false);
 		setShowCustomTip(false);
@@ -402,6 +421,7 @@ export const CalcTotal: React.FC = () => {
 	}
 
 	const { totalSplitPayments, remainingAmount } = calculateRemainingAmount();
+	const canAddMorePayments = showSplitFields && remainingAmount > 0;
 
 	return (
 		<Paper className={classes["container-total"]} elevation={5} square>
@@ -425,7 +445,9 @@ export const CalcTotal: React.FC = () => {
 					</Typography>
 					{showSplitFields && (
 						<Typography id="modal-modal-title" variant="body1" component="h3">
-							Restante: {formatCurrency(remainingAmount)}
+							{remainingAmount < 0
+								? `Cambio: ${formatCurrency(Math.abs(remainingAmount))}`
+								: `Restante: ${formatCurrency(remainingAmount)}`}
 						</Typography>
 					)}
 					<Box sx={{ mt: 2, display: "flex", flexDirection: "column" }}></Box>
@@ -437,11 +459,11 @@ export const CalcTotal: React.FC = () => {
 							<Typography id="modal-modal-title" variant="body1" component="h2" align="left">
 								{discount > 0 ? (
 									<div>
-										Descuento: -{formatCurrency(discount)} = {formatCurrency(totalWithDiscount)}
+										Descuento 🙂: -{formatCurrency(discount)} = {formatCurrency(totalWithDiscount)}
 									</div>
 								) : (
 									<div>
-										Descuento
+										Descuento 🙂
 									</div>
 								)}
 							</Typography>
@@ -495,70 +517,76 @@ export const CalcTotal: React.FC = () => {
 								<Box sx={{ mt: 2 }}></Box>
 							</>
 						)}
-						<Box display="flex" alignItems="center">
-							<IconButton onClick={handleToggleTip}>
-								{showTip ? <ExpandLess /> : <ExpandMore />}
-							</IconButton>
-							{tipAmount > 0 ? (
-								<div>
-									Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
-								</div>
-							) : (
-								<div>
-									Propina
-								</div>
-							)}
-						</Box>
-						{showTip && (
+						{/* INICIO: Feature flag para propina */}
+						{showTipFeatureFlag && (
 							<>
-								<Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
-									<div>
-										<ToggleButtonGroup
-											className={classes["toggle-button-group"]}
-											color="primary"
-											value={tipPercentage}
-											exclusive
-											onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
-											aria-label="tip percentage"
-										>
-											{tipOptions.map(option => (
-												<ToggleButton
-													key={option.value}
-													value={option.value}
-													aria-label={option.label}
-													className={classes["toggle-button"]}
-												>
-													{option.label}
-												</ToggleButton>
-											))}
-										</ToggleButtonGroup>
-									</div>
+								<Box display="flex" alignItems="center">
+									<IconButton onClick={handleToggleTip}>
+										{showTip ? <ExpandLess /> : <ExpandMore />}
+									</IconButton>
+									{tipAmount > 0 ? (
+										<div>
+											Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
+										</div>
+									) : (
+										<div>
+											Propina
+										</div>
+									)}
 								</Box>
-								{showCustomTip && (
-									<Box sx={{ display: "flex", flexDirection: "column" }}>
-										<TextField
-											id="customTipField"
-											required
-											size="small"
-											sx={{ mt: 2 }}
-											onChange={handleCustomTipChange}
-											label="Propina"
-											InputProps={{
-												startAdornment: <InputAdornment position="start">$</InputAdornment>,
-												inputProps: { min: 0, step: "any" },
-											}}
-											variant="standard"
-											margin="dense"
-											type="number"
-											error={customTipError}
-											helperText={customTipError ? "Falta importe" : ""}
-											value={tipAmount}
-										/>
-									</Box>
+								{showTip && (
+									<>
+										<Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
+											<div>
+												<ToggleButtonGroup
+													className={classes["toggle-button-group"]}
+													color="primary"
+													value={tipPercentage}
+													exclusive
+													onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
+													aria-label="tip percentage"
+												>
+													{tipOptions.map(option => (
+														<ToggleButton
+															key={option.value}
+															value={option.value}
+															aria-label={option.label}
+															className={classes["toggle-button"]}
+														>
+															{option.label}
+														</ToggleButton>
+													))}
+												</ToggleButtonGroup>
+											</div>
+										</Box>
+										{showCustomTip && (
+											<Box sx={{ display: "flex", flexDirection: "column" }}>
+												<TextField
+													id="customTipField"
+													required
+													size="small"
+													sx={{ mt: 2 }}
+													onChange={handleCustomTipChange}
+													label="Propina"
+													InputProps={{
+														startAdornment: <InputAdornment position="start">$</InputAdornment>,
+														inputProps: { min: 0, step: "any" },
+													}}
+													variant="standard"
+													margin="dense"
+													type="number"
+													error={customTipError}
+													helperText={customTipError ? "Falta importe" : ""}
+													value={tipAmount}
+												/>
+											</Box>
+										)}
+										<Box sx={{ mt: 2 }}></Box>
+									</>
 								)}
-								<Box sx={{ mt: 2 }}></Box>
 							</>
 						)}
+						{/* FIN: Feature flag para propina */}
 						{showSplitFields && (
 							<>
 								{totalSplitPayments > 0 && (
@@ -617,28 +645,37 @@ export const CalcTotal: React.FC = () => {
 								multiline
 								rows={2}
 								variant="outlined"
-								style={{ margin: '20px 0' }}
+								style={{ margin: '8px 0' }}
 								value={notes}
 							/>
 						)}
-						<Box sx={{ mt: 2 }} />
-						{showSplitFields && (
-							<TextField
-								id="splitAmountField"
-								required
-								size="small"
-								onChange={handleSplitAmountChange}
-								label="Importe a pagar"
-								InputProps={{
-									startAdornment: <InputAdornment position="start">$</InputAdornment>,
-									inputProps: { min: 0, step: "any" },
-								}}
-								variant="standard"
-								margin="dense"
-								type="number"
-								error={splitAmountError}
-								helperText={splitAmountError ? "Falta importe" : ""}
-							/>
+						{(!showSplitFields || canAddMorePayments) && (
+							<Box sx={{ mt: 1 }}>
+								<TextField
+									id="receivedAmountField"
+									required
+									size="small"
+									onChange={handleReceivedAmountChange}
+									label="Monto recibido"
+									InputProps={{
+										startAdornment: <InputAdornment position="start">$</InputAdornment>,
+										inputProps: { min: 0, step: "any" },
+									}}
+									variant="standard"
+									margin="dense"
+									type="number"
+									helperText={showSplitFields ? "Ingrese el monto a agregar" : "Ingrese el monto recibido del cliente"}
+									value={receivedAmount ?? ""}
+									disabled={(showSplitFields && !canAddMorePayments)}
+								/>
+							</Box>
+						)}
+						{changeAmount > 0 && (
+							<Box sx={{ mt: 2 }}>
+								<Typography variant="body1" component="h3">
+									Cambio: {formatCurrency(changeAmount)}
+								</Typography>
+							</Box>
 						)}
 						{!showSplitFields && (
 							<Button
@@ -651,47 +688,55 @@ export const CalcTotal: React.FC = () => {
 								{"Dividir pago >>"}
 							</Button>
 						)}
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('cash')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en efectivo" : "Pago total en efectivo"}
-						</Button>
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('card')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en tarjeta" : "Pago total en tarjeta"}
-						</Button>
-						<Button
-							size="small"
-							color="success"
-							variant={showSplitFields ? "outlined" : "contained"}
-							sx={{ mt: 2 }}
-							onClick={() => handleButtonClick('transfer')}
-							disabled={isButtonDisabled}
-						>
-							{showSplitFields ? "Agregar importe en transferencia" : "Pago total en transferencia"}
-						</Button>
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('cash')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en efectivo" : "Finalizar pago en efectivo"}
+							</Button>
+						)}
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('card')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en tarjeta" : "Finalizar pago en tarjeta"}
+							</Button>
+						)}
+						{(!showSplitFields || canAddMorePayments) && (
+							<Button
+								size="small"
+								color="success"
+								variant={showSplitFields ? "outlined" : "contained"}
+								sx={{ mt: 2 }}
+								onClick={() => handleButtonClick('transfer')}
+								disabled={isButtonDisabled}
+							>
+								{showSplitFields ? "Agregar importe en transferencia" : "Finalizar pago en transferencia"}
+							</Button>
+						)}
 						{showSplitFields && (
 							<>
-								<Button
-									size="small"
-									color="primary"
-									variant="outlined"
-									sx={{ mt: 2 }}
-									onClick={handleSplitClick}
-								>
-									{"<< Regresar"}
-								</Button>
+								{splitPayments.length === 0 && (
+									<Button
+										size="small"
+										color="primary"
+										variant="outlined"
+										sx={{ mt: 2 }}
+										onClick={handleSplitClick}
+									>
+										{"<< Pago total"}
+									</Button>
+								)}
 								<Button
 									size="small"
 									color="success"
@@ -706,7 +751,7 @@ export const CalcTotal: React.FC = () => {
 								</Button>
 							</>
 						)}
-						<Box mt={2} sx={{ display: "flex", flexDirection: "column" }}>
+						<Box sx={{ display: "flex", flexDirection: "column" }}>
 							<Button
 								size="small"
 								color="error"

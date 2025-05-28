@@ -27,6 +27,7 @@ def lambda_handler(event, context):
             tip = decimal.Decimal(str(order.get('tip', 0))).quantize(TWO_DECIMAL_PLACES)
             total = (subtotal - discount).quantize(TWO_DECIMAL_PLACES)
             total_with_tip = (total + tip).quantize(TWO_DECIMAL_PLACES)
+            received_amount = decimal.Decimal(str(order.get('received_amount', 0))).quantize(TWO_DECIMAL_PLACES)
 
             # Create a new order ticket
             new_orderTicket = {
@@ -38,6 +39,7 @@ def lambda_handler(event, context):
                 'total': total,
                 'tip': tip,
                 'total_with_tip': total_with_tip,
+                'received_amount': received_amount,
                 'change': decimal.Decimal(str(order.get('change', 0))).quantize(TWO_DECIMAL_PLACES),
                 'payment_method': payment_method,
                 'customer_id': order.get('customer_id', ''),
