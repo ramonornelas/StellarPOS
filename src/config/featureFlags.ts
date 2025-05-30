@@ -4,4 +4,6 @@ export const featureFlags = {
     navbarShowChat: false,
     productsModalShowAddProductButton: false,
     productsListShowBarcodeScanner: false,
+    productsCardShowStockAvailable: false,
+    cartItemShowEditPrice: false,
 };
