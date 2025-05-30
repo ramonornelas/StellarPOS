@@ -18,9 +18,9 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import { PaymentItem } from "./cart-payment-item.component";
 import { DataContext } from '../../dataContext';
+import { featureFlags } from "../../config/featureFlags";
 
 export const CalcTotal: React.FC = () => {
-    const showTipFeatureFlag = false; // Cambia a true para habilitar la propina
 
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -48,7 +48,7 @@ export const CalcTotal: React.FC = () => {
 	const [customTipError, setCustomTipError] = useState<boolean>(false);
 	const [showNotes, setShowNotes] = useState(false);
 	const [notes, setNotes] = useState<string>("");
-	const [receivedAmount, setReceivedAmount] = useState<number | null>(null);
+		const [receivedAmount, setReceivedAmount] = useState<number | null>(null);
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
 	const { fetchData } = useContext(DataContext);
@@ -519,7 +519,7 @@ export const CalcTotal: React.FC = () => {
 							</>
 						)}
 						{/* INICIO: Feature flag para propina */}
-						{showTipFeatureFlag && (
+						{featureFlags.cartModalShowTip && (
 							<>
 								<Box display="flex" alignItems="center">
 									<IconButton onClick={handleToggleTip}>
