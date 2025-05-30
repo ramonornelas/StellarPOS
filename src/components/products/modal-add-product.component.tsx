@@ -9,12 +9,12 @@ import { appContext } from "../../appContext";
 import { Product } from "./products.model";
 import { generateCustomID } from "./products.motor";
 import classes from "./css/modal-add-product.module.css"
+import { featureFlags } from "../../config/featureFlags";
 
 export const BasicModal: React.FC = () => {
     const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
 
     const [open, setOpen] = React.useState(false);
-    const showAddProductButtonFeatureFlag = false; // Feature flag to control the visibility of "Add Product" button
     const handleOpen = () => setOpen(true);
     const handleClose = () => setOpen(false);
     
@@ -44,7 +44,7 @@ export const BasicModal: React.FC = () => {
 
     return (
         <div>
-            {showAddProductButtonFeatureFlag && (
+            {featureFlags.productsModalShowAddProductButton && (
                 <Button size="small" color="info" variant="outlined" onClick={handleOpen}>
                     <AddIcon />
                     Producto

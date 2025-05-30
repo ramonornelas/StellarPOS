@@ -12,6 +12,7 @@ import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
 import { postOpenCashRegister, putCloseCashRegister, fetchOrderTotalsByCashRegister } from "../functions/apiFunctions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { appContext } from "../appContext";
+import { permissions } from "../config/permissions"; // <-- Add this import
 
 export const CashRegister: React.FC = () => {
     const { dateCTX } = useContext(appContext);
@@ -253,16 +254,18 @@ export const CashRegister: React.FC = () => {
                         )}
                     </>
                 )}
-                {/* Botón para consultar la lista de cortes, siempre visible */}
-                <Box mt={4} width="100%" display="flex" justifyContent="center">
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => navigate("/cash-register-history")}
-                    >
-                        Cortes de caja del día
-                    </Button>
-                </Box>
+                {/* Botón para consultar la lista de cortes, solo si tiene permiso */}
+                {permissions.canViewCashRegisterHistory() && (
+                    <Box mt={4} width="100%" display="flex" justifyContent="center">
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => navigate("/cash-register-history")}
+                        >
+                            Cortes de caja del día
+                        </Button>
+                    </Box>
+                )}
             </Box>
         </Container>
     );

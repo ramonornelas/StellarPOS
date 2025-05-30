@@ -22,7 +22,8 @@ import React from "react";
 import { appContext } from "../../appContext";
 import { isCartEmpty } from "../cart/cart.motor";
 import { DataContext } from "../../dataContext";
-import { hasPermission } from "../users/userPermissionsContext";
+import { permissions } from "../../config/permissions";
+import { featureFlags } from "../../config/featureFlags";
 
 interface NavBarProps {
     applyFilter: (category: string) => void;
@@ -36,9 +37,6 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     const [open, setOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate(); // Hook to navigate between routes
-
-    const hasChangeDatePermission = hasPermission('change_date');
-    const hasViewOrdersPermission = hasPermission('view_orders_report');
 
     const enableCartButton = () => {
         let cartButton;
@@ -70,9 +68,6 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
         navigate("/");
     };
 
-    const showVentasFeatureFlag = false; // Feature flag to control the visibility of "Ventas"
-    const showChatFeatureFlag = false; // Feature flag to control the visibility of "Chat"
-
     return (
         <>
             <Box sx={{ display: "flex" }}></Box>
@@ -90,7 +85,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                     >
                         <MenuIcon color="primary" />
                     </Button>
-                    {showVentasFeatureFlag && (
+                    {featureFlags.navbarShowVentas && (
                         <Typography
                             variant="h6"
                             sx={{
@@ -116,17 +111,17 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         <Button component={NavLink} to={"/"}>
                             <HomeIcon color="action" fontSize="large" />
                         </Button>
-                        {hasChangeDatePermission && (
+                        {permissions.navbarCanChangeDate() && (
                             <Button component={NavLink} to={"/date-picker"}>
                                 <DateRangeIcon color="action" fontSize="large" />
                             </Button>
                         )}
-                        {hasViewOrdersPermission && ( // Conditionally render Orders button
+                        {permissions.navbarCanViewOrdersReport() && ( // Conditionally render Orders button
                             <Button component={NavLink} to={"/orders"}>
                                 <ListAltIcon color="action" fontSize="large" />
                             </Button>
                         )}
-                        {showChatFeatureFlag && (
+                        {featureFlags.navbarShowChat && (
                             <Button component={NavLink} to={"/chat"}>
                                 <ChatIcon color="action" fontSize="large" />
                             </Button>
