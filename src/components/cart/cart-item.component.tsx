@@ -23,6 +23,7 @@ import { openSnackBarDeleteProduct } from "../snackbar/snackbar.motor";
 import { formatCurrency } from '../../functions/generalFunctions';
 import { DataContext } from "../../dataContext";
 import { updateCart } from "./cart.utils";
+import { featureFlags } from "../../config/featureFlags";
 
 interface CartItemProps {
 	productInfo: ProductsInCart;
@@ -62,7 +63,9 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
 				sx={is_combo ? { backgroundColor: "#a2f6f5" } : {}}
 			>
 				<TableCell sx={{ p: 0, pl: 1 }}>
-					<EditPriceModal productInfo={props.productInfo} />
+					{featureFlags.cartItemShowEditPrice && (
+						<EditPriceModal productInfo={props.productInfo} />
+					)}
 					{formattedDescription(desc)}
 					<Box sx={{ display: "flex", alignItems: "center", justifyContent: "left" }}>
 						{<Typography

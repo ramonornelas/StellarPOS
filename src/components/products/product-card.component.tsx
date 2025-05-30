@@ -11,6 +11,7 @@ import classes from "./css/products-card.module.css";
 import { SelectVariant } from "./modal-select-variant.component";
 import React from "react";
 import { formatCurrency } from "../../functions/generalFunctions";
+import { featureFlags } from "../../config/featureFlags";
 
 interface ProductCardProps {
 	product: Product;
@@ -55,9 +56,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 				<Typography gutterBottom variant="body2" component="h3">
 					{name}
 				</Typography>
-				<Typography gutterBottom variant="body2" component="h3">
-					Disponible: {stock_available || 0}
-				</Typography>
+				{featureFlags.productsCardShowStockAvailable && (
+					<Typography gutterBottom variant="body2" component="h3">
+						Disponible: {stock_available || 0}
+					</Typography>
+				)}
 			</CardContent>
 			<CardActions className={classes["card-actions"]}>
 				<Typography gutterBottom variant="body2" component="p">
