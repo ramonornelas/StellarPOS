@@ -49,10 +49,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     // Redirect to the root "/"
                     navigate("/");
                 } else {
-                    throw new Error('Failed to fetch user data');
+                    throw new Error('No se pudo obtener la información del usuario');
                 }
             } else {
-                throw new Error('Failed to log in');
+                throw new Error('No se pudo iniciar sesión');
             }
         } catch (error: any) {
             console.error('Error:', error);

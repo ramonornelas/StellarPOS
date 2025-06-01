@@ -99,3 +99,14 @@ export const getCashRegister = async (cashRegisterId: string) => {
     return null;
   }
 };
+
+export const getOpenCashRegister = async () => {
+  try {
+    const response = await fetch(`${BASE_URL}/cash_register/open`);
+    if (!response.ok) throw new Error('Network response was not ok');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching open cash register:', error);
+    return null;
+  }
+};

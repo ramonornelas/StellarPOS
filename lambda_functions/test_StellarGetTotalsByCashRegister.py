@@ -4,7 +4,7 @@ from StellarGetOrderTotalsByCashRegister import lambda_handler  # Updated import
 # Mock event and context
 event = {
     'pathParameters': {
-        'cashRegisterId': 'a8d151cc-c43a-49c8-a81b-bb850b6998a0'  # Changed here
+        'cashRegisterId': '401bf94b-2a46-4f59-b331-5f0ab6648be6'
     }
 }
 
