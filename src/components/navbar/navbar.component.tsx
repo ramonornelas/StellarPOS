@@ -12,7 +12,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { NavListDrawer } from "./navbar-list-drawer.component";
 import HomeIcon from "@mui/icons-material/Home";
 import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -24,6 +24,7 @@ import { isCartEmpty } from "../cart/cart.motor";
 import { DataContext } from "../../dataContext";
 import { permissions } from "../../config/permissions";
 import { featureFlags } from "../../config/featureFlags";
+import { logoff } from "../../utils/logoff";
 
 interface NavBarProps {
     applyFilter: (category: string) => void;
@@ -31,12 +32,11 @@ interface NavBarProps {
 }
 
 export const Navbar: React.FC<NavBarProps> = (props) => {
-    const { applyFilter, onLogoff } = props;
+    const { applyFilter } = props;
     const { drawerLinks } = useContext(DataContext);
     const { productsInCart } = React.useContext(appContext).cartCTX;
     const [open, setOpen] = useState(false);
     const location = useLocation();
-    const navigate = useNavigate(); // Hook to navigate between routes
 
     const enableCartButton = () => {
         let cartButton;
@@ -58,14 +58,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     };
 
     const handleLogoff = () => {
-        // Clear session storage
-        sessionStorage.clear();
-
-        // Notify App.tsx to update the isLoggedIn state
-        onLogoff();
-
-        // Redirect to the root "/"
-        navigate("/");
+        logoff(); // Use the shared logoff utility
     };
 
     return (

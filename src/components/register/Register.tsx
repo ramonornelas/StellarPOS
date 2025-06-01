@@ -15,7 +15,7 @@ const Register: React.FC = () => {
         e.preventDefault();
 
         if (password !== confirmPassword) {
-            setError("Passwords do not match");
+            setError("Las contraseñas no coinciden");
             return;
         }
 
@@ -42,7 +42,7 @@ const Register: React.FC = () => {
             });
 
             if (response.status === 201) {
-                setSuccess("User registered successfully!");
+                setSuccess("¡Usuario registrado exitosamente!");
                 setError("");
                 setUsername("");
                 setPassword("");
@@ -50,7 +50,7 @@ const Register: React.FC = () => {
                 setPhoneNumber("");
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to register user");
+                throw new Error(errorData.message || "No se pudo registrar el usuario");
             }
         } catch (err: any) {
             console.error("Error:", err);
@@ -61,7 +61,7 @@ const Register: React.FC = () => {
 
     return (
         <div className={styles.loginContainer}>
-            <h2>Register</h2>
+            <h2>Registro</h2>
             {error && <div className={styles.error}>{error}</div>}
             {success && (
                 <div className={styles.success}>
@@ -70,13 +70,13 @@ const Register: React.FC = () => {
                         className={styles.backToLoginButton}
                         onClick={() => navigate("/login")}
                     >
-                        Back to Login
+                        Volver al inicio de sesión
                     </button>
                 </div>
             )}
             <form onSubmit={handleSubmit} className={styles.loginForm}>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="username">Email:</label>
+                    <label htmlFor="username">Correo electrónico:</label>
                     <input
                         type="email"
                         id="username"
@@ -86,7 +86,7 @@ const Register: React.FC = () => {
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="password">Password:</label>
+                    <label htmlFor="password">Contraseña:</label>
                     <input
                         type="password"
                         id="password"
@@ -96,7 +96,7 @@ const Register: React.FC = () => {
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="confirmPassword">Confirm Password:</label>
+                    <label htmlFor="confirmPassword">Confirmar contraseña:</label>
                     <input
                         type="password"
                         id="confirmPassword"
@@ -106,7 +106,7 @@ const Register: React.FC = () => {
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="phoneNumber">Phone Number (Optional):</label>
+                    <label htmlFor="phoneNumber">Teléfono (opcional):</label>
                     <input
                         type="text"
                         id="phoneNumber"
@@ -114,8 +114,24 @@ const Register: React.FC = () => {
                         onChange={(e) => setPhoneNumber(e.target.value)}
                     />
                 </div>
-                <button type="submit" className={styles.loginButton}>Register</button>
+                <button type="submit" className={styles.loginButton}>Registrarse</button>
             </form>
+            {/* Enlace menos prominente para volver al login */}
+            {!success && (
+                <div style={{ textAlign: "center", marginTop: "1rem" }}>
+                    <span
+                        style={{
+                            fontSize: "0.9rem",
+                            color: "#888",
+                            cursor: "pointer",
+                            textDecoration: "underline"
+                        }}
+                        onClick={() => navigate("/login")}
+                    >
+                        ¿Ya tienes cuenta? Inicia sesión
+                    </span>
+                </div>
+            )}
         </div>
     );
 };
