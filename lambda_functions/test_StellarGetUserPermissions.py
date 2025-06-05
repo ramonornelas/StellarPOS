@@ -1,10 +1,10 @@
 import json
-from StellarGetOrderTotalsByCashRegister import lambda_handler  # Updated import
+from StellarGetUserPermissions import lambda_handler
 
 # Mock event and context
 event = {
     'pathParameters': {
-        'cashRegisterId': '401bf94b-2a46-4f59-b331-5f0ab6648be6'
+        'userId': '534c1bee-e799-4a7e-aae1-cc108f808f0e'
     }
 }
 

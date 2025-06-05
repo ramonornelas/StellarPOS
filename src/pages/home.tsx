@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { CartList } from "../components/cart/cart-list.component";
 import classes from "./css/home.module.css";
 import { useNavigate } from "react-router-dom";
-import { getCashRegister } from "../functions/apiFunctions";
+import { getCashRegister, getOpenCashRegister } from "../functions/apiFunctions";
 
 interface MainContainerProps {
 	filter: string;
@@ -16,14 +16,21 @@ export const Home: React.FC<MainContainerProps> = (props) => {
 
 	useEffect(() => {
 		const checkCashRegister = async () => {
-			const cashRegisterId = sessionStorage.getItem("cashRegisterId");
+			let cashRegisterId = sessionStorage.getItem("cashRegisterId");
 			if (!cashRegisterId) {
-				navigate("/cash-register", {
-					state: { message: "Debes abrir la caja para comenzar a operar." },
-				});
-				return;
+				// Look for an open cash register in the DB
+				const openCashRegister = await getOpenCashRegister();
+				if (openCashRegister && openCashRegister.id) {
+					cashRegisterId = openCashRegister.id;
+					sessionStorage.setItem("cashRegisterId", String(cashRegisterId));
+				} else {
+					navigate("/cash-register", {
+						state: { message: "Debes abrir la caja para comenzar a operar." },
+					});
+					return;
+				}
 			}
-			const cashRegister = await getCashRegister(cashRegisterId);
+			const cashRegister = await getCashRegister(cashRegisterId!);
 
 			const cashRegisterDate = new Date(cashRegister.date);
 			const today = new Date();
@@ -38,7 +45,7 @@ export const Home: React.FC<MainContainerProps> = (props) => {
 				cashRegister.status === "open" &&
 				cashRegisterDateString !== todayString
 			) {
-				// Caja abierta de un día anterior
+				// Open cash register from a previous day
 				navigate("/cash-register", {
 					state: {
 						message:

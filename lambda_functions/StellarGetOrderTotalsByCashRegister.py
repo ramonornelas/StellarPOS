@@ -51,6 +51,7 @@ def lambda_handler(event, context):
                     FilterExpression=Attr('orderTicket_id').eq(order_id)
                 )
                 split_payments = split_payment_response.get('Items', [])
+                order_change = Decimal(str(order.get('change', '0')))
                 if split_payments:
                     total_split_payments += len(split_payments)
                     for sp in split_payments:
@@ -59,12 +60,19 @@ def lambda_handler(event, context):
                         if method not in payment_method_totals:
                             payment_method_totals[method] = Decimal('0')
                         payment_method_totals[method] += amount
+                    # Subtract the change from cash
+                    if 'cash' in payment_method_totals:
+                        payment_method_totals['cash'] -= order_change
                 else:
                     # No split payments, use order's paymentMethod
                     method = order.get('payment_method', 'Unknown')
+                    received_amount = Decimal(str(order.get('received_amount', '0')))
                     if method not in payment_method_totals:
                         payment_method_totals[method] = Decimal('0')
-                    payment_method_totals[method] += order_total
+                    payment_method_totals[method] += received_amount
+                    # Subtract the change only if the method is cash
+                    if method.lower() == 'cash':
+                        payment_method_totals[method] -= order_change
 
             # Convert Decimal values to string for JSON serialization
             payment_method_totals = {k: str(v) for k, v in payment_method_totals.items()}

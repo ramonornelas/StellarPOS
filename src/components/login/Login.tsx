@@ -41,17 +41,18 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
                     sessionStorage.setItem("stellar_userid", searchUserId);
                     sessionStorage.setItem("stellar_username", searchUsername);
-
+                    sessionStorage.setItem("stellar_role", searchUserData[0].role_id);
+                    
                     // Notify App.tsx of successful login
                     onLoginSuccess();
 
                     // Redirect to the root "/"
                     navigate("/");
                 } else {
-                    throw new Error('Failed to fetch user data');
+                    throw new Error('No se pudo obtener la información del usuario');
                 }
             } else {
-                throw new Error('Failed to log in');
+                throw new Error('No se pudo iniciar sesión');
             }
         } catch (error: any) {
             console.error('Error:', error);
@@ -61,11 +62,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
     return (
         <div className={styles.loginContainer}>
-            <h2>Login</h2>
+            <h2>Iniciar sesión</h2>
             {error && <div className={styles.error}>{error}</div>}
             <form onSubmit={handleSubmit} className={styles.loginForm}>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="email">Email:</label>
+                    <label htmlFor="email">Correo electrónico:</label>
                     <input
                         type="email"
                         id="email"
@@ -75,7 +76,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <label htmlFor="password">Password:</label>
+                    <label htmlFor="password">Contraseña:</label>
                     <input
                         type="password"
                         id="password"
@@ -84,10 +85,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                         required
                     />
                 </div>
-                <button type="submit" className={styles.loginButton}>Login</button>
+                <button type="submit" className={styles.loginButton}>Iniciar sesión</button>
             </form>
             <p className={styles.registerPrompt}>
-                Don't have an account? <a href="/registeruser">Register here</a>
+                ¿No tienes una cuenta? <a href="/registeruser">Regístrate aquí</a>
             </p>
         </div>
     );

@@ -9,6 +9,7 @@ import { DataContext } from "../../dataContext";
 import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import { updateCart } from "../cart/cart.utils";
+import { featureFlags } from "../../config/featureFlags";
 
 interface ProductsListProps {
     filter: string;
@@ -78,17 +79,19 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
                 )}
                 <BasicModal />
             </Box>
-            <p>
-                <Button variant="contained" color="primary" onClick={handleScanBarcode}>
-                    {showScanner ? "Ocultar escáner" : "Leer código de barras"}
-                </Button>
-            </p>
-            {showScanner && (
+            {featureFlags.productsListShowBarcodeScanner && (
+                <p>
+                    <Button variant="contained" color="primary" onClick={handleScanBarcode}>
+                        {showScanner ? "Ocultar escáner" : "Leer código de barras"}
+                    </Button>
+                </p>
+            )}
+            {featureFlags.productsListShowBarcodeScanner && showScanner && (
                 <BarcodeScannerComponent width={350} height={300} onUpdate={handleScan} />
             )}
             <Grid container spacing={2}>
                 {productsFiltered
-                    .filter((product) => product.is_active) // Filter products where isActive is true
+                    .filter((product) => product.is_active)
                     .sort((a, b) => a.display_order - b.display_order)
                     .map((product, index) => (
                         <Grid key={index} item xl={2} lg={3} md={4} sm={3} xs={6}>
