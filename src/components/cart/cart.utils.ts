@@ -86,28 +86,67 @@ const getApplicableCombos = async (): Promise<{ productId: string; comboId: stri
 };
 
 export const updateCart = async (
-  action: "add" | "subtract" | "delete",
+  action: "add" | "subtract" | "delete" | "setQty",
   productsInCart: Product[],
   setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>,
   products: Product[],
   productToModify: Product
 ) => {
-  if (!productToModify) return;
+  if (!productToModify) {
+    console.log("[updateCart] productToModify is undefined or null");
+    return;
+  }
 
   let updatedCart = [...productsInCart];
+  console.log("[updateCart] action:", action);
+  console.log("[updateCart] productsInCart before:", productsInCart);
+  console.log("[updateCart] productToModify:", productToModify);
 
   if (action === "add") {
-    updatedCart.push(productToModify);
+    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    if (idx !== -1) {
+      let newQty = (updatedCart[idx].quantity ?? 1) + 1;
+      newQty = Number(newQty.toFixed(3));
+      updatedCart[idx] = { 
+        ...updatedCart[idx], 
+        quantity: newQty
+      };
+      console.log("[updateCart] Increased quantity for", productToModify.product_variant_id, "to", updatedCart[idx].quantity);
+    } else {
+      let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+      updatedCart.push({ ...productToModify, quantity: qty });
+      console.log("[updateCart] Added new product:", productToModify.product_variant_id);
+    }
   } else if (action === "subtract") {
-    for (let i = updatedCart.length - 1; i >= 0; i--) {
-      if (updatedCart[i].id === productToModify.id) {
-        updatedCart.splice(i, 1);
-        break;
+    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    if (idx !== -1) {
+      let newQty = (updatedCart[idx].quantity ?? 1) - 1;
+      newQty = Number(newQty.toFixed(3));
+      if (newQty > 0) {
+        updatedCart[idx] = { ...updatedCart[idx], quantity: newQty };
+        console.log("[updateCart] Decreased quantity for", productToModify.product_variant_id, "to", newQty);
+      } else {
+        updatedCart.splice(idx, 1);
+        console.log("[updateCart] Removed product:", productToModify.product_variant_id);
       }
     }
   } else if (action === "delete") {
     updatedCart = updatedCart.filter((p) => p.product_variant_id !== productToModify.product_variant_id);
+    console.log("[updateCart] Deleted product:", productToModify.product_variant_id);
+  } else if (action === "setQty") {
+    updatedCart = updatedCart.map((p) => {
+      if (p.product_variant_id === productToModify.product_variant_id) {
+        let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+        console.log("[updateCart] Setting quantity for", p.product_variant_id, "from", p.quantity, "to", qty);
+        return { ...p, quantity: qty };
+      }
+      return p;
+    });
   }
 
+  console.log("[updateCart] updatedCart before combos:", updatedCart);
+
   await updateCartWithCombos(updatedCart, products, setProductsInCart);
+
+  console.log("[updateCart] updateCartWithCombos called");
 };

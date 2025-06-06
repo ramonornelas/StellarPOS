@@ -162,6 +162,8 @@ export const CalcTotal: React.FC = () => {
 					: 0;
 			}
 
+			console.log("productsInCart", productsInCart);
+
 			const newOrderTicket = {
 				date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : new Date().toISOString().slice(0, 10),
 				ticket: newOrderId,

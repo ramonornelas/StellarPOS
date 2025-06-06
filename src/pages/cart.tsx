@@ -6,7 +6,7 @@ import classes from "./css/cart.module.css"
 export const CartPage: React.FC = () => {
 	return (
 		<Container maxWidth="xl" className={classes["main-container"]}>
-			<Typography variant="h5" component="h1" sx={{mb:1}}>Productos en comanda</Typography>
+			<Typography variant="h5" component="h1" sx={{mb:1}}>Productos seleccionados</Typography>
 			<CartList />
 		</Container>
 	);
