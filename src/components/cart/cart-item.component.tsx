@@ -13,8 +13,8 @@ import {
 	searchProductByIdInCart,
 } from "./cart.motor";
 import DeleteIcon from "@mui/icons-material/Delete";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
+import AddCircleIcon from "@mui/icons-material/AddCircle";
 import React, { useContext } from "react";
 import { appContext } from "../../appContext";
 import { EditPriceModal } from "./edit-price-modal.component";
@@ -100,10 +100,10 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                 className={is_combo ? classes["highlight-row"] : ""}
                 sx={{
                     ...(is_combo ? { backgroundColor: "#a2f6f5" } : {}),
-                    height: 72, // Aumenta la altura del renglón
+                    height: 72, // Increase row height
                 }}
             >
-                <TableCell sx={{ p: 1.5, pl: 2 }}> {/* Más padding */}
+                <TableCell sx={{ p: 1.5, pl: 2 }}> {/* More padding */}
                     {featureFlags.cartItemShowEditPrice && (
                         <EditPriceModal productInfo={props.productInfo} />
                     )}
@@ -138,15 +138,17 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: 1.5, // Espacio entre botones
+                            gap: 1.5, // Space between buttons
                         }}
                     >
                         <>
                             <IconButton
                                 onClick={() => substractQtyFromCart(product_variant_id)}
-                                size="large"
+                                size="medium"
+                                sx={{ width: 40, height: 40 }}
+                                color="primary"
                             >
-                                <RemoveCircleOutlineIcon className={classes.icon} fontSize="large" />
+                                <RemoveCircleIcon sx={{ fontSize: 32 }} />
                             </IconButton>
                             <TextField
                                 type="number"
@@ -159,7 +161,7 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                                     }
                                 }}
                                 error={!!qtyError}
-                                helperText={qtyError ?? " "} // Espacio en blanco cuando no hay error
+                                helperText={qtyError ?? " "}
                                 FormHelperTextProps={{
                                     style: { minHeight: 20, margin: 0, padding: 0 },
                                 }}
@@ -173,9 +175,11 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                             />
                             <IconButton
                                 onClick={() => addQtyToCart(product_variant_id)}
-                                size="large"
+                                size="medium"
+                                sx={{ width: 40, height: 40 }}
+                                color="primary"
                             >
-                                <AddCircleOutlineIcon className={classes.icon} fontSize="large" />
+                                <AddCircleIcon sx={{ fontSize: 32 }} />
                             </IconButton>
                         </>
                     </Box>
@@ -188,9 +192,11 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                             deleteFromCart(product_variant_id);
                             openSnackBarDeleteProduct(desc);
                         }}
-                        size="large"
+                        size="medium"
+                        sx={{ width: 40, height: 40 }}
+                        color="error"
                     >
-                        <DeleteIcon className={classes["delete-icon"]} fontSize="large" />
+                        <DeleteIcon sx={{ fontSize: 32 }} />
                     </IconButton>
                 </TableCell>
             </TableRow>
