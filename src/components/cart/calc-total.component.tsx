@@ -105,9 +105,9 @@ export const CalcTotal: React.FC = () => {
 
 		const { totalToPay } = calculateRemainingAmount();
 
-		// Validación de monto recibido
+		// Validation of received amount
 		if (!showSplitFields) {
-			// Pago normal
+			// Normal payment
 			if (receivedAmount === null || receivedAmount < totalToPay) {
 				alert('El monto recibido debe ser mayor o igual al total a pagar.');
 				return;
@@ -117,13 +117,13 @@ export const CalcTotal: React.FC = () => {
 		if (paymentMethod === 'split') {
 			const { remainingAmount, totalToPay } = calculateRemainingAmount();
 
-			// Verificar si hay devolución en efectivo y el restante es mayor a 0
+			// Check if there is a cash refund and the remaining is greater than 0
 			if (remainingAmount > 0 && splitPayments.some(payment => payment.amount < 0)) {
-				// Eliminar devoluciones en efectivo
+				// Remove cash refunds
 				const updatedSplitPayments = splitPayments.filter(payment => payment.amount >= 0);
 				setSplitPayments(updatedSplitPayments);
 
-				// Mensaje de alerta con el total a pagar y pagos realizados
+				// Alert message with the total to pay and payments made
 				let messageCurrentDetails = `El total a pagar es de: ${formatCurrency(totalToPay)}. \nSe han pagado: ${formatCurrency(totalSplitPayments)}.`;
 				let messageRequestToUser = `Se ha eliminado el Cambio Efectivo. \nConfirma la información antes de finalizar el pago.`;
 				let message = `${messageCurrentDetails} \n\n${messageRequestToUser}`;
@@ -161,8 +161,6 @@ export const CalcTotal: React.FC = () => {
 					? parseFloat((orderReceivedAmount - totalToPay).toFixed(2))
 					: 0;
 			}
-
-			console.log("productsInCart", productsInCart);
 
 			const newOrderTicket = {
 				date: selectedDate ? selectedDate.toLocaleDateString('en-CA') : new Date().toISOString().slice(0, 10),
@@ -317,7 +315,7 @@ export const CalcTotal: React.FC = () => {
 			setShowCustomTip(false);
 			openSnackBarSplitPaymentRegistered(receivedAmount, mapPaymentMethod(paymentMethod));
 		} else {
-			// Puedes mostrar un error si lo deseas
+			alert('Debe ingresar un monto válido para el pago.');
 		}
 	};
 

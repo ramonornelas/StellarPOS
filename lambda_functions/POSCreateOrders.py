@@ -132,7 +132,7 @@ def group_products(products):
         product_id = product['id']
         product_variant_id = product.get('product_variant_id', 'no_variant')
         price = decimal.Decimal(str(product.get('price', 0))).quantize(TWO_DECIMAL_PLACES)
-        quantity = decimal.Decimal(str(product.get('quantity', 1))).quantize(TWO_DECIMAL_PLACES)  # Ahora decimal
+        quantity = decimal.Decimal(str(product.get('quantity', 1))).quantize(TWO_DECIMAL_PLACES)
         key = (product_id, product_variant_id)
         
         if key in grouped_products:

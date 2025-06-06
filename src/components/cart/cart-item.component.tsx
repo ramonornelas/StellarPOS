@@ -40,12 +40,10 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
     const [qtyError, setQtyError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
-        console.log("[useEffect] qty prop changed:", qty);
         setInputQty(qty.toString());
     }, [qty]);
 
     const addQtyToCart = (id: string) => {
-        console.log("[addQtyToCart] id:", id);
         const productFound = searchProductByIdInCart(id, productsInCart);
         if (productFound) {
             updateCart("add", productsInCart, setProductsInCart, products, productFound);
@@ -53,7 +51,6 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
     };
 
     const substractQtyFromCart = (id: string) => {
-        console.log("[substractQtyFromCart] id:", id);
         const productFound = searchProductByIdInCart(id, productsInCart);
         if (productFound) {
             updateCart("subtract", productsInCart, setProductsInCart, products, productFound);
@@ -61,7 +58,6 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
     };
 
     const deleteFromCart = (id: string) => {
-        console.log("[deleteFromCart] id:", id);
         const productFound = searchProductByIdInCart(id, productsInCart);
         if (productFound) {
             updateCart("delete", productsInCart, setProductsInCart, products, productFound);
@@ -69,17 +65,16 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(",", "."); // Permite coma o punto
-        // Limita a máximo 3 decimales
+        let value = e.target.value.replace(",", "."); // Allow comma or dot
+        // Limit to a maximum of 3 decimals
         if (/^\d*\.?\d{0,3}$/.test(value) || value === "") {
             setInputQty(value);
         }
-        // Si el usuario intenta escribir más de 3 decimales, ignora el cambio
+        // If the user tries to enter more than 3 decimals, ignore the change
     };
 
     const handleAcceptQty = () => {
         const floatValue = parseFloat(inputQty);
-        console.log("[handleAcceptQty] inputQty:", inputQty, "floatValue:", floatValue, "qty:", qty);
 
         if (floatValue === 0) {
             setQtyError("Valor inválido");
@@ -90,7 +85,6 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
 
         if (!isNaN(floatValue) && floatValue > 0 && floatValue !== qty) {
             const productFound = searchProductByIdInCart(product_variant_id, productsInCart);
-            console.log("[handleAcceptQty] productFound:", productFound);
             if (productFound) {
                 updateCart("setQty", productsInCart, setProductsInCart, products, {
                     ...(productFound as any),
