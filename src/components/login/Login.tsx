@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import styles from "./Login.module.css";
+import styles from "./login.module.css";
 
 interface LoginProps {
     onLoginSuccess: () => void;

@@ -26,13 +26,13 @@ export const PaymentItem: React.FC<PaymentItemProps> = ({ payment }) => {
 		openSnackBarDeletePayment(payment.id.toString());
 	};
 
-	const ischange = payment.amount < 0; // Verificar si el movimiento es negativo
+	const ischange = payment.amount < 0; // Check if the movement is negative
 	const formattedAmount = ischange
-		? `(${formatCurrency(Math.abs(payment.amount))})` // Mostrar entre paréntesis y en positivo
+		? `(${formatCurrency(Math.abs(payment.amount))})` // Show in parentheses and as positive
 		: formatCurrency(payment.amount);
 
 	const description = ischange
-		? `Cambio ${mapPaymentMethod(payment.payment_method, true)}` // Agregar "Cambio" al inicio si es negativo
+		? `Cambio ${mapPaymentMethod(payment.payment_method, true)}` // Add "Cambio" at the beginning if negative
 		: mapPaymentMethod(payment.payment_method, true);
 
 	return (

@@ -41,8 +41,8 @@ export const openSnackBarDeletePayment = (name: string) => {
 	});
 }
 
-export const openSnackBarComboAdded = (name: string, price:number) => {
-	enqueueSnackbar(`Combo ${name} agregado! (${price.toFixed(2)})`, {
+export const openSnackBarComboAdded = (message: string) => {
+	enqueueSnackbar(`${message}`, {
 		variant: "success",
 		style: { opacity: "90%" },
     autoHideDuration: 3000,

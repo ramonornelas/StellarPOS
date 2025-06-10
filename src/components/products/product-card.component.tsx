@@ -53,7 +53,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 				style={{ width: '200px', height: '200px', objectFit: 'cover' }}
 			/>
 			<CardContent className={classes["card-content"]}>
-				<Typography gutterBottom variant="body2" component="h3">
+				<Typography
+					gutterBottom
+					variant="body2"
+					component="h3"
+					title={name}
+					style={{
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						display: "block",
+						maxWidth: "180px", // Adjust according to design
+					}}
+				>
 					{name}
 				</Typography>
 				{featureFlags.productsCardShowStockAvailable && (

@@ -84,6 +84,7 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
 							color="primary"
 							exclusive
 							aria-label="Product Variant"
+							orientation="vertical"
 						>
 							{ProductVariants
 								.filter(variant => product.id === variant.product_id)
@@ -97,8 +98,12 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
 										value={variant.id}
 										onClick={() => addCustomProduct(variant.id)}
 										style={{ margin: '8px' }}
+										fullWidth
 									>
-										{variant.name} <br></br> {formatCurrency(variant.price)}
+										<Box display="flex" width="100%" justifyContent="space-between" alignItems="center">
+											<span>{variant.name}</span>
+											<span>{formatCurrency(variant.price)}</span>
+										</Box>
 									</Button>
 								))
 							}
