@@ -11,7 +11,7 @@ import { NotFoundPage } from "./pages/notFoundPage";
 import { Order } from "./components/orders/order.model";
 import { DataProvider } from "./dataContext";
 import { DatePickerPage } from "./pages/datePickerPage";
-import Login from "./components/login/login.tsx";
+import Login from "./components/login/Login.tsx";
 import Register from "./components/register/register.tsx";
 import ProtectedRoute from "./components/protectedRoute.tsx";
 import { ChatPage } from "./pages/chatPage";
