@@ -17,6 +17,9 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import ChatIcon from "@mui/icons-material/Chat";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
+import Avatar from "@mui/material/Avatar";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 
 import React from "react";
 import { appContext } from "../../appContext";
@@ -36,6 +39,8 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     const { drawerLinks } = useContext(DataContext);
     const { productsInCart } = React.useContext(appContext).cartCTX;
     const [open, setOpen] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const openUserMenu = Boolean(anchorEl);
     const location = useLocation();
 
     const enableCartButton = () => {
@@ -61,23 +66,45 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
         logoff(); // Use the shared logoff utility
     };
 
+    const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleLogoffMenu = () => {
+        setAnchorEl(null);
+        handleLogoff();
+    };
+
+    // Get the user's initial from sessionStorage
+    const stellarUserId = sessionStorage.getItem("stellar_username");
+    const userInitial = stellarUserId ? stellarUserId.charAt(0).toUpperCase() : "?";
+
     return (
         <>
             <Box sx={{ display: "flex" }}></Box>
             <AppBar position="static" sx={{ height: "80px", backgroundColor: "white" }}>
                 <Toolbar
                     sx={{
-                        justifyContent: location.pathname === "/" ? "space-between" : "flex-end",
+                        justifyContent:
+                            location.pathname === "/" && featureFlags.navbarShowCategoryFilter
+                                ? "space-between"
+                                : "flex-end",
                     }}
                 >
-                    <Button
-                        sx={{ display: location.pathname === "/" ? "flex" : "none" }}
-                        color="inherit"
-                        aria-label="menu"
-                        onClick={() => setOpen(true)}
-                    >
-                        <MenuIcon color="primary" />
-                    </Button>
+                    {featureFlags.navbarShowCategoryFilter && (
+                        <Button
+                            sx={{ display: location.pathname === "/" ? "flex" : "none" }}
+                            color="inherit"
+                            aria-label="menu"
+                            onClick={() => setOpen(true)}
+                        >
+                            <MenuIcon color="primary" />
+                        </Button>
+                    )}
                     {featureFlags.navbarShowVentas && (
                         <Typography
                             variant="h6"
@@ -92,24 +119,17 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                         </Typography>
                     )}
 
-                    <Box>
-                        {/* Logoff Button */}
-                        <Button onClick={handleLogoff}>
-                            <Typography color="error" sx={{ fontSize: "1rem", fontWeight: "bold" }}>
-                                Salir
-                            </Typography>
-                        </Button>
-
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
                         {/* Home Button */}
                         <Button component={NavLink} to={"/"}>
                             <HomeIcon color="action" fontSize="large" />
                         </Button>
-                        {permissions.navbarCanChangeDate() && (
+                        {featureFlags.navbarShowDateSelector && (
                             <Button component={NavLink} to={"/date-picker"}>
                                 <DateRangeIcon color="action" fontSize="large" />
                             </Button>
                         )}
-                        {permissions.navbarCanViewOrdersReport() && ( // Conditionally render Orders button
+                        {permissions.navbarCanViewOrdersReport() && (
                             <Button component={NavLink} to={"/orders"}>
                                 <ListAltIcon color="action" fontSize="large" />
                             </Button>
@@ -123,6 +143,29 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                             <PointOfSaleIcon color="action" fontSize="large" />
                         </Button>
                         {enableCartButton()}
+
+                        {/* User Avatar */}
+                        <Avatar
+                            sx={{ bgcolor: "primary.main", cursor: "pointer", ml: 2 }}
+                            onClick={handleAvatarClick}
+                        >
+                            {userInitial}
+                        </Avatar>
+                        <Menu
+                            anchorEl={anchorEl}
+                            open={openUserMenu}
+                            onClose={handleMenuClose}
+                            anchorOrigin={{
+                                vertical: "bottom",
+                                horizontal: "right",
+                            }}
+                            transformOrigin={{
+                                vertical: "top",
+                                horizontal: "right",
+                            }}
+                        >
+                            <MenuItem onClick={handleLogoffMenu}>Cerrar sesión</MenuItem>
+                        </Menu>
                     </Box>
                 </Toolbar>
             </AppBar>

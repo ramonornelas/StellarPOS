@@ -2,11 +2,15 @@ import { Product } from "../products/products.model";
 import { openSnackBarComboAdded } from "../snackbar/snackbar.motor";
 import { fetchProductCombos } from "../products/products-api";
 
-export const getComboUpdates = (cart: Product[], productList: Product[], applicableCombos: { productId: string; comboId: string; comboThreshold: number }[]) => {
+export const getComboUpdates = (
+  cart: Product[],
+  productList: Product[],
+  applicableCombos: { productId: string; comboId: string; comboThreshold: number }[]
+) => {
   const comboUpdates = [];
 
   const productCounts = cart.reduce((acc, product) => {
-    acc[product.id] = (acc[product.id] || 0) + 1;
+    acc[product.id] = (acc[product.id] || 0) + (product.quantity ?? 1);
     return acc;
   }, {} as Record<string, number>);
 
@@ -15,6 +19,7 @@ export const getComboUpdates = (cart: Product[], productList: Product[], applica
 
     if (productCounts[productId]) {
       const comboProduct = productList.find((p) => p.id === comboId);
+
       if (comboProduct) {
         const combosToAddCount = Math.floor(productCounts[productId] / comboThreshold);
 
@@ -45,28 +50,100 @@ const updateCartWithCombos = async (
   // Get combos to add
   const comboUpdates = getComboUpdates(updatedCart, products, applicableCombos);
 
-  // Update the cart with combos
+  // Get all combos to add
+  const allCombosToAdd = comboUpdates.flatMap(({ combosToAdd }) => combosToAdd);
+
+  // Filter unique combos by id for the confirmation message
+  const uniqueCombosToAdd = allCombosToAdd.filter(
+    (combo, index, self) => self.findIndex(c => c.id === combo.id) === index
+  );
+
   let finalCart = [...updatedCart];
 
-  comboUpdates.forEach(({ combosToAdd }) => {
-    // Add combos
-    combosToAdd.forEach((combo) => {
-      openSnackBarComboAdded(combo.name, combo.price);
-      finalCart.push(combo);
+  if (uniqueCombosToAdd.length > 0) {
+    // Show only unique combos in the confirmation message
+    const combosMsg = uniqueCombosToAdd
+      .map(combo => `• ${combo.name} por $${combo.price}`)
+      .join('\n');
 
-      // Remove products that are part of the combo
-      const comboProducts = applicableCombos.find((c) => c.comboId === combo.id);
-      if (comboProducts) {
-        const { productId, comboThreshold } = comboProducts;
-        for (let i = 0; i < comboThreshold; i++) {
-          const index = finalCart.findIndex((product) => product.id === productId);
-          if (index !== -1) {
-            finalCart.splice(index, 1);
+    const confirmCombo = window.confirm(
+      `¿Quieres aplicar los siguientes combos?\n${combosMsg}`
+    );
+
+    if (confirmCombo) {
+      // Group combos by id to know how many of each to apply
+      const comboCountMap: Record<string, number> = {};
+      allCombosToAdd.forEach(combo => {
+        comboCountMap[combo.id] = (comboCountMap[combo.id] || 0) + 1;
+      });
+
+      // First, remove the required products for each combo
+      Object.entries(comboCountMap).forEach(([comboId, count]) => {
+        const comboProducts = applicableCombos.find((c) => c.comboId === comboId);
+        if (comboProducts) {
+          const { productId, comboThreshold } = comboProducts;
+          const totalToRemove = count * comboThreshold;
+          let toRemove = totalToRemove;
+
+          for (let i = 0; i < finalCart.length && toRemove > 0; i++) {
+            if (finalCart[i].id === productId) {
+              const qty = finalCart[i].quantity ?? 1;
+              if (qty > toRemove) {
+                finalCart[i].quantity = qty - toRemove;
+                toRemove = 0;
+              } else {
+                toRemove -= qty;
+                finalCart.splice(i, 1);
+                i--;
+              }
+            }
           }
         }
+      });
+
+      // Then, add the combos to the cart
+      const comboQuantityMap: Record<string, { combo: Product; quantity: number }> = {};
+
+      allCombosToAdd.forEach((combo) => {
+        if (comboQuantityMap[combo.id]) {
+          comboQuantityMap[combo.id].quantity += 1;
+        } else {
+          comboQuantityMap[combo.id] = { combo, quantity: 1 };
+        }
+      });
+
+      Object.values(comboQuantityMap).forEach(({ combo, quantity }) => {
+        // Check if the combo already exists in the cart
+        const existingIdx = finalCart.findIndex(
+          (item) => item.id === combo.id
+        );
+        if (existingIdx !== -1) {
+          // If it exists, add the quantity
+          const prevQty = finalCart[existingIdx].quantity ?? 1;
+          finalCart[existingIdx].quantity = prevQty + quantity;
+        } else {
+          // If it doesn't exist, push it
+          const comboWithQty = { ...combo, quantity };
+          finalCart.push(comboWithQty);
+        }
+      });
+
+      // Show a single snackbar message indicating the number of combos added for each type
+      const comboSummary = Object.entries(comboCountMap)
+        .map(([comboId, count]) => {
+          const combo = allCombosToAdd.find(c => c.id === comboId);
+          return combo ? `${count} × ${combo.name} ($${combo.price})` : '';
+        })
+        .filter(Boolean)
+        .join('\n');
+      if (comboSummary) {
+        openSnackBarComboAdded(
+          `Combos agregados:\n${comboSummary}`
+        );
       }
-    });
-  });
+    }
+    // If not confirmed, do not apply any combo
+  }
 
   setProductsInCart(finalCart);
 };
@@ -76,11 +153,10 @@ const getApplicableCombos = async (): Promise<{ productId: string; comboId: stri
     const combos = await fetchProductCombos();
     return combos.map((combo: any) => ({
       productId: combo.included_product_id,
-      comboId: combo.id,
+      comboId: combo.product_id,
       comboThreshold: combo.included_product_quantity,
     }));
   } catch (error) {
-    console.error("Error fetching applicable combos:", error);
     return [];
   }
 };
@@ -134,5 +210,17 @@ export const updateCart = async (
     });
   }
 
-  await updateCartWithCombos(updatedCart, products, setProductsInCart);
+  // Fetch combos only once
+  const applicableCombos = await getApplicableCombos();
+
+  // Check if the modified product affects any combo
+  const affectsCombo = applicableCombos.some(
+    combo => combo.productId === productToModify.id
+  );
+
+  if (affectsCombo) {
+    await updateCartWithCombos(updatedCart, products, setProductsInCart);
+  } else {
+    setProductsInCart(updatedCart);
+  }
 };

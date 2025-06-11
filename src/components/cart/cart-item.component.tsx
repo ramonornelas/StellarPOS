@@ -25,6 +25,7 @@ import { DataContext } from "../../dataContext";
 import { updateCart } from "./cart.utils";
 import { featureFlags } from "../../config/featureFlags";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
 interface CartItemProps {
 	productInfo: ProductsInCart;
@@ -41,7 +42,7 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
 
     React.useEffect(() => {
         setInputQty(qty.toString());
-    }, [qty]);
+    }, [qty, productsInCart]);
 
     const addQtyToCart = (id: string) => {
         const productFound = searchProductByIdInCart(id, productsInCart);
@@ -77,7 +78,7 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
         const floatValue = parseFloat(inputQty);
 
         if (floatValue === 0) {
-            setQtyError("Valor inválido");
+            setQtyError("Invalid value");
             return;
         } else {
             setQtyError(null);
@@ -107,7 +108,9 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                     {featureFlags.cartItemShowEditPrice && (
                         <EditPriceModal productInfo={props.productInfo} />
                     )}
-                    {formattedDescription(desc)}
+                    <Tooltip title={desc} arrow>
+                        <span>{formattedDescription(desc)}</span>
+                    </Tooltip>
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "left" }}>
                         {<Typography
                             component="p"

@@ -52,6 +52,6 @@ export const countNumberOfSameProducts = (id: string, productsInCart: Product[])
 }
 
 export const formattedDescription = (desc : string) => {
-	const trimmedDesc = desc.length > 15 ? `${desc.substring(0, 15)}…` : desc;
+	const trimmedDesc = desc.length > 6 ? `${desc.substring(0, 6)}…` : desc;
 	return trimmedDesc;
 };
