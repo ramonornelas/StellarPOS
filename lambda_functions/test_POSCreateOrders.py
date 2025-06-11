@@ -18,8 +18,8 @@ event = {
     'updated_username': 'testuser',
     'cash_register_id': 'register_001',
     'products': [
-      {'id': 'prod1', 'name': 'Product 1', 'price': 50, 'category_name': 'Category 1'},
-      {'id': 'prod2', 'name': 'Product 2', 'price': 50, 'category_name': 'Category 2'}
+      {'id': 'prod1', 'name': 'Product 1', 'price': 50, 'category_name': 'Category 1', 'quantity': 50},
+      {'id': 'prod2', 'name': 'Product 2', 'price': 50, 'category_name': 'Category 2', 'quantity': 5.4}
     ],
     'split_payments': [
       {'payment_method': 'credit_card', 'amount': 100},

@@ -86,27 +86,52 @@ const getApplicableCombos = async (): Promise<{ productId: string; comboId: stri
 };
 
 export const updateCart = async (
-  action: "add" | "subtract" | "delete",
+  action: "add" | "subtract" | "delete" | "setQty",
   productsInCart: Product[],
   setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>,
   products: Product[],
   productToModify: Product
 ) => {
-  if (!productToModify) return;
+  if (!productToModify) {
+    return;
+  }
 
   let updatedCart = [...productsInCart];
 
   if (action === "add") {
-    updatedCart.push(productToModify);
+    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    if (idx !== -1) {
+      let newQty = (updatedCart[idx].quantity ?? 1) + 1;
+      newQty = Number(newQty.toFixed(3));
+      updatedCart[idx] = { 
+        ...updatedCart[idx], 
+        quantity: newQty
+      };
+    } else {
+      let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+      updatedCart.push({ ...productToModify, quantity: qty });
+    }
   } else if (action === "subtract") {
-    for (let i = updatedCart.length - 1; i >= 0; i--) {
-      if (updatedCart[i].id === productToModify.id) {
-        updatedCart.splice(i, 1);
-        break;
+    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    if (idx !== -1) {
+      let newQty = (updatedCart[idx].quantity ?? 1) - 1;
+      newQty = Number(newQty.toFixed(3));
+      if (newQty > 0) {
+        updatedCart[idx] = { ...updatedCart[idx], quantity: newQty };
+      } else {
+        updatedCart.splice(idx, 1);
       }
     }
   } else if (action === "delete") {
     updatedCart = updatedCart.filter((p) => p.product_variant_id !== productToModify.product_variant_id);
+  } else if (action === "setQty") {
+    updatedCart = updatedCart.map((p) => {
+      if (p.product_variant_id === productToModify.product_variant_id) {
+        let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+        return { ...p, quantity: qty };
+      }
+      return p;
+    });
   }
 
   await updateCartWithCombos(updatedCart, products, setProductsInCart);
