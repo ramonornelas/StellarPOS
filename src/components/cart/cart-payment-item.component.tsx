@@ -23,7 +23,7 @@ export const PaymentItem: React.FC<PaymentItemProps> = ({ payment }) => {
 	const deletePayment = (id: number) => {
 		const updatedPayments = splitPayments.filter(p => p.id !== id);
 		setSplitPayments(updatedPayments);
-		openSnackBarDeletePayment(payment.id.toString());
+		openSnackBarDeletePayment();
 	};
 
 	const ischange = payment.amount < 0; // Check if the movement is negative
