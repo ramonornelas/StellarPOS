@@ -15,7 +15,8 @@ export const Orders: React.FC = () => {
     // Usa la fecha de hoy como valor inicial por default
     const [selectedDate, setSelectedDateLocal] = useState<string>(() => {
         const today = new Date();
-        return today.toISOString().slice(0, 10);
+        // Ensure format YYYY-MM-DD in local timezone
+        return today.toLocaleDateString("en-CA");
     });
 
     const dateString = selectedDate;

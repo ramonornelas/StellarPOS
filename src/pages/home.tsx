@@ -32,13 +32,9 @@ export const Home: React.FC<MainContainerProps> = (props) => {
 			}
 			const cashRegister = await getCashRegister(cashRegisterId!);
 
-			const cashRegisterDate = new Date(cashRegister.date);
+			const cashRegisterDateString = cashRegister.date
 			const today = new Date();
-
-			const cashRegisterDateString = cashRegisterDate
-				.toISOString()
-				.slice(0, 10); // 'YYYY-MM-DD'
-			const todayString = today.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+			const todayString = today.toLocaleDateString("en-CA"); // 'YYYY-MM-DD'
 
 			if (
 				cashRegister &&
