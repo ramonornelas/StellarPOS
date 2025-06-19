@@ -33,8 +33,8 @@ export const openSnackBarSplitPaymentRegistered = (splitAmount: number, paymentM
 	});
 };
 
-export const openSnackBarDeletePayment = (name: string) => {
-	enqueueSnackbar(`${name} eliminado!`, {
+export const openSnackBarDeletePayment = () => {
+	enqueueSnackbar(`Pago eliminado!`, {
 		variant: "success",
 		style: { opacity: "90%" },
     autoHideDuration: 3000,

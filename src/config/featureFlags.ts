@@ -1,6 +1,7 @@
 export const featureFlags = {
     // Cart Modal
     cartModalShowTip: false, // Show tip option in the cart modal
+    cartModalShowNotes: false, // Show notes option in the cart modal
     cartItemShowEditPrice: false, // Allow editing product price in the cart
 
     // Navbar
