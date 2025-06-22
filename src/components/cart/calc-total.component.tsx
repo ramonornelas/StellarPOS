@@ -20,7 +20,6 @@ import { PaymentItem } from "./cart-payment-item.component";
 import { DataContext } from '../../dataContext';
 import { featureFlags } from "../../config/featureFlags";
 import CheckIcon from '@mui/icons-material/Check';
-import Divider from '@mui/material/Divider';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -312,25 +311,36 @@ export const CalcTotal: React.FC = () => {
 
     //Split payment functions
     const addNewSplitPayment = (paymentMethod: string) => {
-        if (typeof receivedAmount === 'number' && !Number.isNaN(receivedAmount)) {
-            if (receivedAmount <= 0) {
+        let amount = receivedAmount;
+        if (receivedAmountRef.current) {
+            const value = receivedAmountRef.current.value;
+            amount = value === '' ? null : parseFloat(parseFloat(value).toFixed(2));
+        }
+        if (typeof amount === 'number' && !Number.isNaN(amount)) {
+            if (amount <= 0) {
                 alert('El pago debe ser mayor a $0.00');
                 return;
             }
             const newId = splitPayments.length > 0 ? splitPayments[splitPayments.length - 1].id + 1 : 1;
             const splitPayment = {
                 id: newId,
-                amount: receivedAmount,
+                amount: amount,
                 payment_method: paymentMethod,
             };
             setSplitPayments([...splitPayments, splitPayment]);
             setReceivedAmount(null);
-            const receivedAmountField = document.getElementById('receivedAmountField') as HTMLInputElement;
-            if (receivedAmountField) {
-                receivedAmountField.value = '';
+            if (receivedAmountRef.current) {
+                receivedAmountRef.current.value = '';
             }
             setShowCustomTip(false);
-            openSnackBarSplitPaymentRegistered(receivedAmount, mapPaymentMethod(paymentMethod));
+            openSnackBarSplitPaymentRegistered(amount, mapPaymentMethod(paymentMethod));
+
+            setTimeout(() => {
+                const { remainingAmount } = calculateRemainingAmount();
+                if (remainingAmount > 0 && receivedAmountRef.current) {
+                    receivedAmountRef.current.focus();
+                }
+            }, 100);
         } else {
             alert('Debe ingresar un monto válido para el pago.');
         }
@@ -474,6 +484,16 @@ export const CalcTotal: React.FC = () => {
         }
     }, [showDiscount, open, canAddMorePayments]);
 
+    useEffect(() => {
+        if (showSplitDetails && totalSplitPayments === 0) {
+            setTimeout(() => {
+                if (receivedAmountRef.current) {
+                    receivedAmountRef.current.focus();
+                }
+            }, 100);
+        }
+    }, [showSplitDetails, totalSplitPayments]);
+
     return (
         <Paper className={classes["container-total"]} elevation={5} square>
             <Typography variant="body1" component="h2" className={classes["total-font"]}>
@@ -502,7 +522,6 @@ export const CalcTotal: React.FC = () => {
                     <Typography id="modal-modal-title" variant="h5">
                         <strong>Pagar</strong>
                     </Typography>
-                    <Box sx={{ mt: 2 }} />
                     <Typography
                         id="modal-modal-title"
                         variant="body2"
@@ -510,173 +529,364 @@ export const CalcTotal: React.FC = () => {
                     >
                         {'Subtotal'}: {formatCurrency(total)}
                     </Typography>
-                    <Box sx={{ mt: 2, display: "flex", flexDirection: "column" }}></Box>
-                    <Box sx={{ display: "flex", flexDirection: "column" }}>
-                        {/* --- Discount button --- */}
-                        <Box display="flex" alignItems="center" sx={{ width: "100%" }}>
-                            <IconButton onClick={handleToggleDiscount}>
-                                {showDiscount ? <ExpandLess /> : <ExpandMore />}
-                            </IconButton>
-                            <Button
-                                variant="outlined"
-                                size="medium"
-                                fullWidth
-                                onClick={handleToggleDiscount}
-                                sx={{
-                                    textTransform: "none",
-                                    fontWeight: 400,
-                                    ml: 1,
-                                    fontSize: "0.95rem", // Smaller
-                                    py: 0.5 // Lower
-                                }}
-                                startIcon={<PercentIcon />}
-                            >
-                                Descuento: {formatCurrency(discount)}
-                                {typeof discountPercentage === "number" && discountPercentage > 0 && (
-                                    <> ({Math.round(discountPercentage * 100)}%)</>
-                                )}
-                            </Button>
-                        </Box>
-                        {showDiscount && (
-                            <>
-                                <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 1.5 }}>
-                                    <ToggleButtonGroup
-                                        className={classes["toggle-button-group"]}
-                                        color="primary"
-                                        value={discountPercentage}
-                                        exclusive
-                                        onChange={(_, newDiscount) => {
-                                            handleDiscountPercentage(newDiscount);
-                                            if (newDiscount !== "custom") setShowDiscount(false);
-                                        }}
-                                        aria-label="discount"
-                                    >
-                                        {discountOptions.map(option => (
-                                            <ToggleButton
-                                                key={option.value}
-                                                value={option.value}
-                                                aria-label={option.label}
-                                                className={classes["toggle-button"]}
-                                            >
-                                                {option.label}
-                                            </ToggleButton>
-                                        ))}
-                                    </ToggleButtonGroup>
-                                </Box>
-                                {showCustomDiscount && (
-                                    <Box sx={{ mt: 1 }}>
-                                        <TextField
-                                            id="custom-discount"
-                                            label="Descuento personalizado"
-                                            type="number"
-                                            error={customDiscountError}
-                                            helperText={customDiscountError ? "Valor inválido" : ""}
-                                            onChange={handleCustomDiscountChange}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.stopPropagation();
-                                                    setCustomDiscountError(false);
-                                                    setShowCustomDiscount(false);
-                                                    setShowDiscount(false); // Hide the buttons when capturing the discount
-                                                }
-                                            }}
-                                            InputProps={{
-                                                endAdornment: (
-                                                    <InputAdornment position="end">
-                                                        <IconButton
-                                                            aria-label="Accept discount"
-                                                            onClick={() => {
-                                                                setCustomDiscountError(false);
-                                                                setShowCustomDiscount(false);
-                                                                setShowDiscount(false); // Hide the buttons when capturing the discount
-                                                            }}
-                                                            edge="end"
-                                                        >
-                                                            <CheckIcon />
-                                                        </IconButton>
-                                                    </InputAdornment>
-                                                ),
-                                                inputProps: { min: 0, step: "any", className: classes["no-spinner"] },
-                                            }}
-                                            variant="outlined"
-                                            size="small"
-                                            inputRef={customDiscountRef}
-                                            value={discount > 0 ? discount : ""}
-                                        />
-                                    </Box>
-                                )}
-                            </>
-                        )}
-                        {featureFlags.cartModalShowTip && (
-                            <>
-                                <Box display="flex" alignItems="center">
-                                    <IconButton onClick={handleToggleTip}>
-                                        {showTip ? <ExpandLess /> : <ExpandMore />}
-                                    </IconButton>
-                                    {tipAmount > 0 ? (
-                                        <div>
-                                            Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            Propina
-                                        </div>
-                                    )}
-                                </Box>
-                                {showTip && (
-                                    <>
-                                        <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
+                    <Box sx={{ mt: 2 }} />
+                    <Grid container spacing={3}>
+                        {/* Left column */}
+                        <Grid item xs={12} md={6}>
+                            {featureFlags.cartModalShowTip && (
+                                <>
+                                    <Box display="flex" alignItems="center" sx={{ mt: 2 }}>
+                                        <IconButton onClick={handleToggleTip}>
+                                            {showTip ? <ExpandLess /> : <ExpandMore />}
+                                        </IconButton>
+                                        {tipAmount > 0 ? (
                                             <div>
-                                                <ToggleButtonGroup
-                                                    className={classes["toggle-button-group"]}
-                                                    color="primary"
-                                                    value={tipPercentage}
-                                                    exclusive
-                                                    onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
-                                                    aria-label="tip percentage"
-                                                >
-                                                    {tipOptions.map(option => (
-                                                        <ToggleButton
-                                                            key={option.value}
-                                                            value={option.value}
-                                                            aria-label={option.label}
-                                                            className={classes["toggle-button"]}
-                                                        >
-                                                            {option.label}
-                                                        </ToggleButton>
-                                                    ))}
-                                                </ToggleButtonGroup>
+                                                Propina: +{formatCurrency(tipAmount)} = {formatCurrency(totalWithTip)}
                                             </div>
-                                        </Box>
-                                        {showCustomTip && (
-                                            <Box sx={{ display: "flex", flexDirection: "column" }}>
-                                                <TextField
-                                                    id="customTipField"
-                                                    required
-                                                    size="small"
-                                                    sx={{ mt: 2 }}
-                                                    onChange={handleCustomTipChange}
-                                                    label="Propina"
-                                                    InputProps={{
-                                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                                        inputProps: { min: 0, step: "any" },
-                                                    }}
-                                                    variant="standard"
-                                                    margin="dense"
-                                                    type="number"
-                                                    error={customTipError}
-                                                    helperText={customTipError ? "Falta importe" : ""}
-                                                    value={tipAmount}
-                                                />
-                                            </Box>
+                                        ) : (
+                                            <div>
+                                                Propina
+                                            </div>
                                         )}
-                                        <Box sx={{ mt: 2 }}></Box>
-                                    </>
-                                )}
-                            </>
-                        )}
-                        {/* --- Payments button --- */}
-                        {totalSplitPayments > 0 && (
+                                    </Box>
+                                    {showTip && (
+                                        <>
+                                            <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 2 }}>
+                                                <div>
+                                                    <ToggleButtonGroup
+                                                        className={classes["toggle-button-group"]}
+                                                        color="primary"
+                                                        value={tipPercentage}
+                                                        exclusive
+                                                        onChange={(_, newTipPercentage) => handleTipPercentage(newTipPercentage)}
+                                                        aria-label="tip percentage"
+                                                    >
+                                                        {tipOptions.map(option => (
+                                                            <ToggleButton
+                                                                key={option.value}
+                                                                value={option.value}
+                                                                aria-label={option.label}
+                                                                className={classes["toggle-button"]}
+                                                            >
+                                                                {option.label}
+                                                            </ToggleButton>
+                                                        ))}
+                                                    </ToggleButtonGroup>
+                                                </div>
+                                            </Box>
+                                            {showCustomTip && (
+                                                <Box sx={{ display: "flex", flexDirection: "column" }}>
+                                                    <TextField
+                                                        id="customTipField"
+                                                        required
+                                                        size="small"
+                                                        sx={{ mt: 2 }}
+                                                        onChange={handleCustomTipChange}
+                                                        label="Propina"
+                                                        InputProps={{
+                                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                                            inputProps: { min: 0, step: "any" },
+                                                        }}
+                                                        variant="standard"
+                                                        margin="dense"
+                                                        type="number"
+                                                        error={customTipError}
+                                                        helperText={customTipError ? "Falta importe" : ""}
+                                                        value={tipAmount}
+                                                    />
+                                                </Box>
+                                            )}
+                                            <Box sx={{ mt: 2 }}></Box>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                            {featureFlags.cartModalShowNotes && (
+                                <>
+                                    <Box display="flex" alignItems="center" sx={{ mt: 2 }}>
+                                        <IconButton onClick={handleToggleNotes}>
+                                            {showNotes ? <ExpandLess /> : <ExpandMore />}
+                                        </IconButton>
+                                        <Typography id="modal-modal-title" variant="body1" component="h2" align="left">
+                                            {notes && notes.trim().length > 0 ? (
+                                                <div>
+                                                    Notas {notes && notes.trim().length > 0 ? "✅" : ""}
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    Notas
+                                                </div>
+                                            )}
+                                        </Typography>
+                                    </Box>
+                                    {showNotes && (
+                                        <TextField
+                                            id="notes"
+                                            label="Notas"
+                                            onChange={handleNotesChange}
+                                            multiline
+                                            rows={2}
+                                            variant="outlined"
+                                            style={{ margin: '8px 0' }}
+                                            value={notes}
+                                        />
+                                    )}
+                                </>
+                            )}
+                            <Box sx={{ mt: 2 }}>
+                                <TextField
+                                    id="receivedAmountField"
+                                    inputRef={setReceivedAmountRef}
+                                    required
+                                    size="small"
+                                    onChange={handleReceivedAmountChange}
+                                    label="Monto recibido"
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        inputProps: { min: 0, step: "any", className: classes["no-spinner"], style: { fontSize: 28, height: 48 } },
+                                    }}
+                                    variant="standard"
+                                    margin="dense"
+                                    type="number"
+                                    helperText={
+                                        showDiscount
+                                            ? ""
+                                            : "Ingrese el monto a agregar"
+                                    }
+                                    value={receivedAmount ?? ""}
+                                    disabled={!canAddMorePayments || showDiscount}
+                                    onFocus={() => setReceivedAmountFocused(true)}
+                                    onBlur={() => setReceivedAmountFocused(false)}
+                                    onKeyDown={(e) => {
+                                        const key = e.key.toLowerCase();
+                                        let method: string | null = null;
+                                        if (key === 'e') method = 'cash';
+                                        if (key === 't') method = 'card';
+                                        if (key === 'r') method = 'transfer';
+                                        if (method) {
+                                            e.preventDefault();
+                                            setHighlightedButton(method);
+                                            handleButtonClick(method);
+                                            setTimeout(() => setHighlightedButton(null), 200);
+                                        }
+                                    }}
+                                    sx={{
+                                        width: 170,
+                                        fontSize: 28,
+                                        height: 56,
+                                        mt: 1,
+                                        mb: 4,
+                                        '.MuiInputBase-input': {
+                                            fontSize: 28,
+                                            height: 48,
+                                            padding: '12px 0',
+                                        },
+                                        '.MuiInputLabel-root': {
+                                            fontSize: 20,
+                                        }
+                                    }}
+                                />
+                            </Box>
+                            <Box sx={{ width: "100%", mt: 4 }}>
+                                <Grid container spacing={2} justifyContent="center">
+                                    <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
+                                        <Button
+                                            fullWidth
+                                            size="large"
+                                            color="success"
+                                            variant="outlined"
+                                            onClick={() => handleButtonClick('cash')}
+                                            disabled={!canAddMorePayments || isButtonDisabled || showDiscount}
+                                            sx={{
+                                                minHeight: 64,
+                                                flexDirection: "column",
+                                                py: 2,
+                                                bgcolor: highlightedButton === 'cash' ? 'success.light' : undefined,
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                        >
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                <AttachMoneyIcon sx={{ fontSize: 36 }} />
+                                                {receivedAmountFocused && (
+                                                    <Typography variant="caption" color="text.secondary">(E)</Typography>
+                                                )}
+                                            </Box>
+                                        </Button>
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            sx={{ mt: 1 }}
+                                            color={!canAddMorePayments || isButtonDisabled || showDiscount ? "text.disabled" : "text.primary"}
+                                        >
+                                            Efectivo
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
+                                        <Button
+                                            fullWidth
+                                            size="large"
+                                            color="success"
+                                            variant="outlined"
+                                            onClick={() => handleButtonClick('card')}
+                                            disabled={!canAddMorePayments || isButtonDisabled || showDiscount}
+                                            sx={{
+                                                minHeight: 64,
+                                                flexDirection: "column",
+                                                py: 2,
+                                                bgcolor: highlightedButton === 'card' ? 'success.light' : undefined,
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                        >
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                <CreditCardIcon sx={{ fontSize: 36 }} />
+                                                {receivedAmountFocused && (
+                                                    <Typography variant="caption" color="text.secondary">(T)</Typography>
+                                                )}
+                                            </Box>
+                                        </Button>
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            sx={{ mt: 1 }}
+                                            color={!canAddMorePayments || isButtonDisabled || showDiscount ? "text.disabled" : "text.primary"}
+                                        >
+                                            Tarjeta
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
+                                        <Button
+                                            fullWidth
+                                            size="large"
+                                            color="success"
+                                            variant="outlined"
+                                            onClick={() => handleButtonClick('transfer')}
+                                            disabled={!canAddMorePayments || isButtonDisabled || showDiscount}
+                                            sx={{
+                                                minHeight: 64,
+                                                flexDirection: "column",
+                                                py: 2,
+                                                bgcolor: highlightedButton === 'transfer' ? 'success.light' : undefined,
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                        >
+                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                <AccountBalanceIcon sx={{ fontSize: 36 }} />
+                                                {receivedAmountFocused && (
+                                                    <Typography variant="caption" color="text.secondary">(R)</Typography>
+                                                )}
+                                            </Box>
+                                        </Button>
+                                        <Typography
+                                            variant="caption"
+                                            display="block"
+                                            sx={{ mt: 1 }}
+                                            color={!canAddMorePayments || isButtonDisabled || showDiscount ? "text.disabled" : "text.primary"}
+                                        >
+                                            Transferencia
+                                        </Typography>
+                                    </Grid>
+                                </Grid>
+                            </Box>
+                            {/* === End of payment buttons === */}
+                            {/* ...rest of the left column... */}
+                        </Grid>
+                        {/* Right column */}
+                        <Grid item xs={12} md={6}>
+                            {/* --- Discount button --- */}
+                            <Box display="flex" alignItems="center" sx={{ width: "100%", mt: 2 }}>
+                                <IconButton onClick={handleToggleDiscount}>
+                                    {showDiscount ? <ExpandLess /> : <ExpandMore />}
+                                </IconButton>
+                                <Button
+                                    variant="outlined"
+                                    size="medium"
+                                    fullWidth
+                                    onClick={handleToggleDiscount}
+                                    sx={{
+                                        textTransform: "none",
+                                        fontWeight: 400,
+                                        ml: 1,
+                                        fontSize: "0.95rem",
+                                        py: 0.5
+                                    }}
+                                    startIcon={<PercentIcon />}
+                                >
+                                    Descuento: {formatCurrency(discount)}
+                                    {typeof discountPercentage === "number" && discountPercentage > 0 && (
+                                        <> ({Math.round(discountPercentage * 100)}%)</>
+                                    )}
+                                </Button>
+                            </Box>
+                            {showDiscount && (
+                                <>
+                                    <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 1.5 }}>
+                                        <ToggleButtonGroup
+                                            className={classes["toggle-button-group"]}
+                                            color="primary"
+                                            value={discountPercentage}
+                                            exclusive
+                                            onChange={(_, newDiscount) => {
+                                                handleDiscountPercentage(newDiscount);
+                                                if (newDiscount !== "custom") setShowDiscount(false);
+                                            }}
+                                            aria-label="discount"
+                                        >
+                                            {discountOptions.map(option => (
+                                                <ToggleButton
+                                                    key={option.value}
+                                                    value={option.value}
+                                                    aria-label={option.label}
+                                                    className={classes["toggle-button"]}
+                                                >
+                                                    {option.label}
+                                                </ToggleButton>
+                                            ))}
+                                        </ToggleButtonGroup>
+                                    </Box>
+                                    {showCustomDiscount && (
+                                        <Box sx={{ mt: 1 }}>
+                                            <TextField
+                                                id="custom-discount"
+                                                label="Descuento personalizado"
+                                                type="number"
+                                                error={customDiscountError}
+                                                helperText={customDiscountError ? "Valor inválido" : ""}
+                                                onChange={handleCustomDiscountChange}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.stopPropagation();
+                                                        setCustomDiscountError(false);
+                                                        setShowCustomDiscount(false);
+                                                        setShowDiscount(false);
+                                                    }
+                                                }}
+                                                InputProps={{
+                                                    endAdornment: (
+                                                        <InputAdornment position="end">
+                                                            <IconButton
+                                                                aria-label="Accept discount"
+                                                                onClick={() => {
+                                                                    setCustomDiscountError(false);
+                                                                    setShowCustomDiscount(false);
+                                                                    setShowDiscount(false);
+                                                                }}
+                                                                edge="end"
+                                                            >
+                                                                <CheckIcon />
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    ),
+                                                    inputProps: { min: 0, step: "any", className: classes["no-spinner"] },
+                                                }}
+                                                variant="outlined"
+                                                size="small"
+                                                inputRef={customDiscountRef}
+                                                value={discount > 0 ? discount : ""}
+                                            />
+                                        </Box>
+                                    )}
+                                </>
+                            )}
                             <Box display="flex" alignItems="center" sx={{ width: "100%", mt: 2 }}>
                                 <IconButton onClick={handleToggleSplitDetails}>
                                     {showSplitDetails ? <ExpandLess /> : <ExpandMore />}
@@ -698,265 +908,151 @@ export const CalcTotal: React.FC = () => {
                                     Pagos: {formatCurrency(totalSplitPayments)}
                                 </Button>
                             </Box>
-                        )}
-                        {totalSplitPayments > 0 && showSplitDetails && (
-                            <Box sx={{ mt: 2, display: "flex", flexDirection: "column" }}>
-                                <Table aria-label="spanning table">
-                                    <TableHead>
-                                        <TableRow className={classes["table-header"]}>
-                                            <TableCell>Importe</TableCell>
-                                            <TableCell>Método</TableCell>
-                                            <TableCell></TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {splitPayments.map((payment) => (
-                                            <PaymentItem key={payment.id} payment={payment} />
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </Box>
-                        )}
-                        <Box sx={{ mt: 2, mb: 1, p: 2, bgcolor: "#f5f5f5", borderRadius: 2, textAlign: "center" }}>
-                            <Typography variant="subtitle1" color="text.primary">
-                                Total a pagar
-                            </Typography>
-                            <Typography
-                                variant="h6"
-                                color="text.primary"
-                                fontWeight="bold"
-                                sx={{ mb: 1 }}
-                            >
-                                {tipAmount > 0
-                                    ? formatCurrency(totalWithTip)
-                                    : discount > 0
-                                        ? formatCurrency(totalWithDiscount)
-                                        : formatCurrency(total)
-                                }
-                            </Typography>
-                            {(totalSplitPayments > 0 || discount > 0) && (
-                                <>
-                                    <Divider sx={{ my: 1 }} />
-                                    <Typography variant="subtitle2" color="text.primary">
-                                        {remainingAmount < 0
-                                            ? "Devuelve este cambio al cliente"
-                                            : "Restante por pagar"}
-                                    </Typography>
-                                    <Typography
-                                        variant={remainingAmount < 0 ? "h3" : "h6"}
-                                        color={remainingAmount < 0 ? "info.main" : remainingAmount > 0 ? "error" : "success.main"}
-                                        fontWeight={remainingAmount < 0 ? "bold" : "normal"}
-                                        sx={remainingAmount < 0 ? { mt: 1, mb: 1 } : {}}
-                                    >
-                                        {formatCurrency(Math.abs(remainingAmount))}
-                                    </Typography>
-                                </>
-                            )}
-                        </Box>
-                        {canAddMorePayments && (
-                            <>
-                                <Box sx={{ mt: 1 }}>
-                                    <TextField
-                                        id="receivedAmountField"
-                                        inputRef={setReceivedAmountRef}
-                                        required
-                                        size="small"
-                                        onChange={handleReceivedAmountChange}
-                                        label="Monto recibido"
-                                        InputProps={{
-                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                            inputProps: { min: 0, step: "any", className: classes["no-spinner"], style: { fontSize: 28, height: 48 } },
-                                        }}
-                                        variant="standard"
-                                        margin="dense"
-                                        type="number"
-                                        helperText={
-                                            showDiscount
-                                                ? ""
-                                                : "Ingrese el monto a agregar"
-                                        }
-                                        value={receivedAmount ?? ""}
-                                        disabled={!canAddMorePayments || showDiscount}
-                                        onFocus={() => setReceivedAmountFocused(true)}
-                                        onBlur={() => setReceivedAmountFocused(false)}
-                                        onKeyDown={(e) => {
-                                            const key = e.key.toLowerCase();
-                                            let method: string | null = null;
-                                            if (key === 'e') method = 'cash';
-                                            if (key === 't') method = 'card';
-                                            if (key === 'r') method = 'transfer';
-                                            if (method) {
-                                                e.preventDefault();
-                                                setHighlightedButton(method);
-                                                handleButtonClick(method);
-                                                setTimeout(() => setHighlightedButton(null), 200); // 200ms highlight
-                                            }
-                                        }}
-                                        sx={{
-                                            width: 170,
-                                            fontSize: 28,
-                                            height: 56,
-                                            mt: 1,
-                                            mb: 7,
-                                            '.MuiInputBase-input': {
-                                                fontSize: 28,
-                                                height: 48,
-                                                padding: '12px 0',
-                                            },
-                                            '.MuiInputLabel-root': {
-                                                fontSize: 20,
-                                            }
-                                        }}
-                                    />
-                                    {receivedAmountFocused && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                                            Atajos: E = Efectivo, T = Tarjeta, R = Transferencia
+                            {showSplitDetails && (
+                                <Box sx={{ mt: 2, display: "flex", flexDirection: "column" }}>
+                                    {totalSplitPayments > 0 ? (
+                                        <Table
+                                            aria-label="spanning table"
+                                            sx={{
+                                                borderRadius: 2,
+                                                overflow: "hidden",
+                                                boxShadow: 2,
+                                                background: "#fff",
+                                                minWidth: 220,
+                                                mb: 2,
+                                                fontSize: 13,
+                                                '& .MuiTableCell-root': {
+                                                    fontSize: 13,
+                                                    py: 0.5,
+                                                    px: 1,
+                                                },
+                                            }}
+                                        >
+                                            <TableHead>
+                                                <TableRow className={classes["table-header"]}>
+                                                    <TableCell
+                                                        sx={{
+                                                            fontWeight: "bold",
+                                                            fontSize: 12,
+                                                            background: "#f0f4f8",
+                                                            color: "#1976d2",
+                                                            borderBottom: "2px solid #e0e0e0",
+                                                            py: 0.25,
+                                                            px: 0.5,
+                                                        }}
+                                                    >
+                                                        Importe
+                                                    </TableCell>
+                                                    <TableCell
+                                                        sx={{
+                                                            fontWeight: "bold",
+                                                            fontSize: 12,
+                                                            background: "#f0f4f8",
+                                                            color: "#1976d2",
+                                                            borderBottom: "2px solid #e0e0e0",
+                                                            py: 0.25,
+                                                            px: 0.5,
+                                                        }}
+                                                    >
+                                                        Método
+                                                    </TableCell>
+                                                    <TableCell
+                                                        sx={{
+                                                            background: "#f0f4f8",
+                                                            borderBottom: "2px solid #e0e0e0",
+                                                            py: 0.25,
+                                                            px: 0.5,
+                                                        }}
+                                                    ></TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {splitPayments.map((payment) => (
+                                                    <PaymentItem key={payment.id} payment={payment} />
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                                            No hay pagos registrados aún.<br />{"<"}--- Agrega un pago para ver el detalle aquí.
                                         </Typography>
                                     )}
                                 </Box>
-                                <Box sx={{ width: "100%", mt: 2 }}>
-                                    <Grid container spacing={2} justifyContent="center">
-                                        <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
-                                            <Button
-                                                fullWidth
-                                                size="large"
-                                                color="success"
-                                                variant="outlined"
-                                                onClick={() => handleButtonClick('cash')}
-                                                disabled={isButtonDisabled || showDiscount}
-                                                sx={{
-                                                    minHeight: 64,
-                                                    flexDirection: "column",
-                                                    py: 2,
-                                                    bgcolor: highlightedButton === 'cash' ? 'success.light' : undefined,
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                            >
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                                    <AttachMoneyIcon sx={{ fontSize: 36 }} />
-                                                    {receivedAmountFocused && (
-                                                        <Typography variant="caption" color="text.secondary">(E)</Typography>
-                                                    )}
-                                                </Box>
-                                            </Button>
-                                            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                                Efectivo
-                                            </Typography>
-                                        </Grid>
-                                        <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
-                                            <Button
-                                                fullWidth
-                                                size="large"
-                                                color="success"
-                                                variant="outlined"
-                                                onClick={() => handleButtonClick('card')}
-                                                disabled={isButtonDisabled || showDiscount}
-                                                sx={{
-                                                    minHeight: 64,
-                                                    flexDirection: "column",
-                                                    py: 2,
-                                                    bgcolor: highlightedButton === 'card' ? 'success.light' : undefined,
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                            >
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                                    <CreditCardIcon sx={{ fontSize: 36 }} />
-                                                    {receivedAmountFocused && (
-                                                        <Typography variant="caption" color="text.secondary">(T)</Typography>
-                                                    )}
-                                                </Box>
-                                            </Button>
-                                            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                                Tarjeta
-                                            </Typography>
-                                        </Grid>
-                                        <Grid item xs={12} sm={4} sx={{ textAlign: "center" }}>
-                                            <Button
-                                                fullWidth
-                                                size="large"
-                                                color="success"
-                                                variant="outlined"
-                                                onClick={() => handleButtonClick('transfer')}
-                                                disabled={isButtonDisabled || showDiscount}
-                                                sx={{
-                                                    minHeight: 64,
-                                                    flexDirection: "column",
-                                                    py: 2,
-                                                    bgcolor: highlightedButton === 'transfer' ? 'success.light' : undefined,
-                                                    transition: 'background-color 0.2s'
-                                                }}
-                                            >
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                                    <AccountBalanceIcon sx={{ fontSize: 36 }} />
-                                                    {receivedAmountFocused && (
-                                                        <Typography variant="caption" color="text.secondary">(R)</Typography>
-                                                    )}
-                                                </Box>
-                                            </Button>
-                                            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                                Transferencia
-                                            </Typography>
-                                        </Grid>
-                                    </Grid>
-                                </Box>
-                            </>
-                        )}
-                        {featureFlags.cartModalShowNotes && (
-                            <>
-                                <Box display="flex" alignItems="center">
-                                    <IconButton onClick={handleToggleNotes}>
-                                        {showNotes ? <ExpandLess /> : <ExpandMore />}
-                                    </IconButton>
-                                    <Typography id="modal-modal-title" variant="body1" component="h2" align="left">
-                                        {notes && notes.trim().length > 0 ? (
-                                            <div>
-                                                Notas {notes && notes.trim().length > 0 ? "✅" : ""}
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                Notas
-                                            </div>
-                                        )}
-                                    </Typography>
-                                </Box>
-                                {showNotes && (
-                                    <TextField
-                                        id="notes"
-                                        label="Notas"
-                                        onChange={handleNotesChange}
-                                        multiline
-                                        rows={2}
-                                        variant="outlined"
-                                        style={{ margin: '8px 0' }}
-                                        value={notes}
-                                    />
-                                )}
-                            </>
-                        )}
-                        <Button
-                            size="small"
-                            color="success"
-                            variant="contained"
-                            sx={{
-                                mt: 2,
-                                boxShadow: highlightedFinalizar ? "0 0 0 4px #81c784" : undefined,
-                                transition: "box-shadow 0.2s"
-                            }}
-                            onClick={() => {
-                                addNewOrder('split');
-                            }}
-                            disabled={isButtonDisabled || remainingAmount > 0}
-                        >
-                            Finalizar Pago
-                        </Button>
-                        {receivedAmountFocused && !isButtonDisabled && remainingAmount <= 0 && (
-                            <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: "block" }}>
-                                Presiona <b>Enter</b> para finalizar el pago
-                            </Typography>
-                        )}
-                        <Box sx={{ display: "flex", flexDirection: "column" }}>
+                            )}                  </Grid>
+
+                        <Box sx={{ display: "flex", flexDirection: "row", gap: 2, justifyContent: "center", alignItems: "stretch", width: "100%" }}>
+                            <Box sx={{ flex: 1, mt: 2, mb: 1, p: 2, bgcolor: "#f5f5f5", borderRadius: 2, textAlign: "center" }}>
+                                <Typography variant="subtitle1" color="text.primary">
+                                    Total a pagar
+                                </Typography>
+                                <Typography
+                                    variant="h5"
+                                    color="text.primary"
+                                    fontWeight="normal"
+                                >
+                                    {tipAmount > 0
+                                        ? formatCurrency(totalWithTip)
+                                        : discount > 0
+                                            ? formatCurrency(totalWithDiscount)
+                                            : formatCurrency(total)
+                                    }
+                                </Typography>
+                            </Box>
+                            <Box sx={{ flex: 1, mt: 2, mb: 1, p: 2, bgcolor: "#f5f5f5", borderRadius: 2, textAlign: "center" }}>
+                                <Typography variant="subtitle2" color="text.primary">
+                                    {remainingAmount < 0
+                                        ? "Devuelve este cambio al cliente"
+                                        : "Restante por pagar"}
+                                </Typography>
+                                <Typography
+                                    variant="h4"
+                                    color={remainingAmount < 0 ? "info.main" : remainingAmount > 0 ? "error" : "success.main"}
+                                    fontWeight={remainingAmount < 0 ? "bold" : "normal"}
+                                >
+                                    {formatCurrency(Math.abs(remainingAmount))}
+                                </Typography>
+                            </Box>
                         </Box>
-                    </Box>
+
+
+                        <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", alignItems: "flex-end", width: "100%" }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                                <Button
+                                    size="small"
+                                    color="success"
+                                    variant="contained"
+                                    sx={{
+                                        mt: 2,
+                                        boxShadow: highlightedFinalizar ? "0 0 0 4px #81c784" : undefined,
+                                        transition: "box-shadow 0.2s"
+                                    }}
+                                    onClick={() => {
+                                        addNewOrder('split');
+                                    }}
+                                    disabled={isButtonDisabled || remainingAmount > 0}
+                                >
+                                    Finalizar Pago
+                                </Button>
+                                {!isButtonDisabled && remainingAmount <= 0 ? (
+                                    <Typography
+                                        variant="caption"
+                                        color="success.main"
+                                        sx={{ mt: 0.5, display: "block", ml: 0, alignSelf: "flex-end" }}
+                                    >
+                                        Presiona <b>Enter</b> para finalizar el pago
+                                    </Typography>
+                                ) : (
+                                    <Typography
+                                        variant="caption"
+                                        sx={{ mt: 0.5, display: "block", ml: 0, alignSelf: "flex-end", visibility: "hidden" }}
+                                    >
+                                        &nbsp;
+                                    </Typography>
+                                )}
+                            </Box>
+                        </Box>
+
+                    </Grid>
                 </Box>
             </Modal>
         </Paper>

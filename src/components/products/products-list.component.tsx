@@ -94,7 +94,7 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
                     .filter((product) => product.is_active)
                     .sort((a, b) => a.display_order - b.display_order)
                     .map((product, index) => (
-                        <Grid key={index} item xl={2} lg={3} md={4} sm={3} xs={6}>
+                        <Grid key={index} item xs={12} sm={6} md={2.4} lg={2.2} xl={2}>
                             <ProductCard product={product} onAddToCart={handleAddToCart} />
                         </Grid>
                     ))}

@@ -12,46 +12,56 @@ import { Box } from "@mui/material";
 import classes from "./css/cart-list.module.css";
 import { CalcTotal } from "./calc-total.component";
 import { appContext } from "../../appContext";
-import { useLocation } from 'react-router-dom';
 
 export const CartList: React.FC = () => {
-	const { productsInCart } = React.useContext(appContext).cartCTX;
-	const productsGrouped = groupProducts(productsInCart);
-	const location = useLocation();
+    const { productsInCart } = React.useContext(appContext).cartCTX;
+    const productsGrouped = groupProducts(productsInCart);
 
-	const isUserInHome = () => {
-		return location.pathname === "/";
-	}
+    const tableRef = React.useRef<HTMLTableElement>(null);
+    const [tableWidth, setTableWidth] = React.useState<number>(0);
 
-	return (
-		<Box sx={{ flexGrow: 1 }}>
-			<TableContainer
-				component={Paper}
-				className={classes["cart-container"]}
-				elevation={5}
-				square
-			>
-				<Table aria-label="spanning table" className={(isCartEmpty(productsInCart) && isUserInHome()) ? classes["table-body"] : ""}>
-					<TableHead>
-						<TableRow className={classes["table-header"]}>
-							<TableCell>Producto</TableCell>
-							<TableCell align="center">Cant.</TableCell>
-							<TableCell align="right">Precio</TableCell>
-							<TableCell align="right">Suma</TableCell>
-							<TableCell align="right"></TableCell>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						{productsGrouped.map((row) => (
-							<CartItem
-								key={`${row.id}-${row.product_variant_id}`}
-								productInfo={row}
-							/>
-						))}
-					</TableBody>
-				</Table>
-			</TableContainer>
-			<CalcTotal/>
-		</Box>
-	);
+    React.useLayoutEffect(() => {
+        if (tableRef.current) {
+            setTableWidth(tableRef.current.offsetWidth);
+        }
+    }, [productsGrouped.length]);
+
+    return (
+        <Box sx={{ flexGrow: 1 }} className={classes["cart-fixed-size"]}>
+            <TableContainer
+                component={Paper}
+                className={classes["cart-container"]}
+                elevation={5}
+                square
+                sx={{ width: "100%", overflowX: "auto" }}
+            >
+                <Table
+                    ref={tableRef}
+                    aria-label="spanning table"
+                    className={isCartEmpty(productsInCart) ? classes["table-body"] : ""}
+                    sx={{ tableLayout: "fixed", width: "100%" }}
+                >
+                    <TableHead>
+                        <TableRow className={classes["table-header"]}>
+                            <TableCell>Producto</TableCell>
+                            <TableCell align="center">Cant.</TableCell>
+                            <TableCell align="right">Precio</TableCell>
+                            <TableCell align="right">Suma</TableCell>
+                            <TableCell align="right"></TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {productsGrouped.map((row) => (
+                            <CartItem
+                                key={`${row.id}-${row.product_variant_id}`}
+                                productInfo={row}
+                                tableWidth={tableWidth}
+                            />
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <CalcTotal />
+        </Box>
+    );
 };

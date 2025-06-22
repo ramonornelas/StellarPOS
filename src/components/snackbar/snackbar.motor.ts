@@ -56,3 +56,11 @@ export const openSnackBarComboRemoved = (name: string, price:number) => {
     autoHideDuration: 3000,
 	});
 };
+
+export const openSnackBarCashRegisterOpened = () => {
+    enqueueSnackbar("¡Caja abierta correctamente! Ya puedes comenzar a operar.", {
+        variant: "success",
+        style: { opacity: "90%" },
+        autoHideDuration: 5000,
+    });
+};

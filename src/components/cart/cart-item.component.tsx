@@ -29,10 +29,11 @@ import Tooltip from "@mui/material/Tooltip";
 
 interface CartItemProps {
 	productInfo: ProductsInCart;
+    tableWidth: number;
 }
 
-export const CartItem: React.FC<CartItemProps> = (props) => {
-    const { desc, qty, unit, category, product_variant_id, is_combo } = props.productInfo;
+export const CartItem: React.FC<CartItemProps> = ({ productInfo, tableWidth }) => {
+    const { desc, qty, unit, category, product_variant_id, is_combo } = productInfo;
     const { productsInCart, setProductsInCart } =
         React.useContext(appContext).cartCTX;
     const products = useContext(DataContext).products;
@@ -95,6 +96,8 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
         }
     };
 
+    const isWideTable = tableWidth >= 600;
+
     return (
         <>
             <TableRow
@@ -104,12 +107,14 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                     height: 72, // Increase row height
                 }}
             >
-                <TableCell sx={{ p: 1.5, pl: 2 }}> {/* More padding */}
+                <TableCell sx={{ p: 1.5, pl: 2 }}>
                     {featureFlags.cartItemShowEditPrice && (
-                        <EditPriceModal productInfo={props.productInfo} />
+                        <EditPriceModal productInfo={productInfo} />
                     )}
                     <Tooltip title={desc} arrow>
-                        <span>{formattedDescription(desc)}</span>
+                        <span>
+                          {formattedDescription(desc, 60)}
+                        </span>
                     </Tooltip>
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "left" }}>
                         {<Typography
@@ -141,18 +146,20 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: 1.5, // Space between buttons
+                            gap: 1.5,
                         }}
                     >
                         <>
-                            <IconButton
-                                onClick={() => substractQtyFromCart(product_variant_id)}
-                                size="medium"
-                                sx={{ width: 40, height: 40 }}
-                                color="primary"
-                            >
-                                <RemoveCircleIcon sx={{ fontSize: 32 }} />
-                            </IconButton>
+                            {isWideTable && (
+                                <IconButton
+                                    onClick={() => substractQtyFromCart(product_variant_id)}
+                                    size="medium"
+                                    sx={{ width: 40, height: 40 }}
+                                    color="primary"
+                                >
+                                    <RemoveCircleIcon sx={{ fontSize: 32 }} />
+                                </IconButton>
+                            )}
                             <TextField
                                 type="number"
                                 variant="standard"
@@ -163,6 +170,7 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                                         handleAcceptQty();
                                     }
                                 }}
+                                onBlur={handleAcceptQty}
                                 error={!!qtyError}
                                 helperText={qtyError ?? " "}
                                 FormHelperTextProps={{
@@ -176,14 +184,16 @@ export const CartItem: React.FC<CartItemProps> = (props) => {
                                     className: classes["no-spinner"],
                                 }}
                             />
-                            <IconButton
-                                onClick={() => addQtyToCart(product_variant_id)}
-                                size="medium"
-                                sx={{ width: 40, height: 40 }}
-                                color="primary"
-                            >
-                                <AddCircleIcon sx={{ fontSize: 32 }} />
-                            </IconButton>
+                            {isWideTable && (
+                                <IconButton
+                                    onClick={() => addQtyToCart(product_variant_id)}
+                                    size="medium"
+                                    sx={{ width: 40, height: 40 }}
+                                    color="primary"
+                                >
+                                    <AddCircleIcon sx={{ fontSize: 32 }} />
+                                </IconButton>
+                            )}
                         </>
                     </Box>
                 </TableCell>

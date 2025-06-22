@@ -20,7 +20,7 @@
   background-repeat: no-repeat; /* Do not repeat the image */
   background-size: contain; /* Resize the background image to cover the entire container */
 	width: 100%;
-  height: 100%;
+	height: 100%;
 }
 
 /* Responsive design */
@@ -34,6 +34,26 @@
 		width: 90vw;
 		height: auto;
 	}
+}
 
-	
+@media (max-width: 1199px) {
+	.cart-fixed-size {
+		max-width: 1024px;
+		max-height: 768px;
+		width: 100vw;
+		height: 100vh;
+		margin: 2 auto;
+		overflow: auto;
+	}
+}
+
+@media (min-width: 1200px) {
+    .cart-fixed-size {
+        max-width: 1400px;
+        max-height: 900px;
+        width: 100vw;
+        height: 100vh;
+        margin: 2 auto;
+        overflow: auto;
+    }
 }

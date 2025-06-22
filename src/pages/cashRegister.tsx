@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import {
     Box,
     Container,
@@ -6,13 +6,16 @@ import {
     TextField,
     Button,
     Alert,
+    IconButton,
 } from "@mui/material";
 import classes from "./css/orders.module.css";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
+import HomeIcon from "@mui/icons-material/Home"; // ya tienes MUI, solo importa el ícono
 import { postOpenCashRegister, putCloseCashRegister, fetchOrderTotalsByCashRegister } from "../functions/apiFunctions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { appContext } from "../appContext";
 import { permissions } from "../config/permissions"; // <-- Add this import
+import { openSnackBarCashRegisterOpened } from "../components/snackbar/snackbar.motor";
 
 export const CashRegister: React.FC = () => {
     const { dateCTX } = useContext(appContext);
@@ -33,6 +36,8 @@ export const CashRegister: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const redirectMessage = location.state?.message || "";
+    const closeAmountRef = useRef<HTMLInputElement>(null);
+    const openAmountRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (justOpened) {
@@ -69,6 +74,17 @@ export const CashRegister: React.FC = () => {
         }
     }, [isOpen, dateString]);
 
+    useEffect(() => {
+        // If the cash register is open, and it was not just closed or just opened, focus the closing input
+        if (isOpen && !justClosed && !justOpened) {
+            closeAmountRef.current?.focus();
+        }
+        // If the cash register is NOT open and was NOT just closed or just opened, focus the
+        if (!isOpen && !justClosed && !justOpened) {
+            openAmountRef.current?.focus();
+        }
+    }, [isOpen, justClosed, justOpened]);
+
     const handleOpen = async (e: React.FormEvent) => {
         e.preventDefault();
         const value = parseFloat(amount);
@@ -83,6 +99,7 @@ export const CashRegister: React.FC = () => {
             opened_at: new Date().toISOString(),
             status: "open",
             opened_user_id: sessionStorage.getItem("stellar_userid"),
+            date: dateString,
         });
 
         if (result && result.id) {
@@ -92,7 +109,8 @@ export const CashRegister: React.FC = () => {
             setAmount("");
             setIsOpen(true);
             setJustOpened(true);
-            navigate(".", { replace: true, state: {} });
+            openSnackBarCashRegisterOpened();
+            navigate("/");
         } else {
             setError("No se pudo abrir la caja. Intenta de nuevo.");
             setSuccess(false);
@@ -190,6 +208,7 @@ export const CashRegister: React.FC = () => {
                                 type="number"
                                 inputProps={{ min: 0, step: "0.01" }}
                                 sx={{ mb: 2 }}
+                                inputRef={openAmountRef}
                             />
                             <Button
                                 type="submit"
@@ -231,6 +250,7 @@ export const CashRegister: React.FC = () => {
                                 type="number"
                                 inputProps={{ min: 0, step: "0.01" }}
                                 sx={{ mb: 2 }}
+                                inputRef={closeAmountRef}
                             />
                             <Button
                                 type="submit"
@@ -254,9 +274,18 @@ export const CashRegister: React.FC = () => {
                         )}
                     </>
                 )}
-                {/* Botón para consultar la lista de cortes, solo si tiene permiso */}
+                {isOpen && (
+                    <IconButton
+                        color="info"
+                        onClick={() => navigate("/")}
+                        sx={{ mb: 2, width: 64, height: 64 }}
+                    >
+                        <HomeIcon sx={{ fontSize: 40 }} />
+                    </IconButton>
+                )}
+
                 {permissions.canViewCashRegisterHistory() && (
-                    <Box mt={4} width="100%" display="flex" justifyContent="center">
+                    <Box mt={0} width="100%" display="flex" justifyContent="center">
                         <Button
                             variant="outlined"
                             color="primary"
