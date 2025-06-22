@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <SnackbarProvider
                 maxSnack={3}
                 autoHideDuration={1000}
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                anchorOrigin={{ vertical: "top", horizontal: "left" }}
                 action={(key) => <SnackbarCloseButton snackbarKey={key} />}
             >
                 <StyledEngineProvider injectFirst>

@@ -51,6 +51,7 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
 	return (
 		<div>
 			<Button
+				id={`select-variant-${product.id}`}
 				className={classes["select-button"]}
 				size="small"
 				color="success"
