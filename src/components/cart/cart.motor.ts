@@ -51,7 +51,7 @@ export const countNumberOfSameProducts = (id: string, productsInCart: Product[])
 	return productsInCart.filter((product) => product.product_variant_id === id).length;
 }
 
-export const formattedDescription = (desc : string) => {
-	const trimmedDesc = desc.length > 6 ? `${desc.substring(0, 6)}…` : desc;
-	return trimmedDesc;
+export const formattedDescription = (desc: string, maxLength: number = 60) => {
+    const trimmedDesc = desc.length > maxLength ? `${desc.substring(0, maxLength)}…` : desc;
+    return trimmedDesc;
 };

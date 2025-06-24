@@ -86,7 +86,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     return (
         <>
             <Box sx={{ display: "flex" }}></Box>
-            <AppBar position="static" sx={{ height: "80px", backgroundColor: "white" }}>
+            <AppBar position="static" sx={{ backgroundColor: "white" }}>
                 <Toolbar
                     sx={{
                         justifyContent:
