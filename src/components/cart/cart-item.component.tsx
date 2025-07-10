@@ -98,6 +98,30 @@ export const CartItem: React.FC<CartItemProps> = ({ productInfo, tableWidth }) =
 
     const isWideTable = tableWidth >= 600;
 
+    // Track last updated row id and value
+const lastQtyUpdate = React.useRef<{ id: string; value: string }>({ id: "", value: "" });
+
+const handleAcceptQtyOnce = () => {
+    // Only allow if the row or value has changed
+    if (
+        lastQtyUpdate.current.id !== product_variant_id ||
+        lastQtyUpdate.current.value !== inputQty
+    ) {
+        handleAcceptQty();
+        lastQtyUpdate.current = { id: product_variant_id, value: inputQty };
+    }
+};
+
+    const handleInputBlur = () => {
+        handleAcceptQtyOnce();
+    };
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            handleAcceptQtyOnce();
+        }
+    };
+
     return (
         <>
             <TableRow
@@ -165,12 +189,8 @@ export const CartItem: React.FC<CartItemProps> = ({ productInfo, tableWidth }) =
                                 variant="standard"
                                 value={inputQty}
                                 onChange={handleInputChange}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        handleAcceptQty();
-                                    }
-                                }}
-                                onBlur={handleAcceptQty}
+                                onKeyDown={handleInputKeyDown}
+                                onBlur={handleInputBlur}
                                 error={!!qtyError}
                                 helperText={qtyError ?? " "}
                                 FormHelperTextProps={{
