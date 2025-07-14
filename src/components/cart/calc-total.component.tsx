@@ -793,31 +793,33 @@ export const CalcTotal: React.FC = () => {
                         {/* Right column */}
                         <Grid item xs={12} md={6}>
                             {/* --- Discount button --- */}
-                            <Box display="flex" alignItems="center" sx={{ width: "100%", mt: 2 }}>
-                                <IconButton onClick={handleToggleDiscount}>
-                                    {showDiscount ? <ExpandLess /> : <ExpandMore />}
-                                </IconButton>
-                                <Button
-                                    variant="outlined"
-                                    size="medium"
-                                    fullWidth
-                                    onClick={handleToggleDiscount}
-                                    sx={{
-                                        textTransform: "none",
-                                        fontWeight: 400,
-                                        ml: 1,
-                                        fontSize: "0.95rem",
-                                        py: 0.5
-                                    }}
-                                    startIcon={<PercentIcon />}
-                                >
-                                    Descuento: {formatCurrency(discount)}
-                                    {typeof discountPercentage === "number" && discountPercentage > 0 && (
-                                        <> ({Math.round(discountPercentage * 100)}%)</>
-                                    )}
-                                </Button>
-                            </Box>
-                            {showDiscount && (
+                            {featureFlags.cartModalShowDiscount && (
+                                <Box display="flex" alignItems="center" sx={{ width: "100%", mt: 2 }}>
+                                    <IconButton onClick={handleToggleDiscount}>
+                                        {showDiscount ? <ExpandLess /> : <ExpandMore />}
+                                    </IconButton>
+                                    <Button
+                                        variant="outlined"
+                                        size="medium"
+                                        fullWidth
+                                        onClick={handleToggleDiscount}
+                                        sx={{
+                                            textTransform: "none",
+                                            fontWeight: 400,
+                                            ml: 1,
+                                            fontSize: "0.95rem",
+                                            py: 0.5
+                                        }}
+                                        startIcon={<PercentIcon />}
+                                    >
+                                        Descuento: {formatCurrency(discount)}
+                                        {typeof discountPercentage === "number" && discountPercentage > 0 && (
+                                            <> ({Math.round(discountPercentage * 100)}%)</>
+                                        )}
+                                    </Button>
+                                </Box>
+                            )}
+                            {featureFlags.cartModalShowDiscount && showDiscount && (
                                 <>
                                     <Box sx={{ display: "flex", flexDirection: "row", justifyContent: "space-between", mt: 1.5 }}>
                                         <ToggleButtonGroup

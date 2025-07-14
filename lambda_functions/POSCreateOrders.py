@@ -78,17 +78,6 @@ def lambda_handler(event, context):
                         'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_inventory_movement_record(product_data, new_orderTicket).items()}
                     }
                 })
-                transaction_items.append({
-                    'Update': {
-                        'TableName': 'POS_product',
-                        'Key': {'id': {'S': product_data['id']}},
-                        'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :start) - :quantity',
-                        'ExpressionAttributeValues': {
-                            ':start': {'N': '0'},
-                            ':quantity': {'N': str(product_data['quantity'])}
-                        }
-                    }
-                })
 
             # Add split payments to transaction
             if len(split_payments) > 0:
