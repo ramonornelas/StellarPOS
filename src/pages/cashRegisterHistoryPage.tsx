@@ -35,7 +35,15 @@ export const CashRegisterHistoryPage: React.FC = () => {
     }, [limit]);
 
     const loadMore = () => {
-        setLimit(prev => prev + 5);
+        setLimit(prev => prev + 3);
+    };
+
+    const showLess = () => {
+        setLimit(prev => Math.max(3, prev - 3)); // No bajar de 3 (valor inicial)
+    };
+
+    const resetToInitial = () => {
+        setLimit(3);
     };
 
     return (
@@ -68,13 +76,35 @@ export const CashRegisterHistoryPage: React.FC = () => {
                             <CashRegisterHistoryItem key={idx} item={item} />
                         ))}
                         <Box sx={{ textAlign: "center", mt: 3 }}>
-                            <Button
-                                variant="outlined"
-                                onClick={loadMore}
-                                disabled={loading || !hasMoreData}
-                            >
-                                {hasMoreData ? "Ver más cortes" : "No hay más cortes"}
-                            </Button>
+                            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+                                {limit > 3 && (
+                                    <>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={showLess}
+                                            disabled={loading}
+                                            color="secondary"
+                                        >
+                                            Ver menos
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={resetToInitial}
+                                            disabled={loading}
+                                            color="secondary"
+                                        >
+                                            Volver al inicio
+                                        </Button>
+                                    </>
+                                )}
+                                <Button
+                                    variant="outlined"
+                                    onClick={loadMore}
+                                    disabled={loading || !hasMoreData}
+                                >
+                                    {hasMoreData ? "Ver más" : "No hay más cortes"}
+                                </Button>
+                            </Box>
                         </Box>
                     </>
                 )}
