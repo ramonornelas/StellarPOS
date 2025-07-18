@@ -77,9 +77,26 @@ export const fetchOrderTotalsByCashRegister = async (cashRegisterId: string) => 
   }
 };
 
-export const fetchCashRegisterHistory = async (date: string) => {
+export const fetchCashRegisterHistory = async (date?: string, limit?: number) => {
   try {
-    const response = await fetch(`${BASE_URL}/cash_register/history/${date}`);
+    let url = `${BASE_URL}/cash_register/history`;
+    
+    // Build URL based on parameters
+    if (date) {
+      url += `/${date}`;
+    }
+    
+    // Add query parameters if limit is specified
+    const queryParams = new URLSearchParams();
+    if (limit) {
+      queryParams.append('limit', limit.toString());
+    }
+    
+    if (queryParams.toString()) {
+      url += `?${queryParams.toString()}`;
+    }
+    
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
     const data = await response.json();
     return Array.isArray(data) ? data : [];
