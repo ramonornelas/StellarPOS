@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Box, Container, Typography, Button } from "@mui/material";
+import { Box, Container, Typography, Button, IconButton, Tooltip } from "@mui/material";
 import { fetchCashRegisterHistory } from "../functions/apiFunctions";
 import { CashRegisterHistoryItem } from "../components/cash-register/cash-register-history-item.component";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { useNavigate } from "react-router-dom";
 
 export const CashRegisterHistoryPage: React.FC = () => {
@@ -76,34 +79,43 @@ export const CashRegisterHistoryPage: React.FC = () => {
                             <CashRegisterHistoryItem key={idx} item={item} />
                         ))}
                         <Box sx={{ textAlign: "center", mt: 3 }}>
-                            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+                            <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
                                 {limit > 3 && (
                                     <>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={showLess}
-                                            disabled={loading}
-                                            color="secondary"
-                                        >
-                                            Ver menos
-                                        </Button>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={resetToInitial}
-                                            disabled={loading}
-                                            color="secondary"
-                                        >
-                                            Volver al inicio
-                                        </Button>
+                                        <Tooltip title="Ver menos cortes">
+                                            <IconButton
+                                                onClick={showLess}
+                                                disabled={loading}
+                                                color="secondary"
+                                                sx={{ border: 1, borderColor: "secondary.main" }}
+                                            >
+                                                <ExpandLessIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Volver a los últimos 3">
+                                            <IconButton
+                                                onClick={resetToInitial}
+                                                disabled={loading}
+                                                color="secondary"
+                                                sx={{ border: 1, borderColor: "secondary.main" }}
+                                            >
+                                                <RestartAltIcon />
+                                            </IconButton>
+                                        </Tooltip>
                                     </>
                                 )}
-                                <Button
-                                    variant="outlined"
-                                    onClick={loadMore}
-                                    disabled={loading || !hasMoreData}
-                                >
-                                    {hasMoreData ? "Ver más" : "No hay más cortes"}
-                                </Button>
+                                <Tooltip title={hasMoreData ? "Ver más cortes" : "No hay más cortes"}>
+                                    <span>
+                                        <IconButton
+                                            onClick={loadMore}
+                                            disabled={loading || !hasMoreData}
+                                            color="primary"
+                                            sx={{ border: 1, borderColor: "primary.main" }}
+                                        >
+                                            <ExpandMoreIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
                             </Box>
                         </Box>
                     </>
