@@ -17,8 +17,27 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 def lambda_handler(event, context):
     try:
-        # Get date from path parameters if present
-        date_to_search = event.get('pathParameters', {}).get('date')
+        # Get parameters from path or query string
+        path_params = event.get('pathParameters', {}) or {}
+        query_params = event.get('queryStringParameters', {}) or {}
+        
+        date_to_search = path_params.get('date')
+        limit = query_params.get('limit')
+        
+        # Convert limit to integer if provided
+        if limit:
+            try:
+                limit = int(limit)
+                if limit < 0:
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'message': 'Limit parameter must be a positive number.'})
+                    }
+            except ValueError:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'message': 'Invalid limit parameter. Must be a number.'})
+                }
 
         if date_to_search:
             filter_expression = Attr('date').eq(date_to_search)
@@ -33,6 +52,11 @@ def lambda_handler(event, context):
                 key=lambda x: x.get('opened_at', ''),
                 reverse=True
             )
+            
+            # Apply limit if specified
+            if limit is not None and limit >= 0:
+                history = history[:limit]
+            
             # Convert Decimal values to string for JSON serialization
             for entry in history:
                 for key, value in entry.items():

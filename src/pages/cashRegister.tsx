@@ -291,7 +291,7 @@ export const CashRegister: React.FC = () => {
                             color="primary"
                             onClick={() => navigate("/cash-register-history")}
                         >
-                            Cortes de caja del día
+                            Últimos cortes de caja
                         </Button>
                     </Box>
                 )}
