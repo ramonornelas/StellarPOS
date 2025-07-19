@@ -1,9 +1,14 @@
 import axios from 'axios';
-import { BASE_URL } from '../apiConfig';
+import { BASE_URL, API_STAGE } from '../apiConfig';
+const getApiUrl = (path: string) => {
+  return API_STAGE === 'PROD'
+    ? `${BASE_URL}/${path}`
+    : `${BASE_URL}/${API_STAGE}/${path}`;
+};
 
 export const postCreateOrder = async (newOrderTicket: any) => {
   try {
-      await axios.post(`${BASE_URL}/orders`, newOrderTicket);
+      await axios.post(getApiUrl('orders'), newOrderTicket);
       return true;
   } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -18,7 +23,7 @@ export const postCreateOrder = async (newOrderTicket: any) => {
 
 export const fetchOrders = async (date: string) => {
     try {
-      const response = await fetch(`${BASE_URL}/orders/${date}`);
+      const response = await fetch(getApiUrl(`orders/${date}`));
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -29,7 +34,7 @@ export const fetchOrders = async (date: string) => {
 
 export const postOpenCashRegister = async (cashRegisterCut: any) => {
   try {
-      const response = await axios.post(`${BASE_URL}/cash_register/open`, cashRegisterCut);
+      const response = await axios.post(getApiUrl('cash_register/open'), cashRegisterCut);
       return response.data;
   } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -43,7 +48,7 @@ export const postOpenCashRegister = async (cashRegisterCut: any) => {
 
 export const putCloseCashRegister = async (cashRegisterCut: any) => {
   try {
-      const response = await axios.put(`${BASE_URL}/cash_register/close`, cashRegisterCut);
+      const response = await axios.put(getApiUrl('cash_register/close'), cashRegisterCut);
       return response.data;
   } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -57,7 +62,7 @@ export const putCloseCashRegister = async (cashRegisterCut: any) => {
 
 export const fetchOrderTotalsByDate = async (date: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/orders/totals/${date}`);
+    const response = await fetch(getApiUrl(`orders/totals/${date}`));
     if (!response.ok) throw new Error('Network response was not ok');
     return await response.json();
   } catch (error) {
@@ -68,7 +73,7 @@ export const fetchOrderTotalsByDate = async (date: string) => {
 
 export const fetchOrderTotalsByCashRegister = async (cashRegisterId: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/orders/totals/cash_register/${cashRegisterId}`);
+    const response = await fetch(getApiUrl(`orders/totals/cash_register/${cashRegisterId}`));
     if (!response.ok) throw new Error('Network response was not ok');
     return await response.json();
   } catch (error) {
@@ -79,7 +84,7 @@ export const fetchOrderTotalsByCashRegister = async (cashRegisterId: string) => 
 
 export const fetchCashRegisterHistory = async (date?: string, limit?: number) => {
   try {
-    let url = `${BASE_URL}/cash_register/history`;
+    let url = getApiUrl('cash_register/history');
     
     // Build URL based on parameters
     if (date) {
@@ -108,7 +113,7 @@ export const fetchCashRegisterHistory = async (date?: string, limit?: number) =>
 
 export const getCashRegister = async (cashRegisterId: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/cash_register/${cashRegisterId}`);
+    const response = await fetch(getApiUrl(`cash_register/${cashRegisterId}`));
     if (!response.ok) throw new Error('Network response was not ok');
     return await response.json();
   } catch (error) {
@@ -119,7 +124,7 @@ export const getCashRegister = async (cashRegisterId: string) => {
 
 export const getOpenCashRegister = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/cash_register/open`);
+    const response = await fetch(getApiUrl('cash_register/open'));
     if (!response.ok) throw new Error('Network response was not ok');
     return await response.json();
   } catch (error) {
