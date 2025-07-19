@@ -4,6 +4,26 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 import datetime
 import decimal
+import os
+
+def get_table_names(stage):
+    """Get table names based on the stage"""
+    if stage.lower() == 'test':
+        return {
+            'ORDER_TICKET_TABLE': os.getenv('TEST_ORDER_TICKET_TABLE', 'test_POS_orderTicket'),
+            'ORDER_PRODUCT_TABLE': os.getenv('TEST_ORDER_PRODUCT_TABLE', 'test_POS_orderProduct'),
+            'SPLIT_PAYMENT_TABLE': os.getenv('TEST_SPLIT_PAYMENT_TABLE', 'test_POS_orderSplitPayment'),
+            'INVENTORY_MOVEMENT_TABLE': os.getenv('TEST_INVENTORY_MOVEMENT_TABLE', 'test_inventory_Movement'),
+            'POS_PRODUCT_TABLE': os.getenv('TEST_POS_PRODUCT_TABLE', 'test_POS_product')
+        }
+    else:
+        return {
+            'ORDER_TICKET_TABLE': os.getenv('ORDER_TICKET_TABLE', 'POS_orderTicket'),
+            'ORDER_PRODUCT_TABLE': os.getenv('ORDER_PRODUCT_TABLE', 'POS_orderProduct'),
+            'SPLIT_PAYMENT_TABLE': os.getenv('SPLIT_PAYMENT_TABLE', 'POS_orderSplitPayment'),
+            'INVENTORY_MOVEMENT_TABLE': os.getenv('INVENTORY_MOVEMENT_TABLE', 'inventory_Movement'),
+            'POS_PRODUCT_TABLE': os.getenv('POS_PRODUCT_TABLE', 'POS_product')
+        }
 
 dynamodb = boto3.resource('dynamodb')
 dynamodb_client = boto3.client('dynamodb')
@@ -18,6 +38,24 @@ TWO_DECIMAL_PLACES = decimal.Decimal('0.01')
 
 def lambda_handler(event, context):
     try:
+        # Detect stage from API Gateway event
+        stage = 'prod'  # default
+        if 'requestContext' in event and 'stage' in event['requestContext']:
+            stage = event['requestContext']['stage']
+            if stage == '$default':
+                stage = 'prod'
+        
+        # Get table names based on stage
+        tables = get_table_names(stage)
+        ORDER_TICKET_TABLE = tables['ORDER_TICKET_TABLE']
+        ORDER_PRODUCT_TABLE = tables['ORDER_PRODUCT_TABLE']
+        SPLIT_PAYMENT_TABLE = tables['SPLIT_PAYMENT_TABLE']
+        INVENTORY_MOVEMENT_TABLE = tables['INVENTORY_MOVEMENT_TABLE']
+        POS_PRODUCT_TABLE = tables['POS_PRODUCT_TABLE']
+        
+        print(f"Stage: {stage}")
+        print(f"Using tables: {ORDER_TICKET_TABLE}, {ORDER_PRODUCT_TABLE}, etc.")
+
         if 'body' in event:
             order = json.loads(event['body'])
             subtotal = decimal.Decimal(str(order['subtotal'])).quantize(TWO_DECIMAL_PLACES)
@@ -28,6 +66,9 @@ def lambda_handler(event, context):
             total = (subtotal - discount).quantize(TWO_DECIMAL_PLACES)
             total_with_tip = (total + tip).quantize(TWO_DECIMAL_PLACES)
             received_amount = decimal.Decimal(str(order.get('received_amount', 0))).quantize(TWO_DECIMAL_PLACES)
+            
+            # Extract updated_user_id from the request data
+            updated_user_id = order.get('updated_user_id', '')
 
             # Create a new order ticket
             new_orderTicket = {
@@ -47,8 +88,7 @@ def lambda_handler(event, context):
                 'cash_register_id': order.get('cash_register_id', ''),
                 'created_datetime': get_current_datetime(),
                 'updated_datetime': get_current_datetime(),
-                'updated_user_id': order.get('updated_user_id', ''),
-                'updated_username': order.get('updated_username', '')
+                'updated_user_id': updated_user_id
             }
 
             # Prepare the transaction items
@@ -57,7 +97,7 @@ def lambda_handler(event, context):
             # Add order ticket to transaction
             transaction_items.append({
                 'Put': {
-                    'TableName': 'POS_orderTicket',
+                    'TableName': ORDER_TICKET_TABLE,
                     'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in new_orderTicket.items()}
                 }
             })
@@ -68,13 +108,13 @@ def lambda_handler(event, context):
             for product_data in grouped_products.values():
                 transaction_items.append({
                     'Put': {
-                        'TableName': 'POS_orderProduct',
+                        'TableName': ORDER_PRODUCT_TABLE,
                         'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_product_record(product_data, new_orderTicket).items()}
                     }
                 })
                 transaction_items.append({
                     'Put': {
-                        'TableName': 'inventory_Movement',
+                        'TableName': INVENTORY_MOVEMENT_TABLE,
                         'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_inventory_movement_record(product_data, new_orderTicket).items()}
                     }
                 })
@@ -84,7 +124,7 @@ def lambda_handler(event, context):
                 for split_payment in split_payments:
                     transaction_items.append({
                         'Put': {
-                            'TableName': 'POS_orderSplitPayment',
+                            'TableName': SPLIT_PAYMENT_TABLE,
                             'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_split_payment_record(split_payment, new_orderTicket).items()}
                         }
                     })
@@ -152,7 +192,8 @@ def create_order_product_record(product_data, new_orderTicket):
         'quantity': product_data['quantity'],
         'total': product_data['total'].quantize(TWO_DECIMAL_PLACES),
         'created_datetime': get_current_datetime(),
-        'updated_datetime': get_current_datetime()
+        'updated_datetime': get_current_datetime(),
+        'updated_user_id': new_orderTicket['updated_user_id']
     }
 
 # Ensure quantization in create_inventory_movement_record
@@ -180,5 +221,6 @@ def create_order_split_payment_record(split_payment, new_orderTicket):
         'payment_method': split_payment['payment_method'],
         'amount': amount,
         'created_datetime': get_current_datetime(),
-        'updated_datetime': get_current_datetime()
+        'updated_datetime': get_current_datetime(),
+        'updated_user_id': new_orderTicket['updated_user_id']
     }
