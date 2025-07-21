@@ -1,10 +1,21 @@
 import json
 import boto3
+import os
 from botocore.exceptions import BotoCoreError, ClientError
 from decimal import Decimal
 
+def get_table_names(stage):
+    """Get table names based on the stage"""
+    if stage and stage.lower() == 'test':
+        return {
+            'CASH_REGISTER_TABLE': os.getenv('TEST_CASH_REGISTER_TABLE', 'test_stellar_cashRegisterCloseout')
+        }
+    else:
+        return {
+            'CASH_REGISTER_TABLE': os.getenv('CASH_REGISTER_TABLE', 'stellar_cashRegisterCloseout')
+        }
+
 dynamodb = boto3.resource('dynamodb')
-cash_register_table = dynamodb.Table('stellar_cashRegisterCloseout')
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -16,6 +27,10 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 def lambda_handler(event, context):
     try:
+        stage = event.get('requestContext', {}).get('stage', 'dev')
+        tables = get_table_names(stage)
+        cash_register_table = dynamodb.Table(tables['CASH_REGISTER_TABLE'])
+
         # Get cashRegisterId from path parameters if present
         cash_register_id = event.get('pathParameters', {}).get('cashRegisterId')
 

@@ -1,17 +1,16 @@
 {
   "Variables": {
-    "_comment_prod": "Production table names - used when stage is 'prod' or '$default'",
     "ORDER_TICKET_TABLE": "POS_orderTicket",
     "ORDER_PRODUCT_TABLE": "POS_orderProduct",
     "SPLIT_PAYMENT_TABLE": "POS_orderSplitPayment",
     "INVENTORY_MOVEMENT_TABLE": "inventory_Movement",
     "POS_PRODUCT_TABLE": "POS_product",
-    
-    "_comment_test": "Test table names - used when stage is 'test'",
+    "CASH_REGISTER_CLOSEOUT_TABLE": "stellar_cashRegisterCloseout",
     "TEST_ORDER_TICKET_TABLE": "test_POS_orderTicket",
     "TEST_ORDER_PRODUCT_TABLE": "test_POS_orderProduct",
     "TEST_SPLIT_PAYMENT_TABLE": "test_POS_orderSplitPayment",
     "TEST_INVENTORY_MOVEMENT_TABLE": "test_inventory_Movement",
-    "TEST_POS_PRODUCT_TABLE": "test_POS_product"
+    "TEST_POS_PRODUCT_TABLE": "test_POS_product",
+    "TEST_CASH_REGISTER_CLOSEOUT_TABLE": "test_stellar_cashRegisterCloseout"
   }
 }
