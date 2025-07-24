@@ -10,11 +10,11 @@ import {
 } from "@mui/material";
 import classes from "./css/orders.module.css";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import HomeIcon from "@mui/icons-material/Home"; // ya tienes MUI, solo importa el ícono
+import HomeIcon from "@mui/icons-material/Home";
 import { postOpenCashRegister, putCloseCashRegister, fetchOrderTotalsByCashRegister } from "../functions/apiFunctions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { appContext } from "../appContext";
-import { permissions } from "../config/permissions"; // <-- Add this import
+import { permissions } from "../config/permissions";
 import { openSnackBarCashRegisterOpened } from "../components/snackbar/snackbar.motor";
 
 export const CashRegister: React.FC = () => {

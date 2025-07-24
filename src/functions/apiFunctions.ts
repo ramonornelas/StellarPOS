@@ -53,7 +53,7 @@ export const postCreateOrder = async (newOrderTicket: any) => {
       } else {
           console.error('Unexpected error:', error);
       }
-      alert('There was an error creating your order. Please try again.');
+      alert('Hubo un error al crear tu orden. Por favor, intenta de nuevo.');
       return false;
   }
 };
@@ -65,7 +65,6 @@ export const fetchOrders = async (date: string) => {
       return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Error fetching orders:', error);
-      alert('There was an error fetching orders. Please try again.');
       return [];
     }
   };
@@ -105,7 +104,6 @@ export const fetchOrderTotalsByDate = async (date: string) => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching order totals:', error);
-    alert('There was an error fetching order totals. Please try again.');
     return null;
   }
 };
@@ -117,7 +115,6 @@ export const fetchOrderTotalsByCashRegister = async (cashRegisterId: string) => 
     return await response.json();
   } catch (error) {
     console.error('Error fetching order totals by cash register:', error);
-    alert('There was an error fetching order totals by cash register. Please try again.');
     return null;
   }
 };
@@ -143,7 +140,6 @@ export const fetchCashRegisterHistory = async (date?: string, limit?: number) =>
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching cash register history:', error);
-    alert('There was an error fetching cash register history. Please try again.');
     return [];
   }
 };
@@ -155,7 +151,6 @@ export const getCashRegister = async (cashRegisterId: string) => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching cash register closeout:', error);
-    alert('There was an error fetching cash register closeout. Please try again.');
     return null;
   }
 };
@@ -167,7 +162,6 @@ export const getOpenCashRegister = async () => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching open cash register:', error);
-    alert('There was an error fetching open cash register. Please try again.');
     return null;
   }
 };
