@@ -209,7 +209,10 @@ def create_inventory_movement_record(product_data, new_orderTicket):
         'quantity': product_data['quantity'],
         'product_price': product_data['price'].quantize(TWO_DECIMAL_PLACES),
         'product_cost': product_data.get('cost', decimal.Decimal('0.00')).quantize(TWO_DECIMAL_PLACES),
-        'notes': new_orderTicket.get('notes', '')
+        'notes': new_orderTicket.get('notes', ''),
+        'created_datetime': get_current_datetime(),
+        'updated_datetime': get_current_datetime(),
+        'updated_user_id': new_orderTicket['updated_user_id']
     }
 
 # Ensure quantization in create_order_split_payment_record
