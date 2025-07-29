@@ -1,17 +1,32 @@
 import json
 import uuid
 import boto3
+import os
 from botocore.exceptions import BotoCoreError, ClientError
 import datetime
 import decimal
 
+def get_table_names(stage):
+    """Get table names based on the stage"""
+    if stage and stage.lower() == 'test':
+        return {
+            'CASH_REGISTER_CLOSEOUT_TABLE': os.getenv('TEST_CASH_REGISTER_CLOSEOUT_TABLE', 'test_stellar_cashRegisterCloseout')
+        }
+    else:
+        return {
+            'CASH_REGISTER_CLOSEOUT_TABLE': os.getenv('CASH_REGISTER_CLOSEOUT_TABLE', 'stellar_cashRegisterCloseout')
+        }
+
 dynamodb = boto3.resource('dynamodb')
-cash_register_closeout_table = dynamodb.Table('stellar_cashRegisterCloseout')
 
 TWO_DECIMAL_PLACES = decimal.Decimal('0.01')
 
 def lambda_handler(event, context):
     try:
+        stage = event.get('requestContext', {}).get('stage', 'dev')
+        tables = get_table_names(stage)
+        cash_register_closeout_table = dynamodb.Table(tables['CASH_REGISTER_CLOSEOUT_TABLE'])
+
         if 'body' in event:
             data = json.loads(event['body'])
 

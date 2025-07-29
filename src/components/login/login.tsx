@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { postLogin, searchUser } from '../../functions/apiFunctions';
 import { useNavigate } from "react-router-dom";
 import styles from "./login.module.css";
 
@@ -15,25 +16,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await fetch('https://iupws50sa8.execute-api.us-west-1.amazonaws.com/auth/login', {
-                method: 'POST',
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ username: email, password }),
-            });
-
+            const response = await postLogin(email, password);
             if (response.status === 200) {
-                const searchUserResponse = await fetch('https://iupws50sa8.execute-api.us-west-1.amazonaws.com/users/search', {
-                    method: 'POST',
-                    headers: {
-                        "Accept": "application/json",
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ username: email }),
-                });
-
+                const searchUserResponse = await searchUser(email);
                 if (searchUserResponse.status === 200) {
                     const searchUserData = await searchUserResponse.json();
                     const searchUserId = searchUserData[0].id;
@@ -42,11 +27,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                     sessionStorage.setItem("stellar_userid", searchUserId);
                     sessionStorage.setItem("stellar_username", searchUsername);
                     sessionStorage.setItem("stellar_role", searchUserData[0].role_id);
-                    
-                    // Notify App.tsx of successful login
                     onLoginSuccess();
-
-                    // Redirect to the root "/"
                     navigate("/");
                 } else {
                     throw new Error('No se pudo obtener la información del usuario');
@@ -56,7 +37,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             }
         } catch (error: any) {
             console.error('Error:', error);
-            setError(error.message);
+            setError('No se pudo iniciar sesión. Por favor verifica tu información e inténtalo de nuevo.');
         }
     };
 

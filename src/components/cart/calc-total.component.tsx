@@ -191,7 +191,8 @@ export const CalcTotal: React.FC = () => {
                 received_amount: orderReceivedAmount,
                 change: orderChangeAmount,
                 notes: notes,
-                cash_register_id: sessionStorage.getItem("cashRegisterId") || ""
+                cash_register_id: sessionStorage.getItem("cashRegisterId") || "",
+                updated_user_id: sessionStorage.getItem("stellar_userid")
             };
 
             handlePostOrder();

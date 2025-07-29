@@ -29,6 +29,9 @@ import { permissions } from "../../config/permissions";
 import { featureFlags } from "../../config/featureFlags";
 import { logoff } from "../../utils/logoff";
 
+// Get environment from VITE_API_STAGE
+const ENV_STAGE = import.meta.env.VITE_API_STAGE;
+
 interface NavBarProps {
     applyFilter: (category: string) => void;
     onLogoff: () => void; // Ensure onLogoff is defined in props
@@ -116,6 +119,27 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                             }}
                         >
                             Ventas
+                        </Typography>
+                    )}
+
+                    {/* Show environment if not PROD */}
+                    {ENV_STAGE !== "PROD" && ENV_STAGE && (
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                ml: 2,
+                                color: "grey.600",
+                                fontWeight: 500,
+                                letterSpacing: 1,
+                                bgcolor: "grey.100",
+                                px: 1.5,
+                                py: 0.5,
+                                borderRadius: 1,
+                                alignSelf: "center",
+                                userSelect: "none",
+                            }}
+                        >
+                            {ENV_STAGE} ENV
                         </Typography>
                     )}
 
