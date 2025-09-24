@@ -3,50 +3,89 @@ import { Product, ProductVariant } from "./products.model";
 import { useContext } from "react";
 import { DataContext } from "../../dataContext";
 
-export const filterProducts = (productList: Product[], category: string): Product[] => {
-    if (category === 'all') {
-        return productList;
-    }
+export const filterProducts = (
+  productList: Product[],
+  category: string
+): Product[] => {
+  if (category === "all") {
+    return productList;
+  }
 
-    const productsFiltered = productList.filter((product: Product) => {
-        if (product.category_id === category) {
-            return product;
-        }
-    });
-    return productsFiltered;
+  const productsFiltered = productList.filter((product: Product) => {
+    if (product.category_id === category) {
+      return product;
+    }
+  });
+  return productsFiltered;
+};
+
+export const filterProductsBySearch = (
+  productList: Product[],
+  searchTerm: string
+): Product[] => {
+  if (!searchTerm || searchTerm.trim() === "") {
+    return productList;
+  }
+
+  const normalizedSearch = searchTerm.toLowerCase().trim();
+
+  return productList.filter((product: Product) => {
+    return product.name.toLowerCase().includes(normalizedSearch);
+  });
+};
+
+// Función combinada para filtrar por categoría Y búsqueda
+export const filterProductsByCategoryAndSearch = (
+  productList: Product[],
+  category: string,
+  searchTerm: string
+): Product[] => {
+  // Primero filtrar por categoría
+  let filteredProducts = filterProducts(productList, category);
+
+  // Luego filtrar por texto de búsqueda
+  filteredProducts = filterProductsBySearch(filteredProducts, searchTerm);
+
+  return filteredProducts;
 };
 
 export const returnCategoryName = (filter: string): string => {
-    const { categories } = useContext(DataContext);
+  const { categories } = useContext(DataContext);
 
-    if (filter === "all") {
-        return "Todo";
-    }
+  if (filter === "all") {
+    return "Todo";
+  }
 
-    const category = categories.find(category => category.id === filter);
-    return category ? category.name : "Todo";
-}
+  const category = categories.find((category) => category.id === filter);
+  return category ? category.name : "Todo";
+};
 
 export const searchProductById = (products: Product[], id: string): Product => {
-    return products.find((product) => product.id === id)!;
-}
+  return products.find((product) => product.id === id)!;
+};
 
-export const searchVariantById = (productVariants: ProductVariant[], id: string): ProductVariant => {
-    return productVariants.find((productVariant) => productVariant.id === id)!;
-}
+export const searchVariantById = (
+  productVariants: ProductVariant[],
+  id: string
+): ProductVariant => {
+  return productVariants.find((productVariant) => productVariant.id === id)!;
+};
 
 export const searchProductByBarcode = (products: any[], barcode: string) => {
-    return products.find(product => product.barcode === barcode);
+  return products.find((product) => product.barcode === barcode);
 };
 
 export const generateCustomID = (productsInCart: Product[]): string => {
-    let newCustomId;
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    do {
-        newCustomId = '';
-        for (let i = 0; i < 8; i++) {
-            newCustomId += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-    } while (existsIDInCart(newCustomId, productsInCart));
-    return newCustomId;
-}
+  let newCustomId;
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  do {
+    newCustomId = "";
+    for (let i = 0; i < 8; i++) {
+      newCustomId += characters.charAt(
+        Math.floor(Math.random() * characters.length)
+      );
+    }
+  } while (existsIDInCart(newCustomId, productsInCart));
+  return newCustomId;
+};
