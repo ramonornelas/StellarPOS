@@ -32,6 +32,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         if (searchUserResponse.status === 200) {
           const searchUserData = await searchUserResponse.json();
 
+          if (!searchUserData[0].active) {
+            setError("Usuario inactivo. Contacta al administrador.");
+            return;
+          }
+
           const searchUserId = searchUserData[0].id;
           const searchUsername = searchUserData[0].username;
           const userHomeScreen = searchUserData[0].home_screen;
