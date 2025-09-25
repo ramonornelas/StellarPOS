@@ -1,7 +1,11 @@
-import { hasPermission } from "../components/users/userPermissionsContext";
+import {
+  useCanChangeDate,
+  useCanViewOrdersReport,
+  useCanViewCashRegisterHistory,
+} from "../components/users/userPermissionsContext";
 
 export const permissions = {
-    navbarCanChangeDate: () => hasPermission('change_date'),
-    navbarCanViewOrdersReport: () => hasPermission('view_orders_report'),
-    canViewCashRegisterHistory: () => hasPermission('view_cash_register_history'),
+  navbarCanChangeDate: useCanChangeDate,
+  navbarCanViewOrdersReport: useCanViewOrdersReport,
+  canViewCashRegisterHistory: useCanViewCashRegisterHistory,
 };

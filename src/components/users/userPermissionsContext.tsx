@@ -39,7 +39,12 @@ export const UserPermissionsProvider: React.FC<{
   const fetchPermissions = async (id: string) => {
     try {
       const perms = await fetchUserPermissions(id);
-      setPermissions(perms);
+      if (Array.isArray(perms)) {
+        setPermissions(perms);
+      } else {
+        setPermissions([]);
+        console.error("fetchUserPermissions did not return an array:", perms);
+      }
     } catch (error) {
       setPermissions([]);
     }
@@ -53,6 +58,21 @@ export const UserPermissionsProvider: React.FC<{
 };
 
 export const useUserPermissions = () => useContext(UserPermissionsContext);
+
+export const useCanChangeDate = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "change_date");
+};
+
+export const useCanViewOrdersReport = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_orders_report");
+};
+
+export const useCanViewCashRegisterHistory = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_cash_register_history");
+};
 
 export const hasPermission = (
   permissions: Permission[] | undefined,

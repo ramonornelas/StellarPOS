@@ -25,10 +25,10 @@ import React from "react";
 import { appContext } from "../../appContext";
 import { isCartEmpty } from "../cart/cart.motor";
 import { DataContext } from "../../dataContext";
-import { permissions } from "../../config/permissions";
 import { featureFlags } from "../../config/featureFlags";
 import { logoff } from "../../utils/logoff";
 import { NavbarSearchField } from "./navbar-searchfield";
+import { useCanViewOrdersReport } from "../users/userPermissionsContext";
 
 // Get environment from VITE_API_STAGE
 const ENV_STAGE = import.meta.env.VITE_API_STAGE;
@@ -47,6 +47,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const openUserMenu = Boolean(anchorEl);
   const location = useLocation();
+  const canViewOrdersReport = useCanViewOrdersReport();
 
   const isHomePage = location.pathname === "/";
 
@@ -180,7 +181,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                 <DateRangeIcon color="action" fontSize="large" />
               </Button>
             )}
-            {permissions.navbarCanViewOrdersReport() && (
+            {canViewOrdersReport && (
               <Button component={NavLink} to={"/orders"}>
                 <ListAltIcon color="action" fontSize="large" />
               </Button>
