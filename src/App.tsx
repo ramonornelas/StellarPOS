@@ -21,146 +21,162 @@ import { CashRegisterHistoryPage } from "./pages/cashRegisterHistoryPage.tsx";
 import { NoPermissionsPage } from "./pages/noPermissionsPage.tsx";
 
 function App() {
-    const [productsInCart, setProductsInCart] = React.useState<Product[]>(
-        window.sessionStorage.getItem("cart")
-            ? JSON.parse(window.sessionStorage.getItem("cart")!)
-            : []
+  const [productsInCart, setProductsInCart] = React.useState<Product[]>(
+    window.sessionStorage.getItem("cart")
+      ? JSON.parse(window.sessionStorage.getItem("cart")!)
+      : []
+  );
+  const [orders, setOrders] = React.useState<Order[]>(
+    window.localStorage.getItem("orders")
+      ? JSON.parse(window.localStorage.getItem("orders")!)
+      : []
+  );
+  const [splitPayments, setSplitPayments] = React.useState<any[]>(
+    window.sessionStorage.getItem("splitPayments")
+      ? JSON.parse(window.sessionStorage.getItem("splitPayments")!)
+      : []
+  );
+  const [filter, setFilter] = React.useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
+    !!sessionStorage.getItem("stellar_userid")
+  );
+  //Estado para búsqueda de productos
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const applyFilter = (category: string) => {
+    setFilter(category);
+    setSearchTerm("");
+  };
+
+  useEffect(() => {
+    window.sessionStorage.setItem("cart", JSON.stringify(productsInCart));
+  }, [productsInCart]);
+
+  useEffect(() => {
+    window.localStorage.setItem("orders", JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(
+      "splitPayments",
+      JSON.stringify(splitPayments)
     );
-    const [orders, setOrders] = React.useState<Order[]>(
-        window.localStorage.getItem("orders")
-            ? JSON.parse(window.localStorage.getItem("orders")!)
-            : []
-    );
-    const [splitPayments, setSplitPayments] = React.useState<any[]>(
-        window.sessionStorage.getItem("splitPayments")
-            ? JSON.parse(window.sessionStorage.getItem("splitPayments")!)
-            : []
-    );
-    const [filter, setFilter] = React.useState<string>("all");
-    const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-    const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
-        !!sessionStorage.getItem("stellar_userid")
-    );
+  }, [splitPayments]);
 
-    const applyFilter = (category: string) => {
-        setFilter(category);
-    };
+  // Check login status on component mount
+  useEffect(() => {
+    setIsLoggedIn(!!sessionStorage.getItem("stellar_userid"));
+  }, []);
 
-    useEffect(() => {
-        window.sessionStorage.setItem("cart", JSON.stringify(productsInCart));
-    }, [productsInCart]);
+  // Callback to handle successful login
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+  };
 
-    useEffect(() => {
-        window.localStorage.setItem("orders", JSON.stringify(orders));
-    }, [orders]);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        window.sessionStorage.setItem("splitPayments", JSON.stringify(splitPayments));
-    }, [splitPayments]);
+  const handleLogoff = () => {
+    setIsLoggedIn(false); // Update the state
+    sessionStorage.clear(); // Clear session storage
+    navigate("/"); // Explicitly navigate to the root route
+  };
 
-    // Check login status on component mount
-    useEffect(() => {
-        setIsLoggedIn(!!sessionStorage.getItem("stellar_userid"));
-    }, []);
+  const userRole = sessionStorage.getItem("stellar_role") || "";
+  const hasRole = !!userRole && userRole !== "undefined";
 
-    // Callback to handle successful login
-    const handleLoginSuccess = () => {
-        setIsLoggedIn(true);
-    };
-
-    const navigate = useNavigate();
-
-    const handleLogoff = () => {
-        setIsLoggedIn(false); // Update the state
-        sessionStorage.clear(); // Clear session storage
-        navigate("/"); // Explicitly navigate to the root route
-    };
-
-    const userRole = sessionStorage.getItem("stellar_role") || "";
-    const hasRole = !!userRole && userRole !== "undefined";
-
-    return (
-        <>
-            {isLoggedIn ? (
-                !hasRole ? (
-                    <NoPermissionsPage />
-                ) : (
-                    <UserPermissionsProvider>
-                        <DataProvider>
-                            <appContext.Provider
-                                value={{
-                                    cartCTX: { productsInCart, setProductsInCart },
-                                    orderCTX: { orders, setOrders },
-                                    dateCTX: { selectedDate, setSelectedDate },
-                                    paymentCTX: { splitPayments, setSplitPayments },
-                                }}
-                            >
-                                <Navbar applyFilter={applyFilter} onLogoff={handleLogoff} />
-                                <Routes>
-                                    <Route
-                                        path="/"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <Home filter={filter} />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route
-                                        path="/orders"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <Orders />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route
-                                        path="/cart"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <CartPage />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route
-                                        path="/date-picker"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <DatePickerPage />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route
-                                        path="/chat"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <ChatPage />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route
-                                        path="/cash-register"
-                                        element={
-                                            <ProtectedRoute isLoggedIn={isLoggedIn}>
-                                                <CashRegister />
-                                            </ProtectedRoute>
-                                        }
-                                    />
-                                    <Route path="/cash-register-history" element={<CashRegisterHistoryPage />} />
-                                    <Route path="*" element={<NotFoundPage />} />
-                                </Routes>
-                            </appContext.Provider>
-                        </DataProvider>
-                    </UserPermissionsProvider>
-                )
-            ) : (
+  return (
+    <>
+      {isLoggedIn ? (
+        !hasRole ? (
+          <NoPermissionsPage />
+        ) : (
+          <UserPermissionsProvider>
+            <DataProvider>
+              <appContext.Provider
+                value={{
+                  cartCTX: { productsInCart, setProductsInCart },
+                  orderCTX: { orders, setOrders },
+                  dateCTX: { selectedDate, setSelectedDate },
+                  paymentCTX: { splitPayments, setSplitPayments },
+                  searchCTX: { searchTerm, setSearchTerm },
+                }}
+              >
+                <Navbar applyFilter={applyFilter} onLogoff={handleLogoff} />
                 <Routes>
-                    <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-                    <Route path="/registeruser" element={<Register />} />
-                    <Route path="*" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <Home filter={filter} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/orders"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <Orders />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cart"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <CartPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/date-picker"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <DatePickerPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/chat"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <ChatPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cash-register"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <CashRegister />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cash-register-history"
+                    element={<CashRegisterHistoryPage />}
+                  />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
-            )}
-        </>
-    );
+              </appContext.Provider>
+            </DataProvider>
+          </UserPermissionsProvider>
+        )
+      ) : (
+        <Routes>
+          <Route
+            path="/login"
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
+          />
+          <Route path="/registeruser" element={<Register />} />
+          <Route
+            path="*"
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
+          />
+        </Routes>
+      )}
+    </>
+  );
 }
 
 export default App;

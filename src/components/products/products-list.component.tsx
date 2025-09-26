@@ -1,6 +1,10 @@
 import React, { useContext, useState, useEffect } from "react";
 import { Box, Grid, Paper, Typography, Button } from "@mui/material";
-import { filterProducts, returnCategoryName, searchProductById, searchProductByBarcode } from "./products.motor";
+import {
+  returnCategoryName,
+  searchProductById,
+  searchProductByBarcode,
+} from "./products.motor";
 import { ProductCard } from "./product-card.component";
 import classes from "./css/products-list.module.css";
 import { BasicModal } from "./modal-add-product.component";
@@ -10,95 +14,132 @@ import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import { updateCart } from "../cart/cart.utils";
 import { featureFlags } from "../../config/featureFlags";
+import { useProductSearch } from "./useProductSearch";
 
 interface ProductsListProps {
-    filter: string;
+  filter: string;
 }
 
 export const ProductsList: React.FC<ProductsListProps> = (props) => {
-    const { filter } = props;
-    const products = useContext(DataContext).products;
-    const productsFiltered = filterProducts(products, filter);
-    const categoryName = <strong>{returnCategoryName(filter)}</strong>;
-    const { productsInCart, setProductsInCart } = React.useContext(appContext).cartCTX;
-    const [showScanner, setShowScanner] = useState(false);
-    const [scannedCode, setScannedCode] = useState("");
+  const { filter } = props;
+  const products = useContext(DataContext).products;
+  const categoryName = <strong>{returnCategoryName(filter)}</strong>;
+  const { productsInCart, setProductsInCart } =
+    React.useContext(appContext).cartCTX;
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedCode, setScannedCode] = useState("");
 
-    const addProductToCart = (product: any) => {
-        updateCart("add", productsInCart, setProductsInCart, products, product);
-        openSnackBarProductAdded(product.name, product.price);
-    };
+  const { filteredProducts, hasSearchTerm, searchTerm } = useProductSearch(
+    products,
+    filter
+  );
 
-    const handleAddToCart = (id: string) => {
-        const productFound = searchProductById(products, id);
-        addProductToCart(productFound);
-    };
+  const addProductToCart = (product: any) => {
+    updateCart("add", productsInCart, setProductsInCart, products, product);
+    openSnackBarProductAdded(product.name, product.price);
+  };
 
-    const handleAddToCartByBarcode = (barcode: string) => {
-        const productFound = searchProductByBarcode(products, barcode);
-        if (productFound) {
-            addProductToCart(productFound);
-            setShowScanner(false); // Hide the scanner when a product is found
-        } else {
-            console.error(`Error: Product with barcode ${barcode} not found.`);
-        }
-    };
+  const handleAddToCart = (id: string) => {
+    const productFound = searchProductById(products, id);
+    addProductToCart(productFound);
+  };
 
-    const handleScanBarcode = () => {
-        setShowScanner(!showScanner);
-    };
+  const handleAddToCartByBarcode = (barcode: string) => {
+    const productFound = searchProductByBarcode(products, barcode);
+    if (productFound) {
+      addProductToCart(productFound);
+      setShowScanner(false); // Hide the scanner when a product is found
+    } else {
+      console.error(`Error: Product with barcode ${barcode} not found.`);
+    }
+  };
 
-    useEffect(() => {
-        if (scannedCode) {
-            console.log("Scanned code:", scannedCode);
-        }
-    }, [scannedCode]);
+  const handleScanBarcode = () => {
+    setShowScanner(!showScanner);
+  };
 
-    const handleScan = (err: unknown, result: any) => {
-        if (err) {
-            console.error("Error scanning barcode:", err);
-            return;
-        }
-        if (result?.text) {
-            setScannedCode(result.text);
-            handleAddToCartByBarcode(result.text);
-        }
-    };
+  useEffect(() => {
+    if (scannedCode) {
+      console.log("Scanned code:", scannedCode);
+    }
+  }, [scannedCode]);
 
-    return (
-        <Paper className={classes["products-container"]} elevation={5} square>
-            <Box className={classes["title-container"]}>
-                {filter !== "all" && (
-                    <Typography
-                        className={classes["products-title"]}
-                        variant="h6"
-                        component="h2"
-                    >
-                        Categoría: {categoryName}
-                    </Typography>
-                )}
-                <BasicModal />
+  const handleScan = (err: unknown, result: any) => {
+    if (err) {
+      console.error("Error scanning barcode:", err);
+      return;
+    }
+    if (result?.text) {
+      setScannedCode(result.text);
+      handleAddToCartByBarcode(result.text);
+    }
+  };
+
+  return (
+    <Paper className={classes["products-container"]} elevation={5} square>
+      <Box className={classes["title-container"]}>
+        {filter !== "all" && (
+          <Typography
+            className={classes["products-title"]}
+            variant="h6"
+            component="h2"
+          >
+            Categoría: {categoryName}
+          </Typography>
+        )}
+        <BasicModal />
+      </Box>
+      {hasSearchTerm && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            {filteredProducts.length === 0
+              ? `No se encontraron productos que coincidan con "${searchTerm}"`
+              : `${filteredProducts.length} producto${
+                  filteredProducts.length !== 1 ? "s" : ""
+                } encontrado${
+                  filteredProducts.length !== 1 ? "s" : ""
+                } para "${searchTerm}"`}
+          </Typography>
+        </Box>
+      )}
+      {featureFlags.productsListShowBarcodeScanner && (
+        <p>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleScanBarcode}
+          >
+            {showScanner ? "Ocultar escáner" : "Leer código de barras"}
+          </Button>
+        </p>
+      )}
+      {featureFlags.productsListShowBarcodeScanner && showScanner && (
+        <BarcodeScannerComponent
+          width={350}
+          height={300}
+          onUpdate={handleScan}
+        />
+      )}
+      <Grid container spacing={2}>
+        {filteredProducts.length === 0 && hasSearchTerm ? (
+          <Grid item xs={12}>
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                No se encontraron productos
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Intenta con otros términos de búsqueda o cambia de categoría
+              </Typography>
             </Box>
-            {featureFlags.productsListShowBarcodeScanner && (
-                <p>
-                    <Button variant="contained" color="primary" onClick={handleScanBarcode}>
-                        {showScanner ? "Ocultar escáner" : "Leer código de barras"}
-                    </Button>
-                </p>
-            )}
-            {featureFlags.productsListShowBarcodeScanner && showScanner && (
-                <BarcodeScannerComponent width={350} height={300} onUpdate={handleScan} />
-            )}
-            <Grid container spacing={2}>
-                {productsFiltered
-                    .filter((product) => product.is_active)
-                    .sort((a, b) => a.display_order - b.display_order)
-                    .map((product, index) => (
-                        <Grid key={index} item xs={12} sm={6} md={2.4} lg={2.2} xl={2}>
-                            <ProductCard product={product} onAddToCart={handleAddToCart} />
-                        </Grid>
-                    ))}
+          </Grid>
+        ) : (
+          filteredProducts.map((product) => (
+            <Grid key={product.id} item xs={12} sm={6} md={2.4} lg={2.2} xl={2}>
+              <ProductCard product={product} onAddToCart={handleAddToCart} />
             </Grid>
-        </Paper>
-    );
+          ))
+        )}
+      </Grid>
+    </Paper>
+  );
 };

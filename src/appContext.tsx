@@ -4,13 +4,13 @@ import { Order } from "./components/orders/order.model";
 import { Payment } from "./components/cart/cart.model";
 
 interface CartCTX {
-	productsInCart: Product[];
-	setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>;
+  productsInCart: Product[];
+  setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>;
 }
 
 interface OrderCTX {
-	orders: Order[];
-	setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+  orders: Order[];
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
 }
 
 interface DateCTX {
@@ -19,15 +19,21 @@ interface DateCTX {
 }
 
 interface PaymentCTX {
-	splitPayments: Payment[];
-	setSplitPayments: React.Dispatch<React.SetStateAction<Payment[]>>;
+  splitPayments: Payment[];
+  setSplitPayments: React.Dispatch<React.SetStateAction<Payment[]>>;
+}
+
+interface SearchCTX {
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
 }
 
 interface ContextType {
-	cartCTX: CartCTX;
-	orderCTX: OrderCTX;
-	dateCTX: DateCTX;
-	paymentCTX: PaymentCTX;
+  cartCTX: CartCTX;
+  orderCTX: OrderCTX;
+  dateCTX: DateCTX;
+  paymentCTX: PaymentCTX;
+  searchCTX: SearchCTX;
 }
 
 export const appContext = React.createContext({} as ContextType);

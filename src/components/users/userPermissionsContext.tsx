@@ -1,9 +1,15 @@
-import React, { createContext, useState, useContext, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
 import { fetchUserPermissions } from "./users-api";
 
 type Permission = {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
 };
 
 interface UserPermissionsContextType {
@@ -16,16 +22,15 @@ const UserPermissionsContext = createContext<UserPermissionsContextType>({
   fetchPermissions: async () => {},
 });
 
-export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const UserPermissionsProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const fetchedForUser = useRef<string | null>(null);
 
   useEffect(() => {
     const userId = sessionStorage.getItem("stellar_userid");
-    if (
-      userId &&
-      fetchedForUser.current !== userId
-    ) {
+    if (userId && fetchedForUser.current !== userId) {
       fetchedForUser.current = userId;
       fetchPermissions(userId);
     }
@@ -34,7 +39,12 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
   const fetchPermissions = async (id: string) => {
     try {
       const perms = await fetchUserPermissions(id);
-      setPermissions(perms);
+      if (Array.isArray(perms)) {
+        setPermissions(perms);
+      } else {
+        setPermissions([]);
+        console.error("fetchUserPermissions did not return an array:", perms);
+      }
     } catch (error) {
       setPermissions([]);
     }
@@ -49,7 +59,27 @@ export const UserPermissionsProvider: React.FC<{ children: React.ReactNode }> = 
 
 export const useUserPermissions = () => useContext(UserPermissionsContext);
 
-export const hasPermission = (permissionName: string): boolean => {
+export const useCanChangeDate = (): boolean => {
   const { permissions } = useUserPermissions();
-  return (permissions ?? []).some((p) => p.name === permissionName);
+  return hasPermission(permissions, "change_date");
+};
+
+export const useCanViewOrdersReport = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_orders_report");
+};
+
+export const useCanViewCashRegisterHistory = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_cash_register_history");
+};
+
+export const hasPermission = (
+  permissions: Permission[] | undefined,
+  permissionName: string
+): boolean => {
+  return (
+    Array.isArray(permissions) &&
+    permissions.some((p) => p.name === permissionName)
+  );
 };
