@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { fetchUserPermissions } from "./users-api";
+import { fetchUserPermissions } from "../../functions/apiFunctions";
 
 type Permission = {
   id: string;
@@ -72,6 +72,11 @@ export const useCanViewOrdersReport = (): boolean => {
 export const useCanViewCashRegisterHistory = (): boolean => {
   const { permissions } = useUserPermissions();
   return hasPermission(permissions, "view_cash_register_history");
+};
+
+export const useCanViewProductsAdmin = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_products_admin");
 };
 
 export const hasPermission = (

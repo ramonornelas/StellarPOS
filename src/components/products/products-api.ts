@@ -1,8 +1,65 @@
-import { BASE_URL } from '../../apiConfig';
+import { BASE_URL, API_STAGE } from '../../apiConfig';
+
+const getApiUrl = (path: string, baseUrl: string = BASE_URL) => {
+  return API_STAGE === 'PROD'
+    ? `${baseUrl}/${path}`
+    : `${baseUrl}/${API_STAGE}/${path}`;
+};
+
+export const deleteProduct = async (id: string) => {
+  try {
+    const response = await fetch(getApiUrl(`products/${id}`), {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Error deleting product');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw error;
+  }
+};
+export const updateProduct = async (id: string, product: any) => {
+  try {
+    const response = await fetch(getApiUrl(`products/${id}`), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(product),
+    });
+    if (!response.ok) {
+      throw new Error('Error updating product');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+};
+export const addProduct = async (product: any) => {
+  try {
+    const response = await fetch(getApiUrl('products'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(product),
+    });
+    if (!response.ok) {
+      throw new Error('Error adding product');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding product:', error);
+    throw error;
+  }
+};
 
 export const fetchProducts = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/products`);
+    const response = await fetch(getApiUrl('products'));
     const data = await response.json();
     return data;
   } catch (error) {
