@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "../login/login.module.css";
+import { registerUser } from "../../functions/apiFunctions";
 
 const Register: React.FC = () => {
     const [username, setUsername] = useState("");
@@ -26,19 +27,12 @@ const Register: React.FC = () => {
             nextYear.setFullYear(today.getFullYear() + 1); // Add 1 year
             const expirationDate = nextYear.toISOString().split("T")[0]; // Format as yyyy-mm-dd
 
-            const response = await fetch("https://iupws50sa8.execute-api.us-west-1.amazonaws.com/users", {
-                method: "POST",
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    username,
-                    password,
-                    phone_number: phoneNumber || undefined,
-                    active: true,
-                    expiration_date: expirationDate, // Use the calculated expiration date
-                }),
+            const response = await registerUser({
+                username,
+                password,
+                phone_number: phoneNumber || undefined,
+                active: true,
+                expiration_date: expirationDate,
             });
 
             if (response.status === 201) {

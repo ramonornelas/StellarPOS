@@ -9,6 +9,48 @@ const getApiUrl = (path: string, baseUrl: string = BASE_URL) => {
     : `${baseUrl}/${API_STAGE}/${path}`;
 };
 
+// Fetch user permissions
+export const fetchUserPermissions = async (userId: string) => {
+  try {
+    const response = await fetch(getApiUrl(`users/permissions/${userId}`));
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching user permissions:', error);
+    return [];
+  }
+};
+
+// Register a new user
+export const registerUser = async ({ username, password, phone_number, active, expiration_date }: {
+  username: string;
+  password: string;
+  phone_number?: string;
+  active: boolean;
+  expiration_date: string;
+}) => {
+  try {
+    const response = await fetch(getApiUrl('users', AUTH_BASE_URL), {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username,
+        password,
+        phone_number,
+        active,
+        expiration_date,
+      }),
+    });
+    return response;
+  } catch (error) {
+    console.error('Error registering user:', error);
+    throw error;
+  }
+};
+
 export const postLogin = async (email: string, password: string) => {
   try {
     const response = await fetch(getApiUrl('auth/login', AUTH_BASE_URL), {

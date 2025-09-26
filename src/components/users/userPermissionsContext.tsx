@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { fetchUserPermissions } from "./users-api";
+import { fetchUserPermissions } from "../../functions/apiFunctions";
 
 type Permission = {
   id: string;
