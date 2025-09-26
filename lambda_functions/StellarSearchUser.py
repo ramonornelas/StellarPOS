@@ -7,15 +7,17 @@ import base64
 from decimal import Decimal
 
 def get_table_names(stage):
-    """Get table names based on the stage"""
-    if stage and stage.lower() == 'test':
-        return {
-            'USER_TABLE': os.getenv('TEST_USER_TABLE', 'test_stellar_user')
-        }
-    else:
-        return {
-            'USER_TABLE': os.getenv('USER_TABLE', 'stellar_user')
-        }
+  """Get table names based on the stage"""
+  if stage and stage.lower() == 'test':
+    return {
+      'USER_TABLE': os.getenv('TEST_USER_TABLE', 'test_stellar_user'),
+      'ROLE_TABLE': os.getenv('TEST_ROLE_TABLE', 'test_stellar_role')
+    }
+  else:
+    return {
+      'USER_TABLE': os.getenv('USER_TABLE', 'stellar_user'),
+      'ROLE_TABLE': os.getenv('ROLE_TABLE', 'stellar_role')
+    }
 
 dynamodb = boto3.resource('dynamodb')
 
@@ -34,6 +36,7 @@ def lambda_handler(event, context):
     stage = event.get('requestContext', {}).get('stage', 'dev')
     tables = get_table_names(stage)
     user_table = dynamodb.Table(tables['USER_TABLE'])
+    role_table = dynamodb.Table(tables['ROLE_TABLE'])
 
     request_body = json.loads(event['body'])
     username = request_body.get('username')
@@ -52,6 +55,19 @@ def lambda_handler(event, context):
 
     users = response['Items']
 
+    # For each user, get role_name and home_screen
+    for user in users:
+      role_id = user.get('role_id')
+      role_name = None
+      home_screen = None
+      if role_id:
+        role_response = role_table.get_item(Key={'id': role_id})
+        role = role_response.get('Item', {})
+        role_name = role.get('name')
+        home_screen = role.get('home_screen')
+      user['role_name'] = role_name
+      user['home_screen'] = home_screen
+
     return {
       'statusCode': 200,
       'body': json.dumps(users, cls=CustomJSONEncoder)
@@ -59,6 +75,6 @@ def lambda_handler(event, context):
   except (BotoCoreError, ClientError) as error:
     print(error)
     return {
-        'statusCode': 500,
-        'body': json.dumps({'message': str(error)})
+      'statusCode': 500,
+      'body': json.dumps({'message': str(error)})
     }
