@@ -74,6 +74,11 @@ export const useCanViewCashRegisterHistory = (): boolean => {
   return hasPermission(permissions, "view_cash_register_history");
 };
 
+export const useCanViewProductsAdmin = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_products_admin");
+};
+
 export const hasPermission = (
   permissions: Permission[] | undefined,
   permissionName: string

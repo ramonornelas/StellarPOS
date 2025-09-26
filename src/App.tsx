@@ -18,6 +18,7 @@ import { ChatPage } from "./pages/chatPage";
 import { UserPermissionsProvider } from "./components/users/userPermissionsContext";
 import { CashRegister } from "./pages/cashRegister.tsx";
 import { CashRegisterHistoryPage } from "./pages/cashRegisterHistoryPage.tsx";
+import ProductsAdminPage from "./pages/productsAdminPage";
 import { NoPermissionsPage } from "./pages/noPermissionsPage.tsx";
 
 function App() {
@@ -104,6 +105,14 @@ function App() {
               >
                 <Navbar applyFilter={applyFilter} onLogoff={handleLogoff} />
                 <Routes>
+                  <Route
+                    path="/products-admin"
+                    element={
+                      <ProtectedRoute isLoggedIn={isLoggedIn}>
+                        <ProductsAdminPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/"
                     element={

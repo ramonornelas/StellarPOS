@@ -14,6 +14,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import ShoppingBasketIcon from "@mui/icons-material/ShoppingBasket";
 import { NavLink, useLocation } from "react-router-dom";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import ChatIcon from "@mui/icons-material/Chat";
 import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
@@ -28,7 +29,7 @@ import { DataContext } from "../../dataContext";
 import { featureFlags } from "../../config/featureFlags";
 import { logoff } from "../../utils/logoff";
 import { NavbarSearchField } from "./navbar-searchfield";
-import { useCanViewOrdersReport } from "../users/userPermissionsContext";
+import { useCanViewOrdersReport, useCanViewProductsAdmin } from "../users/userPermissionsContext";
 
 // Get environment from VITE_API_STAGE
 const ENV_STAGE = import.meta.env.VITE_API_STAGE;
@@ -48,6 +49,7 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
   const openUserMenu = Boolean(anchorEl);
   const location = useLocation();
   const canViewOrdersReport = useCanViewOrdersReport();
+  const canViewProductsAdmin = useCanViewProductsAdmin();
 
   const isHomePage = location.pathname === "/";
 
@@ -172,6 +174,11 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
           )}
 
           <Box sx={{ display: "flex", alignItems: "center" }}>
+            {canViewProductsAdmin && (
+              <Button component={NavLink} to={"/products-admin"}>
+                <Inventory2Icon color="action" fontSize="large" />
+              </Button>
+            )}
             {/* Home Button */}
             <Button component={NavLink} to={"/"}>
               <HomeIcon color="action" fontSize="large" />
