@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { postLogin, searchUser } from "../../functions/apiFunctions";
 import { useNavigate } from "react-router-dom";
 import styles from "./login.module.css";
+import { Typography } from "@mui/material";
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -23,6 +24,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     return routeMapping[homeScreen] || "/";
   };
 
+  const ENV_STAGE = import.meta.env.VITE_API_STAGE;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -31,6 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         const searchUserResponse = await searchUser(email);
         if (searchUserResponse.status === 200) {
           const searchUserData = await searchUserResponse.json();
+          console.log("searchUserData:", searchUserData);
 
           if (!searchUserData[0].active) {
             setError("Usuario inactivo. Contacta al administrador.");
@@ -44,6 +48,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           sessionStorage.setItem("stellar_userid", searchUserId);
           sessionStorage.setItem("stellar_username", searchUsername);
           sessionStorage.setItem("stellar_role", searchUserData[0].role_id);
+          sessionStorage.setItem(
+            "stellar_role_name",
+            searchUserData[0].role_name
+          );
           onLoginSuccess();
           const targetRoute = getRouteFromHomeScreen(userHomeScreen);
 
@@ -64,6 +72,25 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className={styles.loginContainer}>
+      {ENV_STAGE !== "PROD" && ENV_STAGE && (
+        <Typography
+          variant="caption"
+          sx={{
+            ml: 2,
+            color: "grey.600",
+            fontWeight: 500,
+            letterSpacing: 1,
+            bgcolor: "grey.100",
+            px: 1.5,
+            py: 0.5,
+            borderRadius: 1,
+            alignSelf: "center",
+            userSelect: "none",
+          }}
+        >
+          {ENV_STAGE} ENV
+        </Typography>
+      )}
       <h2>Iniciar sesión</h2>
       {error && <div className={styles.error}>{error}</div>}
       <form onSubmit={handleSubmit} className={styles.loginForm}>

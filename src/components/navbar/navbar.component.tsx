@@ -29,7 +29,10 @@ import { DataContext } from "../../dataContext";
 import { featureFlags } from "../../config/featureFlags";
 import { logoff } from "../../utils/logoff";
 import { NavbarSearchField } from "./navbar-searchfield";
-import { useCanViewOrdersReport, useCanViewProductsAdmin } from "../users/userPermissionsContext";
+import {
+  useCanViewOrdersReport,
+  useCanViewProductsAdmin,
+} from "../users/userPermissionsContext";
 
 // Get environment from VITE_API_STAGE
 const ENV_STAGE = import.meta.env.VITE_API_STAGE;
@@ -100,11 +103,18 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     handleLogoff();
   };
 
-  // Get the user's initial from sessionStorage
-  const stellarUserId = sessionStorage.getItem("stellar_username");
-  const userInitial = stellarUserId
-    ? stellarUserId.charAt(0).toUpperCase()
+  // Get the user's data from sessionStorage
+  const stellarUsername = sessionStorage.getItem("stellar_username");
+  const stellarRole = sessionStorage.getItem("stellar_role_name");
+  const userInitial = stellarUsername
+    ? stellarUsername.charAt(0).toUpperCase()
     : "?";
+
+  // Format role name for display
+  const formatRoleName = (role: string | null) => {
+    if (!role) return "Sin rol";
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  };
 
   return (
     <>
@@ -222,8 +232,54 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                 vertical: "top",
                 horizontal: "right",
               }}
+              sx={{
+                "& .MuiPaper-root": {
+                  minWidth: 200,
+                  mt: 1,
+                },
+                ul: {
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                },
+              }}
             >
-              <MenuItem onClick={handleLogoffMenu}>Cerrar sesión</MenuItem>
+              {/* User Information Header */}
+              <Box
+                sx={{
+                  borderBottom: "1px solid",
+                  borderColor: "#ccc",
+                  px: 2,
+                  py: 2,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  fontWeight="medium"
+                >
+                  {stellarUsername || "Usuario"}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatRoleName(stellarRole)}
+                </Typography>
+              </Box>
+
+              {/* Logout Option */}
+              <MenuItem
+                onClick={handleLogoffMenu}
+                sx={{
+                  color: "error.main",
+                  "&:hover": {
+                    backgroundColor: "error.light",
+                    color: "error.contrastText",
+                    transition: "background-color 0.3s, color 0.3s",
+                  },
+                  px: 2,
+                  py: 1.5,
+                }}
+              >
+                Cerrar sesión
+              </MenuItem>
             </Menu>
           </Box>
         </Toolbar>
