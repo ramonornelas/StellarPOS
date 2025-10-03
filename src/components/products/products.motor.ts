@@ -27,10 +27,19 @@ export const filterProductsBySearch = (
     return productList;
   }
 
-  const normalizedSearch = searchTerm.toLowerCase().trim();
+  // Función para normalizar texto (remover acentos y convertir a minúsculas)
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // Remover acentos
+  };
+
+  const normalizedSearch = normalizeText(searchTerm.trim());
 
   return productList.filter((product: Product) => {
-    return product.name.toLowerCase().includes(normalizedSearch);
+    const normalizedName = normalizeText(product.name || "");
+    return normalizedName.includes(normalizedSearch);
   });
 };
 
