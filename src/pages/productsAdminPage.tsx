@@ -36,14 +36,14 @@ const ProductsAdminPage: React.FC = () => {
   const [inventoryTabValue, setInventoryTabValue] = React.useState(0);
 
   const handleMainTabChange = (
-    event: React.SyntheticEvent,
+    _event: React.SyntheticEvent,
     newValue: number
   ) => {
     setMainTabValue(newValue);
   };
 
   const handleInventoryTabChange = (
-    event: React.SyntheticEvent,
+    _event: React.SyntheticEvent,
     newValue: number
   ) => {
     setInventoryTabValue(newValue);
