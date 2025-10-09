@@ -12,8 +12,6 @@ import {
   Grid,
   Dialog,
   DialogTitle,
-  DialogContent,
-  DialogContentText,
   DialogActions,
 } from "@mui/material";
 import { ExpandMore, ExpandLess } from "@mui/icons-material";
