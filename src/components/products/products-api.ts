@@ -82,7 +82,7 @@ export const fetchCategories = async () => {
 
 export const fetchProductVariants = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/product_variants`);
+    const response = await fetch(getApiUrl("product_variants"));
     const data = await response.json();
     return data;
   } catch (error) {
@@ -199,7 +199,7 @@ export const uploadProductImage = async (file: File) => {
 
 export const fetchProductVariantsByProductId = async (productId: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/products/${productId}/variants`);
+    const response = await fetch(getApiUrl(`products/${productId}/variants`));
     if (!response.ok) throw new Error("Error fetching product variants");
     return await response.json();
   } catch (error) {
@@ -213,7 +213,7 @@ export const addProductVariant = async (
   variant: { name: string; price: number; display_order: number }
 ) => {
   try {
-    const response = await fetch(`${BASE_URL}/products/${productId}/variants`, {
+    const response = await fetch(getApiUrl(`products/${productId}/variants`), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -241,7 +241,7 @@ export const updateProductVariant = async (
 ) => {
   try {
     const response = await fetch(
-      `${BASE_URL}/products/${productId}/variants/${variantId}`,
+      getApiUrl(`products/${productId}/variants/${variantId}`),
       {
         method: "PUT",
         headers: {
@@ -270,7 +270,7 @@ export const deleteProductVariant = async (
 ) => {
   try {
     const response = await fetch(
-      `${BASE_URL}/products/${productId}/variants/${variantId}`,
+      getApiUrl(`products/${productId}/variants/${variantId}`),
       {
         method: "DELETE",
       }
