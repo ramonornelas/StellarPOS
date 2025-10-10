@@ -82,7 +82,7 @@ export const fetchCategories = async () => {
 
 export const fetchProductVariants = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/product_variants`);
+    const response = await fetch(getApiUrl("product_variants"));
     const data = await response.json();
     return data;
   } catch (error) {
