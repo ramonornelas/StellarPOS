@@ -103,16 +103,25 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
     handleLogoff();
   };
 
-  // Get the user's data from sessionStorage
   const stellarUsername = sessionStorage.getItem("stellar_username");
   const stellarRole = sessionStorage.getItem("stellar_role_name");
   const userInitial = stellarUsername
     ? stellarUsername.charAt(0).toUpperCase()
     : "?";
 
-  // Format role name for display
   const formatRoleName = (role: string | null) => {
     if (!role) return "Sin rol";
+
+    const roleMapping: Record<string, string> = {
+      cashier: "Cajero",
+      owner: "Dueño",
+      admin: "Administrador",
+    };
+
+    if (role.toLowerCase() in roleMapping) {
+      return roleMapping[role.toLowerCase()];
+    }
+
     return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
@@ -162,7 +171,6 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
             </Typography>
           )}
 
-          {/* Show environment if not PROD */}
           {ENV_STAGE !== "PROD" && ENV_STAGE && (
             <Typography
               variant="caption"
@@ -184,15 +192,15 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
           )}
 
           <Box sx={{ display: "flex", alignItems: "center" }}>
+            {/* Home Button */}
+            <Button component={NavLink} to={"/"}>
+              <HomeIcon color="action" fontSize="large" />
+            </Button>
             {canViewProductsAdmin && (
               <Button component={NavLink} to={"/products-admin"}>
                 <Inventory2Icon color="action" fontSize="large" />
               </Button>
             )}
-            {/* Home Button */}
-            <Button component={NavLink} to={"/"}>
-              <HomeIcon color="action" fontSize="large" />
-            </Button>
             {featureFlags.navbarShowDateSelector && (
               <Button component={NavLink} to={"/date-picker"}>
                 <DateRangeIcon color="action" fontSize="large" />
@@ -243,7 +251,6 @@ export const Navbar: React.FC<NavBarProps> = (props) => {
                 },
               }}
             >
-              {/* User Information Header */}
               <Box
                 sx={{
                   borderBottom: "1px solid",

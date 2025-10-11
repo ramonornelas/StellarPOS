@@ -196,3 +196,94 @@ export const uploadProductImage = async (file: File) => {
     throw error;
   }
 };
+
+export const fetchProductVariantsByProductId = async (productId: string) => {
+  try {
+    const response = await fetch(getApiUrl(`products/${productId}/variants`));
+    if (!response.ok) throw new Error("Error fetching product variants");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching product variants by product id:", error);
+    return [];
+  }
+};
+
+export const addProductVariant = async (
+  productId: string,
+  variant: { name: string; price: number; display_order: number }
+) => {
+  try {
+    const response = await fetch(getApiUrl(`products/${productId}/variants`), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(variant),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || errorData.message || "Error al agregar variante"
+      );
+    }
+    const data = await response.json();
+    return data.variant;
+  } catch (error: unknown) {
+    console.error("Error adding product variant:", error);
+    throw error;
+  }
+};
+
+export const updateProductVariant = async (
+  productId: string,
+  variantId: string,
+  variant: { name?: string; price?: number; display_order?: number }
+) => {
+  try {
+    const response = await fetch(
+      getApiUrl(`products/${productId}/variants/${variantId}`),
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(variant),
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || errorData.message || "Error al actualizar variante"
+      );
+    }
+    const data = await response.json();
+    return data.variant;
+  } catch (error: unknown) {
+    console.error("Error updating product variant:", error);
+    throw error;
+  }
+};
+
+export const deleteProductVariant = async (
+  productId: string,
+  variantId: string
+) => {
+  try {
+    const response = await fetch(
+      getApiUrl(`products/${productId}/variants/${variantId}`),
+      {
+        method: "DELETE",
+      }
+    );
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || errorData.message || "Error al eliminar variante"
+      );
+    }
+    return await response.json();
+  } catch (error: unknown) {
+    console.error("Error deleting product variant:", error);
+    throw error;
+  }
+};

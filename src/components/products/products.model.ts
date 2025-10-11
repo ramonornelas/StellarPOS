@@ -34,3 +34,13 @@ export interface Category {
   id: string;
   display_order: number;
 }
+
+export interface ProductVariantModal {
+  display_order: string | number;
+  id: string;
+  name: string;
+  price: string | number;
+  description: string;
+  product_id: string;
+  product_name: string;
+}
