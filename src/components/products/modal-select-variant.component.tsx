@@ -12,6 +12,8 @@ import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
 import { DataContext } from "../../dataContext";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { updateCart } from "../cart/cart.utils";
+import { useComboConfirmation } from "../cart/useComboConfirmation.hook";
+import { ComboConfirmationDialog } from "../cart/combo-confirmation-dialog.component";
 
 interface SelectVariantProps {
   product: Product;
@@ -24,13 +26,21 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
   const { productsInCart, setProductsInCart } =
     React.useContext(appContext).cartCTX;
 
+  const {
+    confirmComboDialog,
+    handleConfirm,
+    handleCancel,
+    dialogOpen,
+    combos,
+  } = useComboConfirmation();
+
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => {
     setOpen(false);
   };
 
-  const addCustomProduct = (selectedOption: string) => {
+  const addCustomProduct = async (selectedOption: string) => {
     const productFound = searchVariantById(ProductVariants, selectedOption);
 
     // Combine product.name and productFound.name
@@ -44,12 +54,13 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
       is_active: true,
     };
 
-    updateCart(
+    await updateCart(
       "add",
       productsInCart,
       setProductsInCart,
       products,
-      combinedproductFound
+      combinedproductFound,
+      confirmComboDialog
     );
     openSnackBarProductAdded(combinedproductFound.name, productFound.price);
     setOpen(false);
@@ -124,6 +135,14 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
           </Box>
         </form>
       </Modal>
+
+      {/* Dialog de confirmación para combos */}
+      <ComboConfirmationDialog
+        open={dialogOpen}
+        combos={combos}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };

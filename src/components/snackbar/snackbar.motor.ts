@@ -78,3 +78,35 @@ export const openSnackBarCartCleared = () => {
     autoHideDuration: 3000,
   });
 };
+
+export const openSnackBarValidationError = (message: string) => {
+  enqueueSnackbar(message, {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 4000,
+  });
+};
+
+export const openSnackBarProductError = (message: string) => {
+  enqueueSnackbar(message, {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 4000,
+  });
+};
+
+export const openSnackBarDeleteError = () => {
+  enqueueSnackbar("Hubo un error al eliminar el producto.", {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 4000,
+  });
+};
+
+export const openSnackBarSaveChangesFirst = () => {
+  enqueueSnackbar("Debe guardar los cambios antes de gestionar variantes.", {
+    variant: "warning",
+    style: { opacity: "90%" },
+    autoHideDuration: 4000,
+  });
+};
