@@ -1,16 +1,16 @@
 import {
-	Box,
-	Chip,
-	IconButton,
-	TableCell,
-	TableRow,
-	Typography,
+  Box,
+  Chip,
+  IconButton,
+  TableCell,
+  TableRow,
+  Typography,
 } from "@mui/material";
 import { ProductsInCart } from "./cart.model";
 import {
-	formattedDescription,
-	priceRow,
-	searchProductByIdInCart,
+  formattedDescription,
+  priceRow,
+  searchProductByIdInCart,
 } from "./cart.motor";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
@@ -20,219 +20,287 @@ import { appContext } from "../../appContext";
 import { EditPriceModal } from "./edit-price-modal.component";
 import classes from "./css/cart-item.module.css";
 import { openSnackBarDeleteProduct } from "../snackbar/snackbar.motor";
-import { formatCurrency } from '../../functions/generalFunctions';
+import { formatCurrency } from "../../functions/generalFunctions";
 import { DataContext } from "../../dataContext";
 import { updateCart } from "./cart.utils";
 import { featureFlags } from "../../config/featureFlags";
+import { useComboConfirmation } from "./useComboConfirmation.hook";
+import { ComboConfirmationDialog } from "./combo-confirmation-dialog.component";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 
 interface CartItemProps {
-	productInfo: ProductsInCart;
-    tableWidth: number;
+  productInfo: ProductsInCart;
+  tableWidth: number;
 }
 
-export const CartItem: React.FC<CartItemProps> = ({ productInfo, tableWidth }) => {
-    const { desc, qty, unit, category, product_variant_id, is_combo } = productInfo;
-    const { productsInCart, setProductsInCart } =
-        React.useContext(appContext).cartCTX;
-    const products = useContext(DataContext).products;
+export const CartItem: React.FC<CartItemProps> = ({
+  productInfo,
+  tableWidth,
+}) => {
+  const { desc, qty, unit, category, product_variant_id, is_combo } =
+    productInfo;
+  const { productsInCart, setProductsInCart } =
+    React.useContext(appContext).cartCTX;
+  const products = useContext(DataContext).products;
 
-    const [inputQty, setInputQty] = React.useState<string>(qty.toString());
-    const [qtyError, setQtyError] = React.useState<string | null>(null);
+  const {
+    confirmComboDialog,
+    handleConfirm,
+    handleCancel,
+    dialogOpen,
+    combos,
+  } = useComboConfirmation();
 
-    React.useEffect(() => {
-        setInputQty(qty.toString());
-    }, [qty, productsInCart]);
+  const [inputQty, setInputQty] = React.useState<string>(qty.toString());
+  const [qtyError, setQtyError] = React.useState<string | null>(null);
 
-    const addQtyToCart = (id: string) => {
-        const productFound = searchProductByIdInCart(id, productsInCart);
-        if (productFound) {
-            updateCart("add", productsInCart, setProductsInCart, products, productFound);
-        }
-    };
+  React.useEffect(() => {
+    setInputQty(qty.toString());
+  }, [qty, productsInCart]);
 
-    const substractQtyFromCart = (id: string) => {
-        const productFound = searchProductByIdInCart(id, productsInCart);
-        if (productFound) {
-            updateCart("subtract", productsInCart, setProductsInCart, products, productFound);
-        }
-    };
+  const addQtyToCart = async (id: string) => {
+    const productFound = searchProductByIdInCart(id, productsInCart);
+    if (productFound) {
+      await updateCart(
+        "add",
+        productsInCart,
+        setProductsInCart,
+        products,
+        productFound,
+        confirmComboDialog
+      );
+    }
+  };
 
-    const deleteFromCart = (id: string) => {
-        const productFound = searchProductByIdInCart(id, productsInCart);
-        if (productFound) {
-            updateCart("delete", productsInCart, setProductsInCart, products, productFound);
-        }
-    };
+  const substractQtyFromCart = async (id: string) => {
+    const productFound = searchProductByIdInCart(id, productsInCart);
+    if (productFound) {
+      await updateCart(
+        "subtract",
+        productsInCart,
+        setProductsInCart,
+        products,
+        productFound,
+        confirmComboDialog
+      );
+    }
+  };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(",", "."); // Allow comma or dot
-        // Limit to a maximum of 3 decimals
-        if (/^\d*\.?\d{0,3}$/.test(value) || value === "") {
-            setInputQty(value);
-        }
-        // If the user tries to enter more than 3 decimals, ignore the change
-    };
+  const deleteFromCart = async (id: string) => {
+    const productFound = searchProductByIdInCart(id, productsInCart);
+    if (productFound) {
+      await updateCart(
+        "delete",
+        productsInCart,
+        setProductsInCart,
+        products,
+        productFound,
+        confirmComboDialog
+      );
+    }
+  };
 
-    const handleAcceptQty = () => {
-        const floatValue = parseFloat(inputQty);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(",", "."); // Allow comma or dot
+    // Limit to a maximum of 3 decimals
+    if (/^\d*\.?\d{0,3}$/.test(value) || value === "") {
+      setInputQty(value);
+    }
+    // If the user tries to enter more than 3 decimals, ignore the change
+  };
 
-        if (floatValue === 0) {
-            setQtyError("Invalid value");
-            return;
-        } else {
-            setQtyError(null);
-        }
+  const handleAcceptQty = async () => {
+    const floatValue = parseFloat(inputQty);
 
-        if (!isNaN(floatValue) && floatValue > 0 && floatValue !== qty) {
-            const productFound = searchProductByIdInCart(product_variant_id, productsInCart);
-            if (productFound) {
-                updateCart("setQty", productsInCart, setProductsInCart, products, {
-                    ...(productFound as any),
-                    quantity: floatValue,
-                });
-            }
-        }
-    };
+    if (floatValue === 0) {
+      setQtyError("Invalid value");
+      return;
+    } else {
+      setQtyError(null);
+    }
 
-    const isWideTable = tableWidth >= 600;
+    if (!isNaN(floatValue) && floatValue > 0 && floatValue !== qty) {
+      const productFound = searchProductByIdInCart(
+        product_variant_id,
+        productsInCart
+      );
+      if (productFound) {
+        await updateCart(
+          "setQty",
+          productsInCart,
+          setProductsInCart,
+          products,
+          {
+            ...(productFound as any),
+            quantity: floatValue,
+          },
+          confirmComboDialog
+        );
+      }
+    }
+  };
 
-    // Track last updated row id and value
-const lastQtyUpdate = React.useRef<{ id: string; value: string }>({ id: "", value: "" });
+  const isWideTable = tableWidth >= 600;
 
-const handleAcceptQtyOnce = () => {
+  // Track last updated row id and value
+  const lastQtyUpdate = React.useRef<{ id: string; value: string }>({
+    id: "",
+    value: "",
+  });
+
+  const handleAcceptQtyOnce = () => {
     // Only allow if the row or value has changed
     if (
-        lastQtyUpdate.current.id !== product_variant_id ||
-        lastQtyUpdate.current.value !== inputQty
+      lastQtyUpdate.current.id !== product_variant_id ||
+      lastQtyUpdate.current.value !== inputQty
     ) {
-        handleAcceptQty();
-        lastQtyUpdate.current = { id: product_variant_id, value: inputQty };
+      handleAcceptQty();
+      lastQtyUpdate.current = { id: product_variant_id, value: inputQty };
     }
-};
+  };
 
-    const handleInputBlur = () => {
-        handleAcceptQtyOnce();
-    };
+  const handleInputBlur = () => {
+    handleAcceptQtyOnce();
+  };
 
-    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") {
-            handleAcceptQtyOnce();
-        }
-    };
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleAcceptQtyOnce();
+    }
+  };
 
-    return (
-        <>
-            <TableRow
-                className={is_combo ? classes["highlight-row"] : ""}
-                sx={{
-                    ...(is_combo ? { backgroundColor: "#a2f6f5" } : {}),
-                    height: 72, // Increase row height
+  return (
+    <>
+      <TableRow
+        className={is_combo ? classes["highlight-row"] : ""}
+        sx={{
+          ...(is_combo ? { backgroundColor: "#a2f6f5" } : {}),
+          height: 72, // Increase row height
+        }}
+      >
+        <TableCell sx={{ p: 1.5, pl: 2 }}>
+          {featureFlags.cartItemShowEditPrice && (
+            <EditPriceModal productInfo={productInfo} />
+          )}
+          <Tooltip title={desc} arrow>
+            <span>{formattedDescription(desc, 60)}</span>
+          </Tooltip>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "left",
+            }}
+          >
+            {
+              <Typography
+                component="p"
+                variant="body2"
+                className={classes["variant-label"]}
+              ></Typography>
+            }
+            {category === "custom" && (
+              <Typography
+                component="p"
+                variant="body2"
+                className={classes["custom-label"]}
+              >
+                {" "}
+                <Chip
+                  color="info"
+                  variant="outlined"
+                  label="Custom"
+                  sx={{ height: "auto", m: 0.5 }}
+                />
+              </Typography>
+            )}
+          </Box>
+        </TableCell>
+        <TableCell>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+            }}
+          >
+            <>
+              {isWideTable && (
+                <IconButton
+                  onClick={() => substractQtyFromCart(product_variant_id)}
+                  size="medium"
+                  sx={{ width: 40, height: 40 }}
+                  color="primary"
+                >
+                  <RemoveCircleIcon sx={{ fontSize: 32 }} />
+                </IconButton>
+              )}
+              <TextField
+                type="number"
+                variant="standard"
+                value={inputQty}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleInputBlur}
+                error={!!qtyError}
+                helperText={qtyError ?? " "}
+                FormHelperTextProps={{
+                  style: { minHeight: 20, margin: 0, padding: 0 },
                 }}
-            >
-                <TableCell sx={{ p: 1.5, pl: 2 }}>
-                    {featureFlags.cartItemShowEditPrice && (
-                        <EditPriceModal productInfo={productInfo} />
-                    )}
-                    <Tooltip title={desc} arrow>
-                        <span>
-                          {formattedDescription(desc, 60)}
-                        </span>
-                    </Tooltip>
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "left" }}>
-                        {<Typography
-                            component="p"
-                            variant="body2"
-                            className={classes["variant-label"]}
-                        >
-                        </Typography>}
-                        {(category === "custom") && (
-                            <Typography
-                                component="p"
-                                variant="body2"
-                                className={classes["custom-label"]}
-                            >
-                                {" "}
-                                <Chip
-                                    color="info"
-                                    variant="outlined"
-                                    label="Custom"
-                                    sx={{ height: "auto", m: 0.5 }}
-                                />
-                            </Typography>
-                        )}
-                    </Box>
-                </TableCell>
-                <TableCell>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 1.5,
-                        }}
-                    >
-                        <>
-                            {isWideTable && (
-                                <IconButton
-                                    onClick={() => substractQtyFromCart(product_variant_id)}
-                                    size="medium"
-                                    sx={{ width: 40, height: 40 }}
-                                    color="primary"
-                                >
-                                    <RemoveCircleIcon sx={{ fontSize: 32 }} />
-                                </IconButton>
-                            )}
-                            <TextField
-                                type="number"
-                                variant="standard"
-                                value={inputQty}
-                                onChange={handleInputChange}
-                                onKeyDown={handleInputKeyDown}
-                                onBlur={handleInputBlur}
-                                error={!!qtyError}
-                                helperText={qtyError ?? " "}
-                                FormHelperTextProps={{
-                                    style: { minHeight: 20, margin: 0, padding: 0 },
-                                }}
-                                inputProps={{
-                                    min: 0.01,
-                                    step: "any",
-                                    inputMode: "decimal",
-                                    style: { textAlign: "center", width: 70, padding: 0, fontSize: 20 },
-                                    className: classes["no-spinner"],
-                                }}
-                            />
-                            {isWideTable && (
-                                <IconButton
-                                    onClick={() => addQtyToCart(product_variant_id)}
-                                    size="medium"
-                                    sx={{ width: 40, height: 40 }}
-                                    color="primary"
-                                >
-                                    <AddCircleIcon sx={{ fontSize: 32 }} />
-                                </IconButton>
-                            )}
-                        </>
-                    </Box>
-                </TableCell>
-                <TableCell align="right">{formatCurrency(unit)}</TableCell>
-                <TableCell align="right">{formatCurrency(priceRow(qty, unit))}</TableCell>
-                <TableCell align="right" sx={{ p: 1.5, pr: 2 }}>
-                    <IconButton
-                        onClick={() => {
-                            deleteFromCart(product_variant_id);
-                            openSnackBarDeleteProduct(desc);
-                        }}
-                        size="medium"
-                        sx={{ width: 40, height: 40 }}
-                        color="error"
-                    >
-                        <DeleteIcon sx={{ fontSize: 32 }} />
-                    </IconButton>
-                </TableCell>
-            </TableRow>
-        </>
-    );
+                inputProps={{
+                  min: 0.01,
+                  step: "any",
+                  inputMode: "decimal",
+                  style: {
+                    textAlign: "center",
+                    width: 70,
+                    padding: 0,
+                    fontSize: 20,
+                  },
+                  className: classes["no-spinner"],
+                }}
+              />
+              {isWideTable && (
+                <IconButton
+                  onClick={() => addQtyToCart(product_variant_id)}
+                  size="medium"
+                  sx={{ width: 40, height: 40 }}
+                  color="primary"
+                >
+                  <AddCircleIcon sx={{ fontSize: 32 }} />
+                </IconButton>
+              )}
+            </>
+          </Box>
+        </TableCell>
+        <TableCell align="right">{formatCurrency(unit)}</TableCell>
+        <TableCell align="right">
+          {formatCurrency(priceRow(qty, unit))}
+        </TableCell>
+        <TableCell align="right" sx={{ p: 1.5, pr: 2 }}>
+          <IconButton
+            onClick={() => {
+              deleteFromCart(product_variant_id);
+              openSnackBarDeleteProduct(desc);
+            }}
+            size="medium"
+            sx={{ width: 40, height: 40 }}
+            color="error"
+          >
+            <DeleteIcon sx={{ fontSize: 32 }} />
+          </IconButton>
+        </TableCell>
+      </TableRow>
+
+      {/* Dialog de confirmación para combos */}
+      <ComboConfirmationDialog
+        open={dialogOpen}
+        combos={combos}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+    </>
+  );
 };

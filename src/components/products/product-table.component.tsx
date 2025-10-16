@@ -6,7 +6,12 @@ import {
   deleteProduct,
   uploadProductImage,
 } from "./products-api";
-import { openSnackBarProductAdded } from "../snackbar/snackbar.motor";
+import {
+  openSnackBarProductAdded,
+  openSnackBarProductError,
+  openSnackBarDeleteError,
+  openSnackBarSaveChangesFirst,
+} from "../snackbar/snackbar.motor";
 import { Product } from "./products.model";
 import {
   Button,
@@ -28,16 +33,20 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import SaveIcon from "@mui/icons-material/Save";
+import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AddIcon from "@mui/icons-material/Add";
-import Inventory2Icon from "@mui/icons-material/Inventory2";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { ProductVariantsModal } from "./product-variants-modal.component";
 
@@ -51,12 +60,12 @@ const ProductTable: React.FC = () => {
   const [editData, setEditData] = useState<Partial<Product>>({});
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [addMode, setAddMode] = useState(false);
-  const [showOnlyVisible, setShowOnlyVisible] = useState(false); // Toggle para filtrar productos visibles
-  const [searchTerm, setSearchTerm] = useState(""); // Término de búsqueda
+  const [showOnlyVisible, setShowOnlyVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [uploadingImages, setUploadingImages] = useState<
     Record<string, boolean>
   >({}); // Estado de carga por producto
-  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({}); // Errores de carga por producto
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     price: 0,
@@ -68,12 +77,33 @@ const ProductTable: React.FC = () => {
     description: "",
     is_combo: false,
     product_variant_id: "",
-    display_order: 0,
+    display_order: 999,
     barcode: "",
   });
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [variantModalProduct, setVariantModalProduct] =
     useState<Product | null>(null);
+  const [updatingVariants, setUpdatingVariants] = useState<string | null>(null); // ID del producto que está actualizando variantes
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{
+    name: string;
+    price: string;
+  }>({
+    name: "",
+    price: "",
+  });
+  const [editValidationErrors, setEditValidationErrors] = useState<{
+    name: string;
+    price: string;
+  }>({
+    name: "",
+    price: "",
+  });
 
   useEffect(() => {
     fetchProducts().then((products) => {
@@ -86,7 +116,7 @@ const ProductTable: React.FC = () => {
       return text
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, ""); // Remover acentos
+        .replace(/[\u0300-\u036f]/g, "");
     };
 
     const filterProductsBySearch = (
@@ -112,7 +142,6 @@ const ProductTable: React.FC = () => {
     filtered = filterProductsBySearch(filtered, searchTerm);
 
     if (!sortConfig) {
-      // Default sort by display_order (ascendente)
       return [...filtered].sort((a, b) => {
         const aOrder = a.display_order ?? 999999;
         const bOrder = b.display_order ?? 999999;
@@ -124,7 +153,6 @@ const ProductTable: React.FC = () => {
       const aValue = a[key];
       const bValue = b[key];
       if (key === "price") {
-        // Always sort price as number
         const aNum =
           typeof aValue === "number" ? aValue : parseFloat(String(aValue));
         const bNum =
@@ -174,31 +202,100 @@ const ProductTable: React.FC = () => {
     const product = products.find((p) => p.id === id);
     setEditId(id);
     setEditData(product ? { ...product } : {});
+    setEditValidationErrors({ name: "", price: "" });
+  };
+
+  const handleCheckboxToggle = (product: Product, fieldName: keyof Product) => {
+    const updatedProduct = {
+      ...product,
+      [fieldName]: !product[fieldName],
+    };
+
+    if (fieldName === "has_variants" && !product.has_variants) {
+      updatedProduct.price = 0;
+    }
+
+    setEditId(product.id);
+    setEditData(updatedProduct);
   };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>
   ) => {
     const { name, value, type } = e.target as HTMLInputElement;
-    setEditData((prev) => ({
-      ...prev,
-      [name!]:
-        type === "checkbox"
-          ? (e.target as HTMLInputElement).checked
-          : name === "price" && value === ""
-          ? ""
-          : value,
-    }));
+    const isChecked = (e.target as HTMLInputElement).checked;
+
+    // Limpiar errores de validación cuando el usuario empiece a escribir
+    if (name === "name" && editValidationErrors.name) {
+      setEditValidationErrors((prev) => ({ ...prev, name: "" }));
+    }
+    if (name === "price" && editValidationErrors.price) {
+      setEditValidationErrors((prev) => ({ ...prev, price: "" }));
+    }
+
+    // Si se cambia has_variants, limpiar error de precio ya que se deshabilita/habilita
+    if (name === "has_variants") {
+      setEditValidationErrors((prev) => ({ ...prev, price: "" }));
+    }
+
+    setEditData((prev) => {
+      const newData = {
+        ...prev,
+        [name!]:
+          type === "checkbox"
+            ? isChecked
+            : name === "price" && value === ""
+            ? ""
+            : value,
+      };
+
+      if (name === "has_variants" && isChecked) {
+        newData.price = 0;
+      }
+
+      return newData;
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditId(null);
+    setEditValidationErrors({ name: "", price: "" });
   };
 
   const handleSave = async () => {
     if (!editId) return;
+
+    // Validación con errores inline
+    const errors = { name: "", price: "" };
+
+    if (!editData.name || editData.name.trim() === "") {
+      errors.name = "El nombre es obligatorio";
+    }
+
+    if (!editData.has_variants) {
+      const priceValue = editData.price;
+      const numericPrice = Number(priceValue);
+
+      if (!priceValue || numericPrice === 0) {
+        errors.price = "El precio es obligatorio";
+      } else if (numericPrice < 0) {
+        errors.price = "El precio debe ser mayor que 0";
+      }
+    }
+
+    // Si hay errores, mostrarlos y no continuar
+    if (errors.name || errors.price) {
+      setEditValidationErrors(errors);
+      return;
+    }
+
     try {
       await updateProduct(editId, editData);
     } catch (error) {
-      alert("Hubo un error al actualizar el producto.");
+      openSnackBarProductError("Hubo un error al actualizar el producto.");
     } finally {
       setEditId(null);
+      setEditValidationErrors({ name: "", price: "" });
       setRefreshFlag((flag) => !flag);
     }
   };
@@ -207,6 +304,20 @@ const ProductTable: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>
   ) => {
     const { name, value, type } = e.target as HTMLInputElement;
+
+    // Limpiar errores de validación cuando el usuario empiece a escribir
+    if (name === "name" && validationErrors.name) {
+      setValidationErrors((prev) => ({ ...prev, name: "" }));
+    }
+    if (name === "price" && validationErrors.price) {
+      setValidationErrors((prev) => ({ ...prev, price: "" }));
+    }
+
+    // Si se cambia has_variants, limpiar error de precio ya que se deshabilita/habilita
+    if (name === "has_variants") {
+      setValidationErrors((prev) => ({ ...prev, price: "" }));
+    }
+
     setNewProduct((prev) => ({
       ...prev,
       [name!]:
@@ -218,7 +329,48 @@ const ProductTable: React.FC = () => {
     }));
   };
 
+  const handleCancelAdd = () => {
+    setAddMode(false);
+    setValidationErrors({ name: "", price: "" });
+    setNewProduct({
+      name: "",
+      price: 0,
+      category_id: "",
+      is_active: true,
+      has_variants: false,
+      image_url: "",
+      category_name: "",
+      description: "",
+      is_combo: false,
+      product_variant_id: "",
+      display_order: 999,
+      barcode: "",
+    });
+  };
+
   const handleAdd = async () => {
+    const errors = { name: "", price: "" };
+
+    if (!newProduct.name || newProduct.name.trim() === "") {
+      errors.name = "El nombre es obligatorio";
+    }
+
+    if (!newProduct.has_variants) {
+      const priceValue = newProduct.price;
+      const numericPrice = Number(priceValue);
+
+      if (!priceValue || numericPrice === 0) {
+        errors.price = "El precio es obligatorio";
+      } else if (numericPrice < 0) {
+        errors.price = "El precio debe ser mayor que 0";
+      }
+    }
+
+    if (errors.name || errors.price) {
+      setValidationErrors(errors);
+      return;
+    }
+
     try {
       await addProduct(newProduct);
       openSnackBarProductAdded(
@@ -226,7 +378,7 @@ const ProductTable: React.FC = () => {
         Number(newProduct.price) || 0
       );
     } catch (error) {
-      alert("Hubo un error al agregar el producto.");
+      openSnackBarProductError("Hubo un error al agregar el producto.");
     } finally {
       setAddMode(false);
       setNewProduct({
@@ -240,29 +392,40 @@ const ProductTable: React.FC = () => {
         description: "",
         is_combo: false,
         product_variant_id: "",
-        display_order: 0,
+        display_order: 999,
         barcode: "",
       });
+      setValidationErrors({ name: "", price: "" });
       setRefreshFlag((flag) => !flag);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
     const product = products.find((p) => p.id === id);
-    const name = product?.name || "";
-    if (
-      !window.confirm(
-        `¿Estás seguro de que deseas eliminar el producto "${name}"?`
-      )
-    )
-      return;
+    if (product) {
+      setProductToDelete({
+        id: product.id,
+        name: product.name || "Sin nombre",
+      });
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return;
+
+    setDeleting(true);
+
     try {
-      await deleteProduct(id);
-    } catch (error) {
-      alert("Hubo un error al eliminar el producto.");
-    } finally {
+      await deleteProduct(productToDelete.id);
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
       setEditId(null);
       setRefreshFlag((flag) => !flag);
+    } catch (error) {
+      openSnackBarDeleteError();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -337,9 +500,29 @@ const ProductTable: React.FC = () => {
     event.target.value = "";
   };
 
-  const handleOpenVariantsModal = (product: Product) => {
-    setVariantModalProduct(product);
-    setVariantModalOpen(true);
+  const handleOpenVariantsModal = async (product: Product) => {
+    if (
+      editId === product.id &&
+      editData.has_variants !== product.has_variants
+    ) {
+      try {
+        setUpdatingVariants(product.id);
+        await handleSave();
+        const updatedProduct: Product = {
+          ...product,
+          has_variants: editData.has_variants ?? false,
+        };
+        setVariantModalProduct(updatedProduct);
+        setVariantModalOpen(true);
+      } catch (error) {
+        openSnackBarSaveChangesFirst();
+      } finally {
+        setUpdatingVariants(null);
+      }
+    } else {
+      setVariantModalProduct(product);
+      setVariantModalOpen(true);
+    }
   };
 
   const handleCloseVariantsModal = () => {
@@ -515,10 +698,11 @@ const ProductTable: React.FC = () => {
                 cursor: "pointer",
                 padding: "4px 8px",
                 fontWeight: "bold",
+                textAlign: "center",
               }}
               onClick={() => handleSort("price")}
             >
-              Precio{" "}
+              Precio
               {sortConfig?.key === "price"
                 ? sortConfig.direction === "asc"
                   ? "▲"
@@ -632,6 +816,14 @@ const ProductTable: React.FC = () => {
                   value={newProduct.name || ""}
                   onChange={handleAddChange}
                   size="small"
+                  required
+                  error={!!validationErrors.name}
+                  helperText={validationErrors.name}
+                  sx={{
+                    "& .Mui-error": {
+                      margin: "auto",
+                    },
+                  }}
                 />
               </TableCell>
               <TableCell style={{ padding: "4px 8px" }}>
@@ -649,7 +841,16 @@ const ProductTable: React.FC = () => {
                   onChange={handleAddChange}
                   type="number"
                   size="small"
-                  sx={{ textAlign: "right" }}
+                  sx={{
+                    textAlign: "right",
+                    "& .Mui-error": {
+                      margin: "auto",
+                    },
+                  }}
+                  required={!newProduct.has_variants}
+                  disabled={!!newProduct.has_variants}
+                  error={!!validationErrors.price}
+                  helperText={validationErrors.price}
                 />
               </TableCell>
               <TableCell style={{ padding: "4px 8px" }}>
@@ -670,22 +871,22 @@ const ProductTable: React.FC = () => {
               </TableCell>
               <TableCell style={{ padding: "4px 8px" }}>
                 <Box sx={{ display: "flex", gap: 1 }}>
+                  <Tooltip title="Cancelar">
+                    <IconButton
+                      onClick={handleCancelAdd}
+                      color="error"
+                      size="small"
+                    >
+                      <CancelIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Agregar">
                     <IconButton
                       onClick={handleAdd}
                       color="success"
                       size="small"
                     >
-                      <AddIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Cancelar">
-                    <IconButton
-                      onClick={() => setAddMode(false)}
-                      color="error"
-                      size="small"
-                    >
-                      <CancelIcon fontSize="small" />
+                      <CheckIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Box>
@@ -802,6 +1003,10 @@ const ProductTable: React.FC = () => {
                       value={editData.name || ""}
                       onChange={handleChange}
                       size="small"
+                      required
+                      error={!!editValidationErrors.name}
+                      helperText={editValidationErrors.name}
+                      sx={{ "& .Mui-error": { margin: "auto" } }}
                     />
                   ) : (
                     product.name
@@ -809,33 +1014,99 @@ const ProductTable: React.FC = () => {
                 </TableCell>
                 <TableCell style={{ padding: "4px 8px" }}>
                   {editId === product.id ? (
-                    <Checkbox
-                      name="has_variants"
-                      checked={!!editData.has_variants}
-                      onChange={handleChange}
-                      size="small"
-                    />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Checkbox
+                        name="has_variants"
+                        checked={!!editData.has_variants}
+                        onChange={handleChange}
+                        size="small"
+                      />
+                      {editData.has_variants && (
+                        <Tooltip
+                          title={
+                            updatingVariants === product.id
+                              ? "Actualizando estado de variantes..."
+                              : "Ver/Editar variantes"
+                          }
+                        >
+                          <IconButton
+                            onClick={() => handleOpenVariantsModal(product)}
+                            color="primary"
+                            size="small"
+                            disabled={updatingVariants === product.id}
+                          >
+                            {updatingVariants === product.id ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <ListAltIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   ) : (
-                    <Checkbox
-                      name="has_variants"
-                      checked={!!product.has_variants}
-                      sx={{
-                        "& svg": { fill: "#4d4d4d" },
-                        cursor: "default",
-                        ":hover": { backgroundColor: "transparent" },
-                      }}
-                    />
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Checkbox
+                        name="has_variants"
+                        checked={!!product.has_variants}
+                        onClick={() =>
+                          handleCheckboxToggle(product, "has_variants")
+                        }
+                        sx={{
+                          "& svg": { fill: "#4d4d4d" },
+                          ":hover": { backgroundColor: "transparent" },
+                        }}
+                      />
+                      {product.has_variants && (
+                        <Tooltip title="Ver/Editar variantes">
+                          <IconButton
+                            onClick={() => handleOpenVariantsModal(product)}
+                            color="primary"
+                            size="small"
+                          >
+                            <ListAltIcon fontSize="medium" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   )}
                 </TableCell>
-                <TableCell style={{ padding: "4px 8px", textAlign: "right" }}>
+                <TableCell
+                  style={{
+                    padding: "4px 8px",
+                    textAlign: "right",
+                  }}
+                >
                   {editId === product.id ? (
                     <TextField
                       name="price"
-                      value={editData.price === 0 ? "" : editData.price ?? ""}
+                      value={
+                        editData.has_variants
+                          ? "0"
+                          : editData.price === 0
+                          ? ""
+                          : editData.price ?? ""
+                      }
                       onChange={handleChange}
                       type="number"
                       size="small"
-                      sx={{ textAlign: "right" }}
+                      disabled={!!editData.has_variants}
+                      placeholder={
+                        editData.has_variants ? "Precio por variante" : ""
+                      }
+                      required={!editData.has_variants}
+                      error={!!editValidationErrors.price}
+                      helperText={editValidationErrors.price}
+                      sx={{
+                        textAlign: "right",
+                        "& .MuiInputBase-input.Mui-disabled": {
+                          cursor: "not-allowed",
+                          backgroundColor: "rgba(0,0,0,0.045)",
+                        },
+                        "& .Mui-error": {
+                          margin: "auto",
+                        },
+                      }}
                     />
                   ) : product.has_variants ? null : (
                     formatCurrency(product.price)
@@ -854,9 +1125,9 @@ const ProductTable: React.FC = () => {
                     <Checkbox
                       name="is_combo"
                       checked={!!product.is_combo}
+                      onClick={() => handleCheckboxToggle(product, "is_combo")}
                       sx={{
                         "& svg": { fill: "#4d4d4d" },
-                        cursor: "default",
                         ":hover": { backgroundColor: "transparent" },
                       }}
                     />
@@ -874,9 +1145,9 @@ const ProductTable: React.FC = () => {
                     <Checkbox
                       name="is_active"
                       checked={!!product.is_active}
+                      onClick={() => handleCheckboxToggle(product, "is_active")}
                       sx={{
                         "& svg": { fill: "#4d4d4d" },
-                        cursor: "default",
                         ":hover": { backgroundColor: "transparent" },
                       }}
                     />
@@ -885,22 +1156,22 @@ const ProductTable: React.FC = () => {
                 <TableCell style={{ padding: "4px 8px" }}>
                   {editId === product.id ? (
                     <Box sx={{ display: "flex", gap: 1 }}>
+                      <Tooltip title="Cancelar">
+                        <IconButton
+                          onClick={handleCancelEdit}
+                          color="error"
+                          size="small"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Guardar">
                         <IconButton
                           onClick={handleSave}
                           color="success"
                           size="small"
                         >
-                          <SaveIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Cancelar">
-                        <IconButton
-                          onClick={() => setEditId(null)}
-                          color="error"
-                          size="small"
-                        >
-                          <CancelIcon fontSize="small" />
+                          <CheckIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -917,24 +1188,13 @@ const ProductTable: React.FC = () => {
                       </Tooltip>
                       <Tooltip title="Eliminar">
                         <IconButton
-                          onClick={() => handleDelete(product.id)}
+                          onClick={() => handleDeleteClick(product.id)}
                           color="error"
                           size="small"
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      {product.has_variants && (
-                        <Tooltip title="Ver/Editar variantes">
-                          <IconButton
-                            onClick={() => handleOpenVariantsModal(product)}
-                            color="primary"
-                            size="small"
-                          >
-                            <Inventory2Icon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
                     </Box>
                   )}
                 </TableCell>
@@ -993,6 +1253,39 @@ const ProductTable: React.FC = () => {
           product={variantModalProduct}
         />
       )}
+
+      {/* Diálogo de confirmación para eliminar producto */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Eliminar producto</DialogTitle>
+        <DialogContent>
+          {productToDelete && (
+            <Typography variant="body1">
+              ¿Estás seguro que deseas eliminar el producto "
+              {productToDelete.name}"?
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setDeleteDialogOpen(false)}
+            disabled={deleting}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </TableContainer>
   );
 };

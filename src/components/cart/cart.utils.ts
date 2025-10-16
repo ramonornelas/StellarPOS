@@ -5,7 +5,11 @@ import { fetchProductCombos } from "../products/products-api";
 export const getComboUpdates = (
   cart: Product[],
   productList: Product[],
-  applicableCombos: { productId: string; comboId: string; comboThreshold: number }[]
+  applicableCombos: {
+    productId: string;
+    comboId: string;
+    comboThreshold: number;
+  }[]
 ) => {
   const comboUpdates = [];
 
@@ -21,7 +25,9 @@ export const getComboUpdates = (
       const comboProduct = productList.find((p) => p.id === comboId);
 
       if (comboProduct) {
-        const combosToAddCount = Math.floor(productCounts[productId] / comboThreshold);
+        const combosToAddCount = Math.floor(
+          productCounts[productId] / comboThreshold
+        );
 
         if (combosToAddCount > 0) {
           for (let i = 0; i < combosToAddCount; i++) {
@@ -33,7 +39,7 @@ export const getComboUpdates = (
 
     comboUpdates.push({
       comboId,
-      combosToAdd
+      combosToAdd,
     });
   }
 
@@ -43,7 +49,8 @@ export const getComboUpdates = (
 const updateCartWithCombos = async (
   updatedCart: Product[],
   products: Product[],
-  setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>
+  setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>,
+  confirmComboDialog?: (combos: Product[]) => Promise<boolean>
 ) => {
   const applicableCombos = await getApplicableCombos();
 
@@ -55,31 +62,39 @@ const updateCartWithCombos = async (
 
   // Filter unique combos by id for the confirmation message
   const uniqueCombosToAdd = allCombosToAdd.filter(
-    (combo, index, self) => self.findIndex(c => c.id === combo.id) === index
+    (combo, index, self) => self.findIndex((c) => c.id === combo.id) === index
   );
 
-  let finalCart = [...updatedCart];
+  const finalCart = [...updatedCart];
 
   if (uniqueCombosToAdd.length > 0) {
-    // Show only unique combos in the confirmation message
-    const combosMsg = uniqueCombosToAdd
-      .map(combo => `• ${combo.name} por $${combo.price}`)
-      .join('\n');
+    let confirmCombo = true;
 
-    const confirmCombo = window.confirm(
-      `¿Quieres aplicar los siguientes combos?\n${combosMsg}`
-    );
+    if (confirmComboDialog) {
+      confirmCombo = await confirmComboDialog(uniqueCombosToAdd);
+    } else {
+      // Fallback to native confirm if no dialog function provided
+      const combosMsg = uniqueCombosToAdd
+        .map((combo) => `• ${combo.name} por $${combo.price}`)
+        .join("\n");
+
+      confirmCombo = window.confirm(
+        `¿Quieres aplicar los siguientes combos?\n${combosMsg}`
+      );
+    }
 
     if (confirmCombo) {
       // Group combos by id to know how many of each to apply
       const comboCountMap: Record<string, number> = {};
-      allCombosToAdd.forEach(combo => {
+      allCombosToAdd.forEach((combo) => {
         comboCountMap[combo.id] = (comboCountMap[combo.id] || 0) + 1;
       });
 
       // First, remove the required products for each combo
       Object.entries(comboCountMap).forEach(([comboId, count]) => {
-        const comboProducts = applicableCombos.find((c) => c.comboId === comboId);
+        const comboProducts = applicableCombos.find(
+          (c) => c.comboId === comboId
+        );
         if (comboProducts) {
           const { productId, comboThreshold } = comboProducts;
           const totalToRemove = count * comboThreshold;
@@ -102,7 +117,10 @@ const updateCartWithCombos = async (
       });
 
       // Then, add the combos to the cart
-      const comboQuantityMap: Record<string, { combo: Product; quantity: number }> = {};
+      const comboQuantityMap: Record<
+        string,
+        { combo: Product; quantity: number }
+      > = {};
 
       allCombosToAdd.forEach((combo) => {
         if (comboQuantityMap[combo.id]) {
@@ -114,9 +132,7 @@ const updateCartWithCombos = async (
 
       Object.values(comboQuantityMap).forEach(({ combo, quantity }) => {
         // Check if the combo already exists in the cart
-        const existingIdx = finalCart.findIndex(
-          (item) => item.id === combo.id
-        );
+        const existingIdx = finalCart.findIndex((item) => item.id === combo.id);
         if (existingIdx !== -1) {
           // If it exists, add the quantity
           const prevQty = finalCart[existingIdx].quantity ?? 1;
@@ -131,15 +147,13 @@ const updateCartWithCombos = async (
       // Show a single snackbar message indicating the number of combos added for each type
       const comboSummary = Object.entries(comboCountMap)
         .map(([comboId, count]) => {
-          const combo = allCombosToAdd.find(c => c.id === comboId);
-          return combo ? `${count} × ${combo.name} ($${combo.price})` : '';
+          const combo = allCombosToAdd.find((c) => c.id === comboId);
+          return combo ? `${count} × ${combo.name} ($${combo.price})` : "";
         })
         .filter(Boolean)
-        .join('\n');
+        .join("\n");
       if (comboSummary) {
-        openSnackBarComboAdded(
-          `Combos agregados:\n${comboSummary}`
-        );
+        openSnackBarComboAdded(`Combos agregados:\n${comboSummary}`);
       }
     }
     // If not confirmed, do not apply any combo
@@ -148,7 +162,9 @@ const updateCartWithCombos = async (
   setProductsInCart(finalCart);
 };
 
-const getApplicableCombos = async (): Promise<{ productId: string; comboId: string; comboThreshold: number }[]> => {
+const getApplicableCombos = async (): Promise<
+  { productId: string; comboId: string; comboThreshold: number }[]
+> => {
   try {
     const combos = await fetchProductCombos();
     return combos.map((combo: any) => ({
@@ -166,7 +182,8 @@ export const updateCart = async (
   productsInCart: Product[],
   setProductsInCart: React.Dispatch<React.SetStateAction<Product[]>>,
   products: Product[],
-  productToModify: Product
+  productToModify: Product,
+  confirmComboDialog?: (combos: Product[]) => Promise<boolean>
 ) => {
   if (!productToModify) {
     return;
@@ -175,20 +192,24 @@ export const updateCart = async (
   let updatedCart = [...productsInCart];
 
   if (action === "add") {
-    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    const idx = updatedCart.findIndex(
+      (p) => p.product_variant_id === productToModify.product_variant_id
+    );
     if (idx !== -1) {
       let newQty = (updatedCart[idx].quantity ?? 1) + 1;
       newQty = Number(newQty.toFixed(3));
-      updatedCart[idx] = { 
-        ...updatedCart[idx], 
-        quantity: newQty
+      updatedCart[idx] = {
+        ...updatedCart[idx],
+        quantity: newQty,
       };
     } else {
-      let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+      const qty = Number((productToModify.quantity ?? 1).toFixed(3));
       updatedCart.push({ ...productToModify, quantity: qty });
     }
   } else if (action === "subtract") {
-    const idx = updatedCart.findIndex(p => p.product_variant_id === productToModify.product_variant_id);
+    const idx = updatedCart.findIndex(
+      (p) => p.product_variant_id === productToModify.product_variant_id
+    );
     if (idx !== -1) {
       let newQty = (updatedCart[idx].quantity ?? 1) - 1;
       newQty = Number(newQty.toFixed(3));
@@ -199,11 +220,13 @@ export const updateCart = async (
       }
     }
   } else if (action === "delete") {
-    updatedCart = updatedCart.filter((p) => p.product_variant_id !== productToModify.product_variant_id);
+    updatedCart = updatedCart.filter(
+      (p) => p.product_variant_id !== productToModify.product_variant_id
+    );
   } else if (action === "setQty") {
     updatedCart = updatedCart.map((p) => {
       if (p.product_variant_id === productToModify.product_variant_id) {
-        let qty = Number((productToModify.quantity ?? 1).toFixed(3));
+        const qty = Number((productToModify.quantity ?? 1).toFixed(3));
         return { ...p, quantity: qty };
       }
       return p;
@@ -215,11 +238,16 @@ export const updateCart = async (
 
   // Check if the modified product affects any combo
   const affectsCombo = applicableCombos.some(
-    combo => combo.productId === productToModify.id
+    (combo) => combo.productId === productToModify.id
   );
 
   if (affectsCombo) {
-    await updateCartWithCombos(updatedCart, products, setProductsInCart);
+    await updateCartWithCombos(
+      updatedCart,
+      products,
+      setProductsInCart,
+      confirmComboDialog
+    );
   } else {
     setProductsInCart(updatedCart);
   }

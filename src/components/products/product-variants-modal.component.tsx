@@ -347,20 +347,20 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
                   {apiError && <Alert severity="error">{apiError}</Alert>}
                   <Stack direction="row" spacing={2}>
                     <Button
-                      type="submit"
-                      variant="contained"
-                      color="success"
-                      disabled={submitting}
-                    >
-                      {editingVariant ? "Actualizar" : "Guardar"}
-                    </Button>
-                    <Button
                       variant="outlined"
                       color="inherit"
                       onClick={cancelForm}
                       disabled={submitting}
                     >
                       Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="success"
+                      disabled={submitting}
+                    >
+                      {editingVariant ? "Actualizar" : "Guardar"}
                     </Button>
                   </Stack>
                 </Stack>

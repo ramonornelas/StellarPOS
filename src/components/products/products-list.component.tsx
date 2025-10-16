@@ -15,6 +15,8 @@ import BarcodeScannerComponent from "react-qr-barcode-scanner";
 import { updateCart } from "../cart/cart.utils";
 import { featureFlags } from "../../config/featureFlags";
 import { useProductSearch } from "./useProductSearch";
+import { useComboConfirmation } from "../cart/useComboConfirmation.hook";
+import { ComboConfirmationDialog } from "../cart/combo-confirmation-dialog.component";
 
 interface ProductsListProps {
   filter: string;
@@ -34,20 +36,35 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
     filter
   );
 
-  const addProductToCart = (product: any) => {
-    updateCart("add", productsInCart, setProductsInCart, products, product);
+  const {
+    confirmComboDialog,
+    handleConfirm,
+    handleCancel,
+    dialogOpen,
+    combos,
+  } = useComboConfirmation();
+
+  const addProductToCart = async (product: any) => {
+    await updateCart(
+      "add",
+      productsInCart,
+      setProductsInCart,
+      products,
+      product,
+      confirmComboDialog
+    );
     openSnackBarProductAdded(product.name, product.price);
   };
 
-  const handleAddToCart = (id: string) => {
+  const handleAddToCart = async (id: string) => {
     const productFound = searchProductById(products, id);
-    addProductToCart(productFound);
+    await addProductToCart(productFound);
   };
 
-  const handleAddToCartByBarcode = (barcode: string) => {
+  const handleAddToCartByBarcode = async (barcode: string) => {
     const productFound = searchProductByBarcode(products, barcode);
     if (productFound) {
-      addProductToCart(productFound);
+      await addProductToCart(productFound);
       setShowScanner(false); // Hide the scanner when a product is found
     } else {
       console.error(`Error: Product with barcode ${barcode} not found.`);
@@ -64,14 +81,14 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
     }
   }, [scannedCode]);
 
-  const handleScan = (err: unknown, result: any) => {
+  const handleScan = async (err: unknown, result: any) => {
     if (err) {
       console.error("Error scanning barcode:", err);
       return;
     }
     if (result?.text) {
       setScannedCode(result.text);
-      handleAddToCartByBarcode(result.text);
+      await handleAddToCartByBarcode(result.text);
     }
   };
 
@@ -140,6 +157,14 @@ export const ProductsList: React.FC<ProductsListProps> = (props) => {
           ))
         )}
       </Grid>
+
+      {/* Dialog de confirmación para combos */}
+      <ComboConfirmationDialog
+        open={dialogOpen}
+        combos={combos}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </Paper>
   );
 };
