@@ -44,3 +44,41 @@ export interface ProductVariantModal {
   product_id: string;
   product_name: string;
 }
+
+// Tipos para movimientos de inventario
+export interface InventoryMovementItem {
+  product_id: string;
+  product_variant_id: string | null;
+  quantity: number;
+}
+
+export interface InventoryMovementRequest {
+  movement_type: "addition" | "subtraction" | "adjustment";
+  apply: boolean;
+  notes: string;
+  user_id: string;
+  items: InventoryMovementItem[];
+}
+
+export interface InventoryMovement {
+  id: string;
+  product_id: string;
+  product_variant_id: string | null;
+  movement_type: string;
+  quantity: number;
+  previous_quantity: number;
+  new_quantity: number;
+  notes: string;
+  user_id: string;
+  created_datetime: string;
+  updated_datetime: string;
+  run_id: string;
+}
+
+export interface InventoryMovementResponse {
+  status: "success" | "error";
+  applied: boolean;
+  run_id: string;
+  message: string;
+  movements: InventoryMovement[];
+}

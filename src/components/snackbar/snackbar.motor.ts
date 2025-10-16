@@ -79,6 +79,33 @@ export const openSnackBarCartCleared = () => {
   });
 };
 
+export const openSnackBarInventorySuccess = (productsCount: number) => {
+  enqueueSnackbar(
+    `Entradas registradas exitosamente. ${productsCount} productos actualizados.`,
+    {
+      variant: "success",
+      style: { opacity: "90%" },
+      autoHideDuration: 4000,
+    }
+  );
+};
+
+export const openSnackBarInventoryError = (message: string) => {
+  enqueueSnackbar(`Error al registrar entradas: ${message}`, {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 5000,
+  });
+};
+
+export const openSnackBarInventoryValidation = (message: string) => {
+  enqueueSnackbar(message, {
+    variant: "warning",
+    style: { opacity: "90%" },
+    autoHideDuration: 4000,
+  });
+};
+
 export const openSnackBarValidationError = (message: string) => {
   enqueueSnackbar(message, {
     variant: "error",
