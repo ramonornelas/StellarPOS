@@ -1,5 +1,9 @@
 import { BASE_URL, API_STAGE } from "../../apiConfig";
-import { Product } from "./products.model";
+import {
+  Product,
+  InventoryMovementRequest,
+  InventoryMovementResponse,
+} from "./products.model";
 
 const getApiUrl = (path: string, baseUrl: string = BASE_URL) => {
   return API_STAGE === "PROD"
@@ -284,6 +288,36 @@ export const deleteProductVariant = async (
     return await response.json();
   } catch (error: unknown) {
     console.error("Error deleting product variant:", error);
+    throw error;
+  }
+};
+
+// Función para crear movimientos de inventario
+export const createInventoryMovement = async (
+  movementData: InventoryMovementRequest
+): Promise<InventoryMovementResponse> => {
+  try {
+    const response = await fetch(getApiUrl("inventory/movements"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(movementData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message ||
+          errorData.error ||
+          "Error al crear movimiento de inventario"
+      );
+    }
+
+    const data: InventoryMovementResponse = await response.json();
+    return data;
+  } catch (error: unknown) {
+    console.error("Error creating inventory movement:", error);
     throw error;
   }
 };
