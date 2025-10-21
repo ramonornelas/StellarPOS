@@ -25,3 +25,4 @@ dist-ssr
 *.pyc
 __pycache__/
 lambda_functions/__pycache__/
+PR_DESCRIPTION.md
