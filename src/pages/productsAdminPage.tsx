@@ -2,6 +2,7 @@ import React from "react";
 import { Tabs, Tab, Box, Typography, Paper } from "@mui/material";
 import ProductTable from "../components/products/product-table.component";
 import InventoryEntradas from "../components/inventory/InventoryEntradas";
+import InventoryConteoFisico from "../components/inventory/InventoryConteoFisico";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -94,28 +95,16 @@ const ProductsAdminPage: React.FC = () => {
                 <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
                   Entradas de Inventario
                 </Typography>
-                {/* Tabla editable de productos a ingresar */}
                 <InventoryEntradas />
               </Box>
             </CustomTabPanel>
 
             <CustomTabPanel value={inventoryTabValue} index={1}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  minHeight: "300px",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <Typography variant="h6" color="text.secondary">
+              <Box sx={{ p: 2 }}>
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
                   Conteo Físico
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Esta sección estará disponible próximamente
-                </Typography>
+                <InventoryConteoFisico />
               </Box>
             </CustomTabPanel>
 
