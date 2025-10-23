@@ -164,17 +164,12 @@ const ProductsAdminPage: React.FC = () => {
                   value={inventoryTabValue}
                   index={canViewInventoryEntries ? 1 : 0}
                 >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      minHeight: "300px",
-                      flexDirection: "column",
-                      gap: 2,
-                    }}
-                  >
-                    <Typography variant="h6" color="text.secondary">
+                  <Box sx={{ p: 2 }}>
+                    <Typography
+                      variant="h6"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
                       Conteo Físico
                     </Typography>
                     <InventoryConteoFisico />
