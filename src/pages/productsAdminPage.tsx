@@ -2,6 +2,12 @@ import React from "react";
 import { Tabs, Tab, Box, Typography, Paper } from "@mui/material";
 import ProductTable from "../components/products/product-table.component";
 import InventoryEntradas from "../components/inventory/InventoryEntradas";
+import {
+  useCanViewProducts,
+  useCanViewInventoryEntries,
+  useCanViewInventoryPhysicalCount,
+  useCanViewInventoryAdjustments,
+} from "../components/users/userPermissionsContext";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -36,6 +42,16 @@ const ProductsAdminPage: React.FC = () => {
   const [mainTabValue, setMainTabValue] = React.useState(0);
   const [inventoryTabValue, setInventoryTabValue] = React.useState(0);
 
+  const canViewProducts = useCanViewProducts();
+  const canViewInventoryEntries = useCanViewInventoryEntries();
+  const canViewInventoryPhysicalCount = useCanViewInventoryPhysicalCount();
+  const canViewInventoryAdjustments = useCanViewInventoryAdjustments();
+
+  const canViewAnyInventory =
+    canViewInventoryEntries ||
+    canViewInventoryPhysicalCount ||
+    canViewInventoryAdjustments;
+
   const handleMainTabChange = (
     _event: React.SyntheticEvent,
     newValue: number
@@ -49,6 +65,24 @@ const ProductsAdminPage: React.FC = () => {
   ) => {
     setInventoryTabValue(newValue);
   };
+
+  if (!canViewProducts && !canViewAnyInventory) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <Typography variant="h4" color="text.secondary" align="center">
+          Acceso Denegado
+        </Typography>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          align="center"
+          sx={{ mt: 2 }}
+        >
+          No tienes permisos para acceder a esta sección.
+        </Typography>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -64,82 +98,121 @@ const ProductsAdminPage: React.FC = () => {
             width: "fit-content",
           }}
         >
-          <Tab label="Productos" {...a11yProps(0)} />
-          <Tab label="Inventario" {...a11yProps(1)} />
+          {canViewProducts && <Tab label="Productos" {...a11yProps(0)} />}
+          {canViewAnyInventory && (
+            <Tab label="Inventario" {...a11yProps(canViewProducts ? 1 : 0)} />
+          )}
         </Tabs>
       </Box>
       <Paper elevation={2} sx={{ width: "100%", mt: 2 }}>
-        <CustomTabPanel value={mainTabValue} index={0}>
-          <ProductTable />
-        </CustomTabPanel>
+        {canViewProducts && (
+          <CustomTabPanel value={mainTabValue} index={0}>
+            <ProductTable />
+          </CustomTabPanel>
+        )}
 
-        <CustomTabPanel value={mainTabValue} index={1}>
-          <Box sx={{ width: "100%" }}>
-            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-              <Tabs
-                value={inventoryTabValue}
-                onChange={handleInventoryTabChange}
-                aria-label="subtabs de inventario"
-                variant="scrollable"
-                scrollButtons="auto"
-              >
-                <Tab label="Entradas" {...a11yProps(0)} />
-                <Tab label="Conteo Físico" {...a11yProps(1)} />
-                <Tab label="Ajustes de Inventario" {...a11yProps(2)} />
-              </Tabs>
+        {canViewAnyInventory && (
+          <CustomTabPanel value={mainTabValue} index={canViewProducts ? 1 : 0}>
+            <Box sx={{ width: "100%" }}>
+              <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                <Tabs
+                  value={inventoryTabValue}
+                  onChange={handleInventoryTabChange}
+                  aria-label="subtabs de inventario"
+                  variant="scrollable"
+                  scrollButtons="auto"
+                >
+                  {canViewInventoryEntries && (
+                    <Tab label="Entradas" {...a11yProps(0)} />
+                  )}
+                  {canViewInventoryPhysicalCount && (
+                    <Tab
+                      label="Conteo Físico"
+                      {...a11yProps(canViewInventoryEntries ? 1 : 0)}
+                    />
+                  )}
+                  {canViewInventoryAdjustments && (
+                    <Tab
+                      label="Ajustes de Inventario"
+                      {...a11yProps(
+                        (canViewInventoryEntries ? 1 : 0) +
+                          (canViewInventoryPhysicalCount ? 1 : 0)
+                      )}
+                    />
+                  )}
+                </Tabs>
+              </Box>
+
+              {canViewInventoryEntries && (
+                <CustomTabPanel value={inventoryTabValue} index={0}>
+                  <Box sx={{ p: 2 }}>
+                    <Typography
+                      variant="h6"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      Entradas de Inventario
+                    </Typography>
+                    <InventoryEntradas />
+                  </Box>
+                </CustomTabPanel>
+              )}
+
+              {canViewInventoryPhysicalCount && (
+                <CustomTabPanel
+                  value={inventoryTabValue}
+                  index={canViewInventoryEntries ? 1 : 0}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      minHeight: "300px",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <Typography variant="h6" color="text.secondary">
+                      Conteo Físico
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Esta sección estará disponible próximamente
+                    </Typography>
+                  </Box>
+                </CustomTabPanel>
+              )}
+
+              {canViewInventoryAdjustments && (
+                <CustomTabPanel
+                  value={inventoryTabValue}
+                  index={
+                    (canViewInventoryEntries ? 1 : 0) +
+                    (canViewInventoryPhysicalCount ? 1 : 0)
+                  }
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      minHeight: "300px",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <Typography variant="h6" color="text.secondary">
+                      Ajustes de Inventario
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Esta sección estará disponible próximamente
+                    </Typography>
+                  </Box>
+                </CustomTabPanel>
+              )}
             </Box>
-
-            <CustomTabPanel value={inventoryTabValue} index={0}>
-              <Box sx={{ p: 2 }}>
-                <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                  Entradas de Inventario
-                </Typography>
-                {/* Tabla editable de productos a ingresar */}
-                <InventoryEntradas />
-              </Box>
-            </CustomTabPanel>
-
-            <CustomTabPanel value={inventoryTabValue} index={1}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  minHeight: "300px",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <Typography variant="h6" color="text.secondary">
-                  Conteo Físico
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Esta sección estará disponible próximamente
-                </Typography>
-              </Box>
-            </CustomTabPanel>
-
-            <CustomTabPanel value={inventoryTabValue} index={2}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  minHeight: "300px",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <Typography variant="h6" color="text.secondary">
-                  Ajustes de Inventario
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Esta sección estará disponible próximamente
-                </Typography>
-              </Box>
-            </CustomTabPanel>
-          </Box>
-        </CustomTabPanel>
+          </CustomTabPanel>
+        )}
       </Paper>
     </div>
   );
