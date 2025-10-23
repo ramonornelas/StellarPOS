@@ -79,6 +79,26 @@ export const useCanViewProductsAdmin = (): boolean => {
   return hasPermission(permissions, "view_products_admin");
 };
 
+export const useCanViewProducts = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_products");
+};
+
+export const useCanViewInventoryEntries = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_inventory_entries");
+};
+
+export const useCanViewInventoryPhysicalCount = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_inventory_physical_count");
+};
+
+export const useCanViewInventoryAdjustments = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_inventory_adjustments");
+};
+
 export const hasPermission = (
   permissions: Permission[] | undefined,
   permissionName: string
