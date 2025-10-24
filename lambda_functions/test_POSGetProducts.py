@@ -52,6 +52,33 @@ def test_with_stock_filter():
         print(f"With Stock Error: {e}")
         return None
 
+def test_include_variants_filter():
+    """Test with include_variants=true query parameter"""
+    print("\n=== Testing include_variants=true Filter ===")
+    
+    # Mock event with include_variants query parameter
+    event = {
+        'requestContext': {
+            'stage': 'TEST',
+            'httpMethod': 'GET',
+            'resourcePath': '/products'
+        },
+        'queryStringParameters': {
+            'include_variants': 'true'
+        }
+    }
+    
+    context = {}
+    
+    try:
+        response = lambda_handler(event, context)
+        print("Include Variants Response:")
+        print(json.dumps(response, indent=2))
+        return response
+    except Exception as e:
+        print(f"Include Variants Error: {e}")
+        return None
+
 def test_no_context():
     """Test with no requestContext (should default to prod)"""
     print("\n=== Testing No Context (Default to PROD) ===")
@@ -102,11 +129,13 @@ if __name__ == "__main__":
     test_result_original = test_TEST_environment()
     test_result_no_params = test_no_query_params()
     
-    # Test new with_stock functionality  
+    # Test new filtering functionality  
     test_result_with_stock = test_with_stock_filter()
+    test_result_include_variants = test_include_variants_filter()
     
     print("\n" + "=" * 60)
     print("Test Summary:")
     print(f"TEST Environment: {'✓ Success' if test_result_original and test_result_original.get('statusCode') in [200, 500] else '✗ Failed'}")
     print(f"No Query Params: {'✓ Success' if test_result_no_params and test_result_no_params.get('statusCode') in [200, 500] else '✗ Failed'}")
     print(f"With Stock Filter: {'✓ Success' if test_result_with_stock and test_result_with_stock.get('statusCode') in [200, 500] else '✗ Failed'}")
+    print(f"Include Variants Filter: {'✓ Success' if test_result_include_variants and test_result_include_variants.get('statusCode') in [200, 500] else '✗ Failed'}")
