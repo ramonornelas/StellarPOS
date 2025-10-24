@@ -3,6 +3,11 @@ import {
   Product,
   InventoryMovementRequest,
   InventoryMovementResponse,
+  CountValidationRequest,
+  CountValidationResponse,
+  CountApplyRequest,
+  CountApplyResponse,
+  CountItem,
 } from "./products.model";
 
 const getApiUrl = (path: string, baseUrl: string = BASE_URL) => {
@@ -106,11 +111,11 @@ export const fetchProductCombos = async () => {
   }
 };
 
-// Función para validar archivos de imagen
+// Function to validate image files before upload
 export const validateImageFile = (
   file: File
 ): { isValid: boolean; error?: string } => {
-  // Validar extensiones permitidas
+  // Validate allowed extensions
   const allowedExtensions = ["png", "jpg", "jpeg", "gif", "webp"];
   const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
@@ -121,7 +126,7 @@ export const validateImageFile = (
     };
   }
 
-  // Validar tamaño (400KB = 400 * 1024 bytes)
+  // Validate size (400KB = 400 * 1024 bytes)
   const maxSizeBytes = 400 * 1024;
   if (file.size > maxSizeBytes) {
     return {
@@ -133,13 +138,13 @@ export const validateImageFile = (
   return { isValid: true };
 };
 
-// Función para convertir archivo a base64
+// Function to convert file to base64
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-      // Remover el prefijo "data:image/xxx;base64,"
+      // Remove the prefix "data:image/xxx;base64,"
       const base64String = (reader.result as string).split(",")[1];
       resolve(base64String);
     };
@@ -147,30 +152,28 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Función para subir imagen al endpoint de media
+// Function to upload image to media endpoint
 export const uploadProductImage = async (file: File) => {
   try {
-    // Validar archivo
+    // Validate file
     const validation = validateImageFile(file);
     if (!validation.isValid) {
       throw new Error(validation.error);
     }
 
-    // Convertir a base64
+    // Convert to base64
     const base64Data = await fileToBase64(file);
 
-    // Obtener extensión del archivo
+    // Get file extension
     const fileExtension = "." + file.name.split(".").pop()?.toLowerCase();
 
-    // Usar el nombre original del archivo sin extensión como custom_name
-    // Reemplazar espacios en blanco con guiones bajos
     const originalFileName = file.name
       .split(".")
       .slice(0, -1)
       .join(".")
       .replace(/\s+/g, "_");
 
-    // Preparar payload
+    // Prepare payload
     const payload = {
       image_data: base64Data,
       file_extension: fileExtension,
@@ -179,7 +182,6 @@ export const uploadProductImage = async (file: File) => {
       make_public: true,
     };
 
-    // Hacer request al endpoint
     const response = await fetch(getApiUrl("media"), {
       method: "POST",
       headers: {
@@ -292,7 +294,7 @@ export const deleteProductVariant = async (
   }
 };
 
-// Función para crear movimientos de inventario
+// Function to create inventory movement
 export const createInventoryMovement = async (
   movementData: InventoryMovementRequest
 ): Promise<InventoryMovementResponse> => {
@@ -318,6 +320,90 @@ export const createInventoryMovement = async (
     return data;
   } catch (error: unknown) {
     console.error("Error creating inventory movement:", error);
+    throw error;
+  }
+};
+
+// Function to get products and variants
+export const fetchProductsWithVariants = async () => {
+  try {
+    const response = await fetch(getApiUrl("products?include_variants=true"));
+    if (!response.ok) throw new Error("Error fetching products");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return [];
+  }
+};
+
+// Function to validate physical count (dry-run)
+export const validatePhysicalCount = async (
+  items: CountItem[],
+  userId: string
+): Promise<CountValidationResponse> => {
+  try {
+    const countData: CountValidationRequest = {
+      movement_type: "count",
+      apply: false, // Dry-run
+      notes: "Physical count validation from POS",
+      user_id: userId,
+      items: items,
+    };
+
+    const response = await fetch(getApiUrl("inventory/movements"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(countData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || errorData.error || "Error al validar conteo físico"
+      );
+    }
+
+    return await response.json();
+  } catch (error: unknown) {
+    console.error("Error validating physical count:", error);
+    throw error;
+  }
+};
+
+// Function to apply physical count
+export const applyPhysicalCount = async (
+  items: CountItem[],
+  userId: string
+): Promise<CountApplyResponse> => {
+  try {
+    const countData: CountApplyRequest = {
+      movement_type: "count",
+      apply: true, // Apply changes
+      notes: "Physical count applied from POS",
+      user_id: userId,
+      items: items,
+    };
+
+    const response = await fetch(getApiUrl("inventory/movements"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(countData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || errorData.error || "Error al aplicar conteo físico"
+      );
+    }
+
+    return await response.json();
+  } catch (error: unknown) {
+    console.error("Error applying physical count:", error);
     throw error;
   }
 };

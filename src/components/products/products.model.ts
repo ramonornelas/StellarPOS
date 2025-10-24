@@ -14,19 +14,26 @@ export interface Product {
   quantity?: number;
   stock_available?: number;
   barcode?: string;
+  variants?: ProductVariant[];
 }
 
 export interface ProductVariant {
-  description: string;
+  description?: string;
   id: string;
-  price: number;
+  price: number | string;
   name: string;
-  product_name: string;
+  product_name?: string;
   product_id: string;
-  display_order: number;
-  category_id: string;
-  category_name: string;
-  has_variants: boolean;
+  display_order: number | string;
+  category_id?: string;
+  category_name?: string;
+  has_variants?: boolean;
+  stock_available: number | string;
+  active: boolean;
+  updated_datetime: string;
+  created_datetime: string;
+  updated_user_id: string;
+  is_deleted: boolean;
 }
 
 export interface Category {
@@ -45,7 +52,7 @@ export interface ProductVariantModal {
   product_name: string;
 }
 
-// Tipos para movimientos de inventario
+// Types for inventory movements
 export interface InventoryMovementItem {
   product_id: string;
   product_variant_id: string | null;
@@ -64,14 +71,14 @@ export interface InventoryMovement {
   id: string;
   product_id: string;
   product_variant_id: string | null;
-  movement_type: string;
+  movement_type: "addition" | "adjustment" | "count";
   quantity: number;
   previous_quantity: number;
   new_quantity: number;
   notes: string;
   user_id: string;
   created_datetime: string;
-  updated_datetime: string;
+  updated_datetime?: string;
   run_id: string;
 }
 
@@ -81,4 +88,62 @@ export interface InventoryMovementResponse {
   run_id: string;
   message: string;
   movements: InventoryMovement[];
+}
+
+// Types for phiysical count
+export interface CountItem {
+  product_id: string;
+  product_variant_id: string | null;
+  quantity: number;
+}
+
+export interface CountValidationRequest {
+  movement_type: "count";
+  apply: false;
+  notes: string;
+  user_id: string;
+  items: CountItem[];
+}
+
+export interface CountApplyRequest {
+  movement_type: "count";
+  apply: true;
+  notes: string;
+  user_id: string;
+  items: CountItem[];
+}
+
+export interface CountValidationResponse {
+  status: "success" | "error";
+  applied: false;
+  run_id: string;
+  movement_type: "count";
+  needs_recount: Array<{
+    product_id: string;
+    product_variant_id?: string | null;
+    label: string;
+  }>;
+  message: string;
+}
+
+export interface CountApplyResponse {
+  status: "success" | "error";
+  applied: boolean;
+  run_id: string;
+  message: string;
+  movements?: InventoryMovement[];
+}
+
+// Interfaz para items contables en la UI
+export interface CountableItem {
+  id: string; // Unique identifier for UI
+  product_id: string;
+  product_variant_id: string | null;
+  product_name: string;
+  variant_name?: string;
+  display_name: string;
+  is_variant: boolean;
+  stock_available: number;
+  counted_quantity: number | string;
+  isProductHeader?: boolean; // Para marcar filas de encabezado de producto
 }

@@ -43,8 +43,14 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
   const addCustomProduct = async (selectedOption: string) => {
     const productFound = searchVariantById(ProductVariants, selectedOption);
 
+    // Convert price to number
+    const numericPrice =
+      typeof productFound.price === "string"
+        ? parseFloat(productFound.price)
+        : productFound.price;
+
     // Combine product.name and productFound.name
-    const combinedproductFound = {
+    const combinedproductFound: Product = {
       ...productFound,
       id: product.id,
       product_variant_id: productFound.id,
@@ -52,6 +58,20 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
       image_url: "",
       is_combo: false,
       is_active: true,
+      price: numericPrice,
+      category_id: productFound.category_id || product.category_id,
+      category_name: productFound.category_name || product.category_name,
+      has_variants: false,
+      description: productFound.description || "",
+      display_order:
+        typeof productFound.display_order === "string"
+          ? parseInt(productFound.display_order)
+          : productFound.display_order,
+      stock_available:
+        typeof productFound.stock_available === "string"
+          ? parseFloat(productFound.stock_available)
+          : productFound.stock_available,
+      barcode: "",
     };
 
     await updateCart(
@@ -62,7 +82,7 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
       combinedproductFound,
       confirmComboDialog
     );
-    openSnackBarProductAdded(combinedproductFound.name, productFound.price);
+    openSnackBarProductAdded(combinedproductFound.name, numericPrice);
     setOpen(false);
   };
 
@@ -108,7 +128,17 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
               {ProductVariants.filter(
                 (variant) => product.id === variant.product_id
               )
-                .sort((a, b) => a.display_order - b.display_order)
+                .sort((a, b) => {
+                  const aOrder =
+                    typeof a.display_order === "string"
+                      ? parseInt(a.display_order)
+                      : a.display_order;
+                  const bOrder =
+                    typeof b.display_order === "string"
+                      ? parseInt(b.display_order)
+                      : b.display_order;
+                  return aOrder - bOrder;
+                })
                 .map((variant) => (
                   <Button
                     color="success"
@@ -127,7 +157,13 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
                       alignItems="center"
                     >
                       <span>{variant.name}</span>
-                      <span>{formatCurrency(variant.price)}</span>
+                      <span>
+                        {formatCurrency(
+                          typeof variant.price === "string"
+                            ? parseFloat(variant.price)
+                            : variant.price
+                        )}
+                      </span>
                     </Box>
                   </Button>
                 ))}
