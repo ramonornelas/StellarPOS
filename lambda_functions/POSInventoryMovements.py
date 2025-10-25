@@ -1,3 +1,27 @@
+"""
+AWS Lambda function for handling inventory movements in the POS system.
+
+Note Structure:
+- General notes: Stored in inventory_movement_run.notes (run-level notes)
+- Product notes: Stored in inventory_movement.notes (item-level notes)
+
+Request Format:
+{
+    "movement_type": "addition|adjustment|count",
+    "apply": boolean,
+    "user_id": "string",
+    "notes": "string",  // General notes for the entire run
+    "items": [
+        {
+            "product_id": "string",
+            "product_variant_id": "string" (optional),
+            "quantity": number,
+            "notes": "string"  // Product-specific notes
+        }
+    ]
+}
+"""
+
 import json
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -147,7 +171,7 @@ def process_inventory_movement(body, stage):
     movement_type = body['movement_type']
     apply = body.get('apply', False)  # Default to false for safety
     user_id = body['user_id']
-    notes = body.get('notes', '')
+    general_notes = body.get('notes', '')  # General notes for the run
     items = body['items']
     
     # Generate run ID
@@ -175,6 +199,7 @@ def process_inventory_movement(body, stage):
                 'movement_type': movement_type,
                 'items_count': len(items),
                 'user_id': user_id,
+                'notes': general_notes,  # General notes for the run
                 'status': 'error',
                 'error_count': len(validation_errors),
                 'message': 'Validation failed'
@@ -199,12 +224,12 @@ def process_inventory_movement(body, stage):
             # Validation/dry-run mode
             return handle_validation_mode(
                 validated_items, movement_type, run_id, created_datetime, 
-                user_id, movement_run_table
+                user_id, general_notes, movement_run_table
             )
         else:
             # Apply mode - execute the movements
             return handle_apply_mode(
-                validated_items, movement_type, notes, run_id, created_datetime,
+                validated_items, movement_type, general_notes, run_id, created_datetime,
                 user_id, product_table, variant_table, movement_table, movement_run_table
             )
             
@@ -218,6 +243,7 @@ def process_inventory_movement(body, stage):
                 'movement_type': movement_type,
                 'items_count': len(items),
                 'user_id': user_id,
+                'notes': general_notes,  # General notes for the run
                 'status': 'error',
                 'error_count': 1,
                 'message': f'Internal error: {str(e)}'
@@ -236,6 +262,7 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
         product_id = item['product_id']
         variant_id = item.get('product_variant_id')
         quantity = Decimal(str(item['quantity']))
+        product_notes = item.get('notes', '')  # Product-level notes
         
         try:
             # Get product
@@ -303,7 +330,8 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
                 'variant': variant,
                 'quantity': movement_quantity,  # delta for count, input value for addition/adjustment
                 'previous_quantity': current_stock,
-                'new_quantity': new_stock
+                'new_quantity': new_stock,
+                'notes': product_notes  # Product-level notes
             })
             
         except Exception as e:
@@ -315,7 +343,7 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
     
     return validated_items, errors
 
-def handle_validation_mode(validated_items, movement_type, run_id, created_datetime, user_id, movement_run_table):
+def handle_validation_mode(validated_items, movement_type, run_id, created_datetime, user_id, general_notes, movement_run_table):
     """Handle validation/dry-run mode"""
     # Create validation run record
     movement_run_table.put_item(Item={
@@ -325,6 +353,7 @@ def handle_validation_mode(validated_items, movement_type, run_id, created_datet
         'movement_type': movement_type,
         'items_count': len(validated_items),
         'user_id': user_id,
+        'notes': general_notes,  # General notes for the run
         'status': 'validation_only',
         'error_count': 0,
         'message': 'Validation completed successfully'
@@ -392,7 +421,7 @@ def handle_validation_mode(validated_items, movement_type, run_id, created_datet
             }, cls=CustomJSONEncoder)
         }
 
-def handle_apply_mode(validated_items, movement_type, notes, run_id, created_datetime, 
+def handle_apply_mode(validated_items, movement_type, general_notes, run_id, created_datetime, 
                      user_id, product_table, variant_table, movement_table, movement_run_table):
     """Handle apply mode - execute the movements transactionally"""
     
@@ -419,7 +448,7 @@ def handle_apply_mode(validated_items, movement_type, notes, run_id, created_dat
                     'quantity': item['quantity'],
                     'previous_quantity': item['previous_quantity'],
                     'new_quantity': item['new_quantity'],
-                    'notes': notes,
+                    'notes': item['notes'],  # Product-level notes
                     'user_id': user_id,
                     'created_datetime': created_datetime.isoformat() + 'Z',
                     'updated_datetime': created_datetime.isoformat() + 'Z',
@@ -479,6 +508,7 @@ def handle_apply_mode(validated_items, movement_type, notes, run_id, created_dat
             'movement_type': movement_type,
             'items_count': len(validated_items),
             'user_id': user_id,
+            'notes': general_notes,  # General notes for the run
             'status': 'success',
             'error_count': 0,
             'message': 'Inventory updated successfully'
@@ -508,6 +538,7 @@ def handle_apply_mode(validated_items, movement_type, notes, run_id, created_dat
             'movement_type': movement_type,
             'items_count': len(validated_items),
             'user_id': user_id,
+            'notes': general_notes,  # General notes for the run
             'status': 'error',
             'error_count': 1,
             'message': f'Transaction failed: {str(e)}'
