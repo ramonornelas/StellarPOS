@@ -42,6 +42,7 @@ def lambda_handler(event, context):
     # Parse query parameters
     query_params = event.get('queryStringParameters') or {}
     with_stock = query_params.get('with_stock', '').lower() == 'true'
+    include_variants = query_params.get('include_variants', '').lower() == 'true'
 
     table_name = get_table_name(stage)
     variant_table_name = get_variant_table_name(stage)
@@ -52,6 +53,9 @@ def lambda_handler(event, context):
         if with_stock:
             # Get products with stock available
             return get_products_with_stock(table, variant_table)
+        elif include_variants:
+            # Get all products and variants (except deleted ones)
+            return get_products_with_variants(table, variant_table)
         else:
             # Original behavior - return all non-deleted products
             response = table.scan()
@@ -70,23 +74,21 @@ def lambda_handler(event, context):
         }
 
 def get_products_with_stock(product_table, variant_table):
-    """Get products and variants that have stock available"""
+    """Get products and variants that have stock available (including inactive ones)"""
     try:
-        # Get all active, non-deleted products
+        # Get all non-deleted products (including inactive ones)
         product_response = product_table.scan(
-            FilterExpression="attribute_not_exists(is_deleted) OR (is_deleted = :false_val AND is_active = :true_val)",
+            FilterExpression="attribute_not_exists(is_deleted) OR is_deleted = :false_val",
             ExpressionAttributeValues={
-                ':false_val': False,
-                ':true_val': True
+                ':false_val': False
             }
         )
         
-        # Get all active, non-deleted variants
+        # Get all non-deleted variants (including inactive ones)
         variant_response = variant_table.scan(
-            FilterExpression="attribute_not_exists(is_deleted) OR (is_deleted = :false_val AND active = :true_val)",
+            FilterExpression="attribute_not_exists(is_deleted) OR is_deleted = :false_val",
             ExpressionAttributeValues={
-                ':false_val': False,
-                ':true_val': True
+                ':false_val': False
             }
         )
 
@@ -144,4 +146,79 @@ def get_products_with_stock(product_table, variant_table):
         
     except Exception as e:
         print(f"Error in get_products_with_stock: {str(e)}")
+        raise
+
+def get_products_with_variants(product_table, variant_table):
+    """Get all products and their variants in structured format (except deleted ones)
+    - Returns products without variants as individual items
+    - Returns individual variants for products that have variants (not the parent product)
+    - Same response format as with_stock=true but without stock validation
+    """
+    try:
+        # Get all non-deleted products (including inactive ones)
+        product_response = product_table.scan(
+            FilterExpression="attribute_not_exists(is_deleted) OR is_deleted = :false_val",
+            ExpressionAttributeValues={
+                ':false_val': False
+            }
+        )
+        
+        # Get all non-deleted variants (including inactive ones)
+        variant_response = variant_table.scan(
+            FilterExpression="attribute_not_exists(is_deleted) OR is_deleted = :false_val",
+            ExpressionAttributeValues={
+                ':false_val': False
+            }
+        )
+
+        items = []
+        
+        # Process products
+        for product in product_response['Items']:
+            has_variants = product.get('has_variants', False)
+            
+            # If product doesn't have variants, add it (no stock check)
+            if not has_variants:
+                items.append({
+                    'product_id': product['id'],
+                    'product_variant_id': None,
+                    'name': product['name'],
+                    'display_order': int(product.get('display_order', 999))
+                })
+        
+        # Process variants (no stock check)
+        for variant in variant_response['Items']:
+            # Find the parent product to get its name
+            product_id = variant['product_id']
+            parent_product = next((p for p in product_response['Items'] if p['id'] == product_id), None)
+            
+            if parent_product:
+                # Combine parent product name with variant name
+                full_name = f"{parent_product['name']} — {variant['name']}"
+                
+                items.append({
+                    'product_id': variant['product_id'],
+                    'product_variant_id': variant['id'],
+                    'name': full_name,
+                    'display_order': int(variant.get('display_order', 999))
+                })
+        
+        # Sort by display_order ascending
+        items.sort(key=lambda x: x['display_order'])
+        
+        # Remove display_order from response (internal field)
+        for item in items:
+            del item['display_order']
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'status': 'success',
+                'items': items,
+                'total': len(items)
+            }, cls=CustomJSONEncoder)
+        }
+        
+    except Exception as e:
+        print(f"Error in get_products_with_variants: {str(e)}")
         raise
