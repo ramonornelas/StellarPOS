@@ -28,3 +28,7 @@ lambda_functions/__pycache__/
 PR_DESCRIPTION.md
 lambda_functions/.venv/
 PRODUCT_REFACTORING_SUMMARY.md
+
+# Documentation and templates
+templates/
+user_stories/

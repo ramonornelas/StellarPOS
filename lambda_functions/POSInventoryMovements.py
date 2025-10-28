@@ -1,3 +1,27 @@
+"""
+AWS Lambda function for handling inventory movements in the POS system.
+
+Note Structure:
+- General notes: Stored in inventory_movement_run.notes (run-level notes)
+- Product notes: Stored in inventory_movement.notes (item-level notes)
+
+Request Format:
+{
+    "movement_type": "addition|adjustment|count",
+    "apply": boolean,
+    "user_id": "string",
+    "notes": "string",  // General notes for the entire run
+    "items": [
+        {
+            "product_id": "string",
+            "product_variant_id": "string" (optional),
+            "quantity": number,
+            "notes": "string"  // Product-specific notes
+        }
+    ]
+}
+"""
+
 import json
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -147,7 +171,7 @@ def process_inventory_movement(body, stage):
     movement_type = body['movement_type']
     apply = body.get('apply', False)  # Default to false for safety
     user_id = body['user_id']
-    notes = body.get('notes', '')
+    general_notes = body.get('notes', '')  # General notes for the run
     items = body['items']
     
     # Generate run ID
@@ -175,6 +199,7 @@ def process_inventory_movement(body, stage):
                 'movement_type': movement_type,
                 'items_count': len(items),
                 'user_id': user_id,
+                'notes': general_notes,  # General notes for the run
                 'status': 'error',
                 'error_count': len(validation_errors),
                 'message': 'Validation failed'
@@ -199,12 +224,12 @@ def process_inventory_movement(body, stage):
             # Validation/dry-run mode
             return handle_validation_mode(
                 validated_items, movement_type, run_id, created_datetime, 
-                user_id, movement_run_table
+                user_id, general_notes, movement_run_table
             )
         else:
             # Apply mode - execute the movements
             return handle_apply_mode(
-                validated_items, movement_type, notes, run_id, created_datetime,
+                validated_items, movement_type, general_notes, run_id, created_datetime,
                 user_id, product_table, variant_table, movement_table, movement_run_table
             )
             
@@ -218,6 +243,7 @@ def process_inventory_movement(body, stage):
                 'movement_type': movement_type,
                 'items_count': len(items),
                 'user_id': user_id,
+                'notes': general_notes,  # General notes for the run
                 'status': 'error',
                 'error_count': 1,
                 'message': f'Internal error: {str(e)}'
@@ -236,6 +262,7 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
         product_id = item['product_id']
         variant_id = item.get('product_variant_id')
         quantity = Decimal(str(item['quantity']))
+        product_notes = item.get('notes', '')  # Product-level notes
         
         try:
             # Get product
@@ -245,8 +272,8 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
                 continue
                 
             product = product_response['Item']
-            if product.get('is_deleted', False) or not product.get('is_active', True):
-                errors.append({'product_id': product_id, 'reason': 'Product inactive or deleted'})
+            if product.get('is_deleted', False):
+                errors.append({'product_id': product_id, 'reason': 'Product deleted'})
                 continue
             
             # Handle variant if specified
@@ -258,8 +285,8 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
                     continue
                     
                 variant = variant_response['Item']
-                if variant.get('is_deleted', False) or not variant.get('active', True):
-                    errors.append({'product_variant_id': variant_id, 'reason': 'Variant inactive or deleted'})
+                if variant.get('is_deleted', False):
+                    errors.append({'product_variant_id': variant_id, 'reason': 'Variant deleted'})
                     continue
                     
                 if variant['product_id'] != product_id:
@@ -272,10 +299,14 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
             else:
                 current_stock = Decimal(str(product.get('stock_available', 0)))
             
-            # Calculate new stock based on movement type
+            # Calculate new stock and movement quantity based on movement type
+            # Note: For count movements, the input 'quantity' represents the actual count,
+            # but the movement record should store the delta as 'quantity'
             if movement_type == 'count':
-                new_stock = quantity
+                new_stock = quantity  # quantity is the actual count
+                movement_quantity = new_stock - current_stock  # delta between previous and new
             else:  # addition or adjustment
+                movement_quantity = quantity  # quantity is the delta
                 new_stock = current_stock + quantity
             
             # Validate new stock is not negative
@@ -287,14 +318,20 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
                 })
                 continue
             
+            # For count movements, only create movement record if there's an actual change
+            if movement_type == 'count' and movement_quantity == 0:
+                # Skip creating movement record for zero delta count movements
+                continue
+            
             validated_items.append({
                 'product_id': product_id,
                 'product_variant_id': variant_id,
                 'product': product,
                 'variant': variant,
-                'quantity': quantity,
+                'quantity': movement_quantity,  # delta for count, input value for addition/adjustment
                 'previous_quantity': current_stock,
-                'new_quantity': new_stock
+                'new_quantity': new_stock,
+                'notes': product_notes  # Product-level notes
             })
             
         except Exception as e:
@@ -306,7 +343,7 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
     
     return validated_items, errors
 
-def handle_validation_mode(validated_items, movement_type, run_id, created_datetime, user_id, movement_run_table):
+def handle_validation_mode(validated_items, movement_type, run_id, created_datetime, user_id, general_notes, movement_run_table):
     """Handle validation/dry-run mode"""
     # Create validation run record
     movement_run_table.put_item(Item={
@@ -316,6 +353,7 @@ def handle_validation_mode(validated_items, movement_type, run_id, created_datet
         'movement_type': movement_type,
         'items_count': len(validated_items),
         'user_id': user_id,
+        'notes': general_notes,  # General notes for the run
         'status': 'validation_only',
         'error_count': 0,
         'message': 'Validation completed successfully'
@@ -330,10 +368,16 @@ def handle_validation_mode(validated_items, movement_type, run_id, created_datet
                 if item['variant']:
                     product_name += f" — {item['variant']['name']}"
                     
-                needs_recount.append({
+                recount_item = {
                     'product_id': item['product_id'],
                     'label': product_name
-                })
+                }
+                
+                # Include product_variant_id if it exists
+                if item['product_variant_id']:
+                    recount_item['product_variant_id'] = item['product_variant_id']
+                    
+                needs_recount.append(recount_item)
         
         return {
             'statusCode': 200,
@@ -377,54 +421,84 @@ def handle_validation_mode(validated_items, movement_type, run_id, created_datet
             }, cls=CustomJSONEncoder)
         }
 
-def handle_apply_mode(validated_items, movement_type, notes, run_id, created_datetime, 
+def handle_apply_mode(validated_items, movement_type, general_notes, run_id, created_datetime, 
                      user_id, product_table, variant_table, movement_table, movement_run_table):
     """Handle apply mode - execute the movements transactionally"""
     
     movements = []
     
     try:
-        # Execute movements individually (DynamoDB doesn't support cross-table transactions easily)
-        # In a production environment, you might want to use DynamoDB transactions for true atomicity
-        for item in validated_items:
-            # Create movement record
-            movement_id = str(uuid.uuid4())
-            movement = {
-                'id': movement_id,
-                'product_id': item['product_id'],
-                'product_variant_id': item['product_variant_id'],
-                'movement_type': movement_type,
-                'quantity': item['quantity'],
-                'previous_quantity': item['previous_quantity'],
-                'new_quantity': item['new_quantity'],
-                'notes': notes,
-                'user_id': user_id,
-                'created_datetime': created_datetime.isoformat() + 'Z',
-                'updated_datetime': created_datetime.isoformat() + 'Z',
-                'run_id': run_id
-            }
+        # Execute movements using DynamoDB transactions for atomicity
+        # Group operations by batches (max 25 items per transaction)
+        batch_size = 25
+        for i in range(0, len(validated_items), batch_size):
+            batch = validated_items[i:i + batch_size]
             
-            # Add to movements list for response
-            movements.append(movement)
+            # Prepare transaction items for this batch
+            transact_items = []
             
-            # Put movement record
-            movement_table.put_item(Item=movement)
+            for item in batch:
+                # Create movement record
+                movement_id = str(uuid.uuid4())
+                movement = {
+                    'id': movement_id,
+                    'product_id': item['product_id'],
+                    'product_variant_id': item['product_variant_id'],
+                    'movement_type': movement_type,
+                    'quantity': item['quantity'],
+                    'previous_quantity': item['previous_quantity'],
+                    'new_quantity': item['new_quantity'],
+                    'notes': item['notes'],  # Product-level notes
+                    'user_id': user_id,
+                    'created_datetime': created_datetime.isoformat() + 'Z',
+                    'updated_datetime': created_datetime.isoformat() + 'Z',
+                    'run_id': run_id
+                }
+                
+                # Add to movements list for response
+                movements.append(movement)
+                
+                # Add movement record creation to transaction
+                transact_items.append({
+                    'Put': {
+                        'TableName': movement_table.name,
+                        'Item': movement
+                    }
+                })
+                
+                # Add stock update to transaction
+                if item['product_variant_id']:
+                    # Update variant stock
+                    transact_items.append({
+                        'Update': {
+                            'TableName': variant_table.name,
+                            'Key': {'id': item['product_variant_id']},
+                            'UpdateExpression': 'SET stock_available = :new_stock',
+                            'ExpressionAttributeValues': {':new_stock': item['new_quantity']},
+                            'ConditionExpression': 'attribute_exists(id)'  # Ensure item still exists
+                        }
+                    })
+                else:
+                    # Update product stock
+                    transact_items.append({
+                        'Update': {
+                            'TableName': product_table.name,
+                            'Key': {'id': item['product_id']},
+                            'UpdateExpression': 'SET stock_available = :new_stock',
+                            'ExpressionAttributeValues': {':new_stock': item['new_quantity']},
+                            'ConditionExpression': 'attribute_exists(id)'  # Ensure item still exists
+                        }
+                    })
             
-            # Update stock in product or variant
-            if item['product_variant_id']:
-                # Update variant stock
-                variant_table.update_item(
-                    Key={'id': item['product_variant_id']},
-                    UpdateExpression='SET stock_available = :new_stock',
-                    ExpressionAttributeValues={':new_stock': item['new_quantity']}
-                )
-            else:
-                # Update product stock
-                product_table.update_item(
-                    Key={'id': item['product_id']},
-                    UpdateExpression='SET stock_available = :new_stock',
-                    ExpressionAttributeValues={':new_stock': item['new_quantity']}
-                )
+            # Execute transaction for this batch
+            try:
+                dynamodb.meta.client.transact_write_items(TransactItems=transact_items)
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'TransactionCanceledException':
+                    # Handle transaction cancellation (e.g., condition failed)
+                    raise Exception(f"Transaction failed: {e.response['Error']['Message']}")
+                else:
+                    raise
         
         # Create success run record
         movement_run_table.put_item(Item={
@@ -434,6 +508,7 @@ def handle_apply_mode(validated_items, movement_type, notes, run_id, created_dat
             'movement_type': movement_type,
             'items_count': len(validated_items),
             'user_id': user_id,
+            'notes': general_notes,  # General notes for the run
             'status': 'success',
             'error_count': 0,
             'message': 'Inventory updated successfully'
@@ -463,6 +538,7 @@ def handle_apply_mode(validated_items, movement_type, notes, run_id, created_dat
             'movement_type': movement_type,
             'items_count': len(validated_items),
             'user_id': user_id,
+            'notes': general_notes,  # General notes for the run
             'status': 'error',
             'error_count': 1,
             'message': f'Transaction failed: {str(e)}'
