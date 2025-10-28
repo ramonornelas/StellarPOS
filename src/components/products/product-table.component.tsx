@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useRef } from "react";
 import {
-  fetchProducts,
   addProduct,
   updateProduct,
   deleteProduct,
@@ -49,22 +48,25 @@ import AddIcon from "@mui/icons-material/Add";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { ProductVariantsModal } from "./product-variants-modal.component";
+import { DataContext } from "../../dataContext";
 
 const ProductTable: React.FC = () => {
+  const dataContext = useContext(DataContext);
+
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Product;
     direction: "asc" | "desc";
   } | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Product>>({});
-  const [refreshFlag, setRefreshFlag] = useState(false);
   const [addMode, setAddMode] = useState(false);
   const [showOnlyVisible, setShowOnlyVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [uploadingImages, setUploadingImages] = useState<
     Record<string, boolean>
-  >({}); // Estado de carga por producto
+  >({});
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
@@ -105,11 +107,37 @@ const ProductTable: React.FC = () => {
     price: "",
   });
 
+  // Create stable references to avoid dependency warnings
+  const contextProducts = dataContext?.products;
+  const hasInitialized = useRef(false);
+
+  // Initialize by ensuring global data is loaded (only runs once on mount)
   useEffect(() => {
-    fetchProducts().then((products) => {
-      setProducts(products);
-    });
-  }, [refreshFlag]);
+    if (!hasInitialized.current && dataContext) {
+      hasInitialized.current = true;
+
+      const init = async () => {
+        setLoading(true);
+        try {
+          if (dataContext.fetchData) {
+            await dataContext.fetchData();
+          }
+          // Don't set products here - let the sync effect handle it
+        } catch (err) {
+          setProducts([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      init();
+    }
+  }, [dataContext]);
+
+  // Keep local products list synchronized with DataContext changes
+  useEffect(() => {
+    setProducts(Array.isArray(contextProducts) ? contextProducts : []);
+  }, [contextProducts]);
 
   const filteredAndSortedProducts = React.useMemo(() => {
     const normalizeText = (text: string): string => {
@@ -291,12 +319,16 @@ const ProductTable: React.FC = () => {
 
     try {
       await updateProduct(editId, editData);
+
+      // after successful save, refresh global dataset so Home sees updates
+      if (dataContext && typeof dataContext.fetchData === "function") {
+        await dataContext.fetchData();
+      }
     } catch (error) {
       openSnackBarProductError("Hubo un error al actualizar el producto.");
     } finally {
       setEditId(null);
       setEditValidationErrors({ name: "", price: "" });
-      setRefreshFlag((flag) => !flag);
     }
   };
 
@@ -373,6 +405,12 @@ const ProductTable: React.FC = () => {
 
     try {
       await addProduct(newProduct);
+
+      // after successful add, refresh global dataset so Home sees updates
+      if (dataContext && typeof dataContext.fetchData === "function") {
+        await dataContext.fetchData();
+      }
+
       openSnackBarProductAdded(
         newProduct.name || "",
         Number(newProduct.price) || 0
@@ -396,7 +434,6 @@ const ProductTable: React.FC = () => {
         barcode: "",
       });
       setValidationErrors({ name: "", price: "" });
-      setRefreshFlag((flag) => !flag);
     }
   };
 
@@ -418,10 +455,15 @@ const ProductTable: React.FC = () => {
 
     try {
       await deleteProduct(productToDelete.id);
+
+      // after successful delete, refresh global dataset so Home sees updates
+      if (dataContext && typeof dataContext.fetchData === "function") {
+        await dataContext.fetchData();
+      }
+
       setDeleteDialogOpen(false);
       setProductToDelete(null);
       setEditId(null);
-      setRefreshFlag((flag) => !flag);
     } catch (error) {
       openSnackBarDeleteError();
     } finally {
@@ -442,6 +484,10 @@ const ProductTable: React.FC = () => {
           ...prev,
           image_url: response.data.image_url,
         }));
+        // Refresh global dataset so Home and ProductsList reflect the new image
+        if (dataContext && typeof dataContext.fetchData === "function") {
+          await dataContext.fetchData();
+        }
       } else {
         throw new Error("Respuesta inesperada del servidor");
       }
@@ -478,6 +524,10 @@ const ProductTable: React.FC = () => {
           ...prev,
           image_url: response.data.image_url,
         }));
+        // Refresh global dataset in case image upload affects server-side data
+        if (dataContext && typeof dataContext.fetchData === "function") {
+          await dataContext.fetchData();
+        }
       } else {
         throw new Error("Respuesta inesperada del servidor");
       }
@@ -525,9 +575,13 @@ const ProductTable: React.FC = () => {
     }
   };
 
-  const handleCloseVariantsModal = () => {
+  const handleCloseVariantsModal = async () => {
     setVariantModalOpen(false);
     setVariantModalProduct(null);
+    // Ensure global dataset is refreshed after potential variant changes
+    if (dataContext && typeof dataContext.fetchData === "function") {
+      await dataContext.fetchData();
+    }
   };
 
   return (
@@ -746,181 +800,44 @@ const ProductTable: React.FC = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {addMode && (
-            <TableRow sx={{ height: 32 }}>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <TextField
-                  name="display_order"
-                  value={newProduct.display_order ?? ""}
-                  onChange={handleAddChange}
-                  type="number"
-                  size="small"
-                />
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                <CircularProgress size={24} />
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  Cargando productos...
+                </Typography>
               </TableCell>
-              <TableCell style={{ padding: "4px 8px", minWidth: 120 }}>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  {/* Botón para subir archivo */}
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {/* Preview de imagen */}
-                    {newProduct.image_url && (
-                      <img
-                        src={newProduct.image_url}
-                        alt="Preview"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          objectFit: "cover",
-                          borderRadius: 4,
-                          border: "1px solid #ddd",
-                        }}
-                      />
-                    )}
-                    <input
-                      accept=".png,.jpg,.jpeg,.gif,.webp"
-                      style={{ display: "none" }}
-                      id="upload-button-new"
-                      type="file"
-                      onChange={(e) => handleFileSelectForNew(e)}
-                    />
-                    <label htmlFor="upload-button-new">
-                      <Button
-                        variant="outlined"
-                        component="span"
-                        size="small"
-                        disabled={uploadingImages["new"]}
-                        startIcon={
-                          uploadingImages["new"] ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <CloudUploadIcon />
-                          )
-                        }
-                        sx={{ fontSize: "0.7rem", minWidth: "auto" }}
-                      >
-                        {uploadingImages["new"] ? "Subiendo..." : "Subir"}
-                      </Button>
-                    </label>
-                  </Box>
-
-                  {/* Error de upload */}
-                  {uploadErrors["new"] && (
-                    <Alert severity="error" sx={{ fontSize: "0.7rem", py: 0 }}>
-                      {uploadErrors["new"]}
-                    </Alert>
-                  )}
-                </Box>
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <TextField
-                  name="name"
-                  value={newProduct.name || ""}
-                  onChange={handleAddChange}
-                  size="small"
-                  required
-                  error={!!validationErrors.name}
-                  helperText={validationErrors.name}
-                  sx={{
-                    "& .Mui-error": {
-                      margin: "auto",
-                    },
-                  }}
-                />
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <Checkbox
-                  name="has_variants"
-                  checked={!!newProduct.has_variants}
-                  onChange={handleAddChange}
-                  size="small"
-                />
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px", textAlign: "right" }}>
-                <TextField
-                  name="price"
-                  value={newProduct.price === 0 ? "" : newProduct.price ?? ""}
-                  onChange={handleAddChange}
-                  type="number"
-                  size="small"
-                  sx={{
-                    textAlign: "right",
-                    "& .Mui-error": {
-                      margin: "auto",
-                    },
-                  }}
-                  required={!newProduct.has_variants}
-                  disabled={!!newProduct.has_variants}
-                  error={!!validationErrors.price}
-                  helperText={validationErrors.price}
-                />
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <Checkbox
-                  name="is_combo"
-                  checked={!!newProduct.is_combo}
-                  onChange={handleAddChange}
-                  size="small"
-                />
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <Checkbox
-                  name="is_active"
-                  checked={!!newProduct.is_active}
-                  onChange={handleAddChange}
-                  size="small"
-                />
-              </TableCell>
-              <TableCell style={{ padding: "4px 8px" }}>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Tooltip title="Cancelar">
-                    <IconButton
-                      onClick={handleCancelAdd}
-                      color="error"
-                      size="small"
-                    >
-                      <CancelIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Agregar">
-                    <IconButton
-                      onClick={handleAdd}
-                      color="success"
-                      size="small"
-                    >
-                      <CheckIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </TableCell>
-              <TableCell />
             </TableRow>
-          )}
-          {filteredAndSortedProducts.length > 0 ? (
-            filteredAndSortedProducts.map((product) => (
-              <TableRow key={product.id} sx={{ height: 32 }}>
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
+          ) : (
+            <>
+              {addMode && (
+                <TableRow sx={{ height: 32 }}>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <TextField
                       name="display_order"
-                      value={editData.display_order ?? ""}
-                      onChange={handleChange}
+                      value={newProduct.display_order ?? ""}
+                      onChange={handleAddChange}
                       type="number"
                       size="small"
                     />
-                  ) : (
-                    product.display_order
-                  )}
-                </TableCell>
-                <TableCell style={{ padding: "4px 8px", minWidth: 120 }}>
-                  {editId === product.id ? (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px", minWidth: 120 }}>
                     <Box
                       sx={{ display: "flex", flexDirection: "column", gap: 1 }}
                     >
+                      {/* Botón para subir archivo */}
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 1 }}
                       >
-                        {editData.image_url && (
+                        {/* Preview de imagen */}
+                        {newProduct.image_url && (
                           <img
-                            src={editData.image_url}
+                            src={newProduct.image_url}
                             alt="Preview"
                             style={{
                               width: 40,
@@ -934,18 +851,18 @@ const ProductTable: React.FC = () => {
                         <input
                           accept=".png,.jpg,.jpeg,.gif,.webp"
                           style={{ display: "none" }}
-                          id={`upload-button-${product.id}`}
+                          id="upload-button-new"
                           type="file"
-                          onChange={(e) => handleFileSelect(e, product.id)}
+                          onChange={(e) => handleFileSelectForNew(e)}
                         />
-                        <label htmlFor={`upload-button-${product.id}`}>
+                        <label htmlFor="upload-button-new">
                           <Button
                             variant="outlined"
                             component="span"
                             size="small"
-                            disabled={uploadingImages[product.id]}
+                            disabled={uploadingImages["new"]}
                             startIcon={
-                              uploadingImages[product.id] ? (
+                              uploadingImages["new"] ? (
                                 <CircularProgress size={16} />
                               ) : (
                                 <CloudUploadIcon />
@@ -953,221 +870,97 @@ const ProductTable: React.FC = () => {
                             }
                             sx={{ fontSize: "0.7rem", minWidth: "auto" }}
                           >
-                            {uploadingImages[product.id]
-                              ? "Subiendo..."
-                              : "Subir"}
+                            {uploadingImages["new"] ? "Subiendo..." : "Subir"}
                           </Button>
                         </label>
                       </Box>
 
-                      {uploadErrors[product.id] && (
+                      {/* Error de upload */}
+                      {uploadErrors["new"] && (
                         <Alert
                           severity="error"
                           sx={{ fontSize: "0.7rem", py: 0 }}
                         >
-                          {uploadErrors[product.id]}
+                          {uploadErrors["new"]}
                         </Alert>
                       )}
                     </Box>
-                  ) : product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        objectFit: "cover",
-                        borderRadius: 4,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 4,
-                        background: "#bbb",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span style={{ color: "#fff", fontSize: 18 }}>?</span>
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <TextField
                       name="name"
-                      value={editData.name || ""}
-                      onChange={handleChange}
+                      value={newProduct.name || ""}
+                      onChange={handleAddChange}
                       size="small"
                       required
-                      error={!!editValidationErrors.name}
-                      helperText={editValidationErrors.name}
-                      sx={{ "& .Mui-error": { margin: "auto" } }}
-                    />
-                  ) : (
-                    product.name
-                  )}
-                </TableCell>
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Checkbox
-                        name="has_variants"
-                        checked={!!editData.has_variants}
-                        onChange={handleChange}
-                        size="small"
-                      />
-                      {editData.has_variants && (
-                        <Tooltip
-                          title={
-                            updatingVariants === product.id
-                              ? "Actualizando estado de variantes..."
-                              : "Ver/Editar variantes"
-                          }
-                        >
-                          <IconButton
-                            onClick={() => handleOpenVariantsModal(product)}
-                            color="primary"
-                            size="small"
-                            disabled={updatingVariants === product.id}
-                          >
-                            {updatingVariants === product.id ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <ListAltIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <Checkbox
-                        name="has_variants"
-                        checked={!!product.has_variants}
-                        onClick={() =>
-                          handleCheckboxToggle(product, "has_variants")
-                        }
-                        sx={{
-                          "& svg": { fill: "#4d4d4d" },
-                          ":hover": { backgroundColor: "transparent" },
-                        }}
-                      />
-                      {product.has_variants && (
-                        <Tooltip title="Ver/Editar variantes">
-                          <IconButton
-                            onClick={() => handleOpenVariantsModal(product)}
-                            color="primary"
-                            size="small"
-                          >
-                            <ListAltIcon fontSize="medium" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  )}
-                </TableCell>
-                <TableCell
-                  style={{
-                    padding: "4px 8px",
-                    textAlign: "right",
-                  }}
-                >
-                  {editId === product.id ? (
-                    <TextField
-                      name="price"
-                      value={
-                        editData.has_variants
-                          ? "0"
-                          : editData.price === 0
-                          ? ""
-                          : editData.price ?? ""
-                      }
-                      onChange={handleChange}
-                      type="number"
-                      size="small"
-                      disabled={!!editData.has_variants}
-                      placeholder={
-                        editData.has_variants ? "Precio por variante" : ""
-                      }
-                      required={!editData.has_variants}
-                      error={!!editValidationErrors.price}
-                      helperText={editValidationErrors.price}
+                      error={!!validationErrors.name}
+                      helperText={validationErrors.name}
                       sx={{
-                        textAlign: "right",
-                        "& .MuiInputBase-input.Mui-disabled": {
-                          cursor: "not-allowed",
-                          backgroundColor: "rgba(0,0,0,0.045)",
-                        },
                         "& .Mui-error": {
                           margin: "auto",
                         },
                       }}
                     />
-                  ) : product.has_variants ? null : (
-                    formatCurrency(product.price)
-                  )}
-                </TableCell>
-
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <Checkbox
-                      name="is_combo"
-                      checked={!!editData.is_combo}
-                      onChange={handleChange}
+                      name="has_variants"
+                      checked={!!newProduct.has_variants}
+                      onChange={handleAddChange}
                       size="small"
                     />
-                  ) : (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px", textAlign: "right" }}>
+                    <TextField
+                      name="price"
+                      value={
+                        newProduct.price === 0 ? "" : newProduct.price ?? ""
+                      }
+                      onChange={handleAddChange}
+                      type="number"
+                      size="small"
+                      sx={{
+                        textAlign: "right",
+                        "& .Mui-error": {
+                          margin: "auto",
+                        },
+                      }}
+                      required={!newProduct.has_variants}
+                      disabled={!!newProduct.has_variants}
+                      error={!!validationErrors.price}
+                      helperText={validationErrors.price}
+                    />
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <Checkbox
                       name="is_combo"
-                      checked={!!product.is_combo}
-                      onClick={() => handleCheckboxToggle(product, "is_combo")}
-                      sx={{
-                        "& svg": { fill: "#4d4d4d" },
-                        ":hover": { backgroundColor: "transparent" },
-                      }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
-                    <Checkbox
-                      name="is_active"
-                      checked={!!editData.is_active}
-                      onChange={handleChange}
+                      checked={!!newProduct.is_combo}
+                      onChange={handleAddChange}
                       size="small"
                     />
-                  ) : (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <Checkbox
                       name="is_active"
-                      checked={!!product.is_active}
-                      onClick={() => handleCheckboxToggle(product, "is_active")}
-                      sx={{
-                        "& svg": { fill: "#4d4d4d" },
-                        ":hover": { backgroundColor: "transparent" },
-                      }}
+                      checked={!!newProduct.is_active}
+                      onChange={handleAddChange}
+                      size="small"
                     />
-                  )}
-                </TableCell>
-                <TableCell style={{ padding: "4px 8px" }}>
-                  {editId === product.id ? (
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
                     <Box sx={{ display: "flex", gap: 1 }}>
                       <Tooltip title="Cancelar">
                         <IconButton
-                          onClick={handleCancelEdit}
+                          onClick={handleCancelAdd}
                           color="error"
                           size="small"
                         >
                           <CancelIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Guardar">
+                      <Tooltip title="Agregar">
                         <IconButton
-                          onClick={handleSave}
+                          onClick={handleAdd}
                           color="success"
                           size="small"
                         >
@@ -1175,74 +968,376 @@ const ProductTable: React.FC = () => {
                         </IconButton>
                       </Tooltip>
                     </Box>
-                  ) : (
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <Tooltip title="Editar">
-                        <IconButton
-                          onClick={() => handleEdit(product.id)}
-                          color="info"
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              )}
+              {filteredAndSortedProducts.length > 0 ? (
+                filteredAndSortedProducts.map((product) => (
+                  <TableRow key={product.id} sx={{ height: 32 }}>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <TextField
+                          name="display_order"
+                          value={editData.display_order ?? ""}
+                          onChange={handleChange}
+                          type="number"
                           size="small"
+                        />
+                      ) : (
+                        product.display_order
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px", minWidth: 120 }}>
+                      {editId === product.id ? (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 1,
+                          }}
                         >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Eliminar">
-                        <IconButton
-                          onClick={() => handleDeleteClick(product.id)}
-                          color="error"
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            {editData.image_url && (
+                              <img
+                                src={editData.image_url}
+                                alt="Preview"
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  objectFit: "cover",
+                                  borderRadius: 4,
+                                  border: "1px solid #ddd",
+                                }}
+                              />
+                            )}
+                            <input
+                              accept=".png,.jpg,.jpeg,.gif,.webp"
+                              style={{ display: "none" }}
+                              id={`upload-button-${product.id}`}
+                              type="file"
+                              onChange={(e) => handleFileSelect(e, product.id)}
+                            />
+                            <label htmlFor={`upload-button-${product.id}`}>
+                              <Button
+                                variant="outlined"
+                                component="span"
+                                size="small"
+                                disabled={uploadingImages[product.id]}
+                                startIcon={
+                                  uploadingImages[product.id] ? (
+                                    <CircularProgress size={16} />
+                                  ) : (
+                                    <CloudUploadIcon />
+                                  )
+                                }
+                                sx={{ fontSize: "0.7rem", minWidth: "auto" }}
+                              >
+                                {uploadingImages[product.id]
+                                  ? "Subiendo..."
+                                  : "Subir"}
+                              </Button>
+                            </label>
+                          </Box>
+
+                          {uploadErrors[product.id] && (
+                            <Alert
+                              severity="error"
+                              sx={{ fontSize: "0.7rem", py: 0 }}
+                            >
+                              {uploadErrors[product.id]}
+                            </Alert>
+                          )}
+                        </Box>
+                      ) : product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            objectFit: "cover",
+                            borderRadius: 4,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 4,
+                            background: "#bbb",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <span style={{ color: "#fff", fontSize: 18 }}>?</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <TextField
+                          name="name"
+                          value={editData.name || ""}
+                          onChange={handleChange}
                           size="small"
+                          required
+                          error={!!editValidationErrors.name}
+                          helperText={editValidationErrors.name}
+                          sx={{ "& .Mui-error": { margin: "auto" } }}
+                        />
+                      ) : (
+                        product.name
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={9}
-                align="center"
-                sx={{
-                  py: 4,
-                  borderBottom: "none",
-                  backgroundColor: "#f5f5f5",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <Typography variant="h6" color="text.secondary">
-                    {searchTerm || showOnlyVisible ? (
-                      <>
-                        No se encontraron productos
-                        {searchTerm ? (
+                          <Checkbox
+                            name="has_variants"
+                            checked={!!editData.has_variants}
+                            onChange={handleChange}
+                            size="small"
+                          />
+                          {editData.has_variants && (
+                            <Tooltip
+                              title={
+                                updatingVariants === product.id
+                                  ? "Actualizando estado de variantes..."
+                                  : "Ver/Editar variantes"
+                              }
+                            >
+                              <IconButton
+                                onClick={() => handleOpenVariantsModal(product)}
+                                color="primary"
+                                size="small"
+                                disabled={updatingVariants === product.id}
+                              >
+                                {updatingVariants === product.id ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <ListAltIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Checkbox
+                            name="has_variants"
+                            checked={!!product.has_variants}
+                            onClick={() =>
+                              handleCheckboxToggle(product, "has_variants")
+                            }
+                            sx={{
+                              "& svg": { fill: "#4d4d4d" },
+                              ":hover": { backgroundColor: "transparent" },
+                            }}
+                          />
+                          {product.has_variants && (
+                            <Tooltip title="Ver/Editar variantes">
+                              <IconButton
+                                onClick={() => handleOpenVariantsModal(product)}
+                                color="primary"
+                                size="small"
+                              >
+                                <ListAltIcon fontSize="medium" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell
+                      style={{
+                        padding: "4px 8px",
+                        textAlign: "right",
+                      }}
+                    >
+                      {editId === product.id ? (
+                        <TextField
+                          name="price"
+                          value={
+                            editData.has_variants
+                              ? "0"
+                              : editData.price === 0
+                              ? ""
+                              : editData.price ?? ""
+                          }
+                          onChange={handleChange}
+                          type="number"
+                          size="small"
+                          disabled={!!editData.has_variants}
+                          placeholder={
+                            editData.has_variants ? "Precio por variante" : ""
+                          }
+                          required={!editData.has_variants}
+                          error={!!editValidationErrors.price}
+                          helperText={editValidationErrors.price}
+                          sx={{
+                            textAlign: "right",
+                            "& .MuiInputBase-input.Mui-disabled": {
+                              cursor: "not-allowed",
+                              backgroundColor: "rgba(0,0,0,0.045)",
+                            },
+                            "& .Mui-error": {
+                              margin: "auto",
+                            },
+                          }}
+                        />
+                      ) : product.has_variants ? null : (
+                        formatCurrency(product.price)
+                      )}
+                    </TableCell>
+
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <Checkbox
+                          name="is_combo"
+                          checked={!!editData.is_combo}
+                          onChange={handleChange}
+                          size="small"
+                        />
+                      ) : (
+                        <Checkbox
+                          name="is_combo"
+                          checked={!!product.is_combo}
+                          onClick={() =>
+                            handleCheckboxToggle(product, "is_combo")
+                          }
+                          sx={{
+                            "& svg": { fill: "#4d4d4d" },
+                            ":hover": { backgroundColor: "transparent" },
+                          }}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <Checkbox
+                          name="is_active"
+                          checked={!!editData.is_active}
+                          onChange={handleChange}
+                          size="small"
+                        />
+                      ) : (
+                        <Checkbox
+                          name="is_active"
+                          checked={!!product.is_active}
+                          onClick={() =>
+                            handleCheckboxToggle(product, "is_active")
+                          }
+                          sx={{
+                            "& svg": { fill: "#4d4d4d" },
+                            ":hover": { backgroundColor: "transparent" },
+                          }}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Tooltip title="Cancelar">
+                            <IconButton
+                              onClick={handleCancelEdit}
+                              color="error"
+                              size="small"
+                            >
+                              <CancelIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Guardar">
+                            <IconButton
+                              onClick={handleSave}
+                              color="success"
+                              size="small"
+                            >
+                              <CheckIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <Tooltip title="Editar">
+                            <IconButton
+                              onClick={() => handleEdit(product.id)}
+                              color="info"
+                              size="small"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar">
+                            <IconButton
+                              onClick={() => handleDeleteClick(product.id)}
+                              color="error"
+                              size="small"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    align="center"
+                    sx={{
+                      py: 4,
+                      borderBottom: "none",
+                      backgroundColor: "#f5f5f5",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <Typography variant="h6" color="text.secondary">
+                        {searchTerm || showOnlyVisible ? (
                           <>
-                            {" "}
-                            que coincidan con "<strong>{searchTerm}</strong>"
+                            No se encontraron productos
+                            {searchTerm ? (
+                              <>
+                                {" "}
+                                que coincidan con "<strong>{searchTerm}</strong>
+                                "
+                              </>
+                            ) : null}
+                            {showOnlyVisible ? <> visibles en caja</> : null}
                           </>
-                        ) : null}
-                        {showOnlyVisible ? <> visibles en caja</> : null}
-                      </>
-                    ) : (
-                      "No hay productos disponibles"
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {searchTerm || showOnlyVisible
-                      ? "Intente ajustar los filtros o términos de búsqueda"
-                      : "Agregue nuevos productos utilizando el botón 'Agregar Producto'"}
-                  </Typography>
-                </Box>
-              </TableCell>
-            </TableRow>
+                        ) : (
+                          "No hay productos disponibles"
+                        )}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {searchTerm || showOnlyVisible
+                          ? "Intente ajustar los filtros o términos de búsqueda"
+                          : "Agregue nuevos productos utilizando el botón 'Agregar Producto'"}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              )}
+            </>
           )}
         </TableBody>
       </Table>

@@ -25,6 +25,7 @@ import {
 } from "./products-api";
 import Button from "@mui/material/Button";
 import { formatCurrency } from "../../functions/generalFunctions";
+import { DataContext } from "../../dataContext";
 
 interface ProductVariantsModalProps {
   open: boolean;
@@ -57,6 +58,9 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
     name: string;
   } | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  // Use DataContext as single source of truth; call fetchData after changes
+  const { fetchData } = React.useContext(DataContext);
 
   // Función para ordenar variantes por display_order
   const sortVariants = (variantsToSort: ProductVariantModal[]) => {
@@ -124,6 +128,8 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
       setVariants((prev) =>
         prev.filter((variant) => variant.id !== variantToDelete.id)
       );
+      // Refresh global dataset so product lists and home reflect the change
+      await fetchData();
       setDeleteDialogOpen(false);
       setVariantToDelete(null);
     } catch (err: unknown) {
@@ -170,6 +176,8 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
             );
             return sortVariants(updated);
           });
+          // Refresh global dataset so all screens show updated data
+          await fetchData();
           setShowForm(false);
           setForm({ name: "", price: "", display_order: "" });
           setEditingVariant(null);
@@ -189,6 +197,8 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
             const updated = [...prev, newVariant];
             return sortVariants(updated);
           });
+          // Refresh global dataset so all screens show the new variant/product state
+          await fetchData();
           setShowForm(false);
           setForm({ name: "", price: "", display_order: "" });
         } else {
