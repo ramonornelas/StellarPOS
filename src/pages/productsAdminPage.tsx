@@ -3,6 +3,7 @@ import { Tabs, Tab, Box, Typography, Paper } from "@mui/material";
 import ProductTable from "../components/products/product-table.component";
 import InventoryEntradas from "../components/inventory/InventoryEntradas";
 import InventoryConteoFisico from "../components/inventory/InventoryConteoFisico";
+import InventoryAdjust from "../components/inventory/InventoryAdjust";
 import {
   useCanViewProducts,
   useCanViewInventoryEntries,
@@ -185,22 +186,15 @@ const ProductsAdminPage: React.FC = () => {
                     (canViewInventoryPhysicalCount ? 1 : 0)
                   }
                 >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      minHeight: "300px",
-                      flexDirection: "column",
-                      gap: 2,
-                    }}
-                  >
-                    <Typography variant="h6" color="text.secondary">
+                  <Box sx={{ p: 2 }}>
+                    <Typography
+                      variant="h6"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
                       Ajustes de Inventario
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Esta sección estará disponible próximamente
-                    </Typography>
+                    <InventoryAdjust />
                   </Box>
                 </CustomTabPanel>
               )}
