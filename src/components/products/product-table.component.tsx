@@ -224,7 +224,6 @@ const ProductTable: React.FC = () => {
       return { key, direction: "asc" };
     });
   };
-  console.log("Filtered and Sorted Products:", filteredAndSortedProducts);
 
   const handleEdit = (id: string) => {
     const product = products.find((p) => p.id === id);

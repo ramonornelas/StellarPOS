@@ -374,6 +374,24 @@ export const getSelectableProducts = (
   currentRowIndex: number
 ): Product[] => {
   return allProducts.filter((product) => {
+    // Defensive validation: ensure product has required properties for UI
+    if (!product) {
+      console.warn("getSelectableProducts: Null or undefined product found");
+      return false;
+    }
+    if (!product.id) {
+      console.warn("getSelectableProducts: Product without ID found:", product);
+      return false;
+    }
+    if (typeof product.name !== "string") {
+      console.warn("getSelectableProducts: Product with invalid name:", {
+        id: product.id,
+        name: product.name,
+        type: typeof product.name,
+      });
+      return false;
+    }
+
     // If the product has variants, it can only be selected once
     if (product.has_variants) {
       return !entradas.some(

@@ -77,6 +77,24 @@ export const getFilteredProducts = (
 
   // Filter products to avoid duplicates
   const selectableProducts = products.filter((product) => {
+    // Defensive validation: ensure product has required properties for UI
+    if (!product) {
+      console.warn("Null or undefined product found");
+      return false;
+    }
+    if (!product.id) {
+      console.warn("Product without ID found:", product);
+      return false;
+    }
+    if (typeof product.name !== "string") {
+      console.warn("Product with invalid name found:", {
+        id: product.id,
+        name: product.name,
+        type: typeof product.name,
+      });
+      return false;
+    }
+
     if (!product.has_variants) {
       return !isProductAlreadySelected(product.id, rows, idx);
     }
@@ -86,8 +104,28 @@ export const getFilteredProducts = (
   });
 
   return selectableProducts
-    .filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .filter((p) => {
+      // Defensive validation: ensure product has required properties for search
+      if (!p) {
+        console.warn("Null product in filter");
+        return false;
+      }
+      if (typeof p.name !== "string") {
+        console.warn("Product with invalid name in search filter:", {
+          id: p.id,
+          name: p.name,
+          type: typeof p.name,
+        });
+        return false;
+      }
+      return p.name.toLowerCase().includes(searchValue.toLowerCase());
+    })
+    .sort((a, b) => {
+      // Defensive validation for sorting
+      const nameA = a?.name || "";
+      const nameB = b?.name || "";
+      return nameA.localeCompare(nameB);
+    });
 };
 
 /**

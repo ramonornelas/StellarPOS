@@ -78,7 +78,11 @@ const InventoryEntradas: React.FC = () => {
           }
           // Don't set products here - let the sync effect handle it
         } catch (err) {
-          setProducts([]);
+          console.error("Error fetching products:", err);
+          setProducts([]); // Set empty array as fallback
+          openSnackBarInventoryError(
+            "Error al cargar productos. Intenta recargar la página."
+          );
         } finally {
           setLoading(false);
         }
@@ -90,9 +94,41 @@ const InventoryEntradas: React.FC = () => {
 
   // Keep local products list synchronized with DataContext changes
   useEffect(() => {
-    setProducts(
-      Array.isArray(dataContext.products) ? dataContext.products : []
-    );
+    const rawProducts = Array.isArray(dataContext.products)
+      ? dataContext.products
+      : [];
+
+    // Filter out malformed products to prevent runtime errors
+    const validProducts = rawProducts.filter((product) => {
+      if (!product) {
+        console.warn(
+          "InventoryEntradas useEffect: Null or undefined product found"
+        );
+        return false;
+      }
+      if (!product.id) {
+        console.warn(
+          "InventoryEntradas useEffect: Product without ID:",
+          product
+        );
+        return false;
+      }
+      if (typeof product.name !== "string") {
+        console.warn(
+          "InventoryEntradas useEffect: Product with invalid name:",
+          {
+            id: product.id,
+            name: product.name,
+            type: typeof product.name,
+            stock_available: product.stock_available,
+          }
+        );
+        return false;
+      }
+      return true;
+    });
+
+    setProducts(validProducts);
   }, [dataContext.products]);
 
   const handleAddRow = () => {
@@ -159,10 +195,6 @@ const InventoryEntradas: React.FC = () => {
           updated[idx].variants = validVariants;
           // Initialize with an empty entry for the first variant
           updated[idx].variantEntries = [createEmptyVariantEntry()];
-          console.log(
-            `Loaded ${validVariants.length} variants for product ${product.name}:`,
-            validVariants
-          );
         } catch (error) {
           console.error("Error loading variants:", error);
           updated[idx].variants = [];
@@ -415,8 +447,31 @@ const InventoryEntradas: React.FC = () => {
     const selectableProducts = getSelectableProducts(products, rows, idx);
 
     return selectableProducts
-      .filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter((p) => {
+        // Defensive validation: ensure product has required properties for search
+        if (!p) {
+          console.warn("InventoryEntradas: Null product in filter");
+          return false;
+        }
+        if (typeof p.name !== "string") {
+          console.warn(
+            "InventoryEntradas: Product with invalid name in search:",
+            {
+              id: p.id,
+              name: p.name,
+              type: typeof p.name,
+            }
+          );
+          return false;
+        }
+        return p.name.toLowerCase().includes(searchValue.toLowerCase());
+      })
+      .sort((a, b) => {
+        // Defensive validation for sorting
+        const nameA = a?.name || "";
+        const nameB = b?.name || "";
+        return nameA.localeCompare(nameB);
+      });
   };
 
   return (
