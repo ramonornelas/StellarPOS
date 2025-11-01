@@ -229,6 +229,33 @@ export const CalcTotal: React.FC = () => {
         }
       }
 
+      // Process products to ensure correct structure for the API
+      const processedProducts = productsInCart.map((product) => {
+        console.log(productsInCart);
+        const baseProduct = {
+          id: product.id, // Always use the main product ID
+          name: product.name,
+          price: product.price,
+          quantity: product.quantity,
+          category_name: product.category_name || "",
+        };
+
+        // Check if this IS a variant (has product_variant_id that differs from product id)
+        if (
+          product.product_variant_id &&
+          product.product_variant_id !== "no_variant" &&
+          product.product_variant_id !== product.id
+        ) {
+          return {
+            ...baseProduct,
+            product_variant_id: product.product_variant_id,
+          };
+        }
+
+        // For regular products (not variants), don't include product_variant_id at all
+        return baseProduct;
+      });
+
       const newOrderTicket = {
         date: selectedDate
           ? selectedDate.toLocaleDateString("en-CA")
@@ -236,7 +263,7 @@ export const CalcTotal: React.FC = () => {
         ticket: newOrderId,
         subtotal: total,
         payment_method: finalPaymentMethod,
-        products: productsInCart,
+        products: processedProducts,
         split_payments:
           paymentMethod === "split" && splitPayments.length > 0
             ? splitPayments

@@ -57,6 +57,7 @@ export interface InventoryMovementItem {
   product_id: string;
   product_variant_id: string | null;
   quantity: number;
+  notes?: string; // Optional product-specific notes
 }
 
 export interface InventoryMovementRequest {
@@ -82,12 +83,19 @@ export interface InventoryMovement {
   run_id: string;
 }
 
+export interface InventoryMovementError {
+  product_id: string;
+  product_variant_id?: string | null;
+  reason: string;
+}
+
 export interface InventoryMovementResponse {
   status: "success" | "error";
   applied: boolean;
   run_id: string;
   message: string;
   movements: InventoryMovement[];
+  errors?: InventoryMovementError[]; // Present when status is "error"
 }
 
 // Types for phiysical count
