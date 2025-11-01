@@ -13,25 +13,21 @@ def get_table_names(stage):
             'ORDER_TICKET_TABLE': os.getenv('TEST_ORDER_TICKET_TABLE', 'test_POS_orderTicket'),
             'ORDER_PRODUCT_TABLE': os.getenv('TEST_ORDER_PRODUCT_TABLE', 'test_POS_orderProduct'),
             'SPLIT_PAYMENT_TABLE': os.getenv('TEST_SPLIT_PAYMENT_TABLE', 'test_POS_orderSplitPayment'),
-            'INVENTORY_MOVEMENT_TABLE': os.getenv('TEST_INVENTORY_MOVEMENT_TABLE', 'test_inventory_Movement'),
-            'POS_PRODUCT_TABLE': os.getenv('TEST_POS_PRODUCT_TABLE', 'test_POS_product')
+            'INVENTORY_MOVEMENT_TABLE': os.getenv('TEST_INVENTORY_MOVEMENT_TABLE', 'test_inventory_movement'),
+            'POS_PRODUCT_TABLE': os.getenv('TEST_POS_PRODUCT_TABLE', 'test_POS_product'),
+            'POS_PRODUCT_VARIANT_TABLE': os.getenv('TEST_POS_PRODUCT_VARIANT_TABLE', 'test_POS_product_variant')
         }
     else:
         return {
             'ORDER_TICKET_TABLE': os.getenv('ORDER_TICKET_TABLE', 'POS_orderTicket'),
             'ORDER_PRODUCT_TABLE': os.getenv('ORDER_PRODUCT_TABLE', 'POS_orderProduct'),
             'SPLIT_PAYMENT_TABLE': os.getenv('SPLIT_PAYMENT_TABLE', 'POS_orderSplitPayment'),
-            'INVENTORY_MOVEMENT_TABLE': os.getenv('INVENTORY_MOVEMENT_TABLE', 'inventory_Movement'),
-            'POS_PRODUCT_TABLE': os.getenv('POS_PRODUCT_TABLE', 'POS_product')
+            'INVENTORY_MOVEMENT_TABLE': os.getenv('INVENTORY_MOVEMENT_TABLE', 'inventory_movement'),
+            'POS_PRODUCT_TABLE': os.getenv('POS_PRODUCT_TABLE', 'POS_product'),
+            'POS_PRODUCT_VARIANT_TABLE': os.getenv('POS_PRODUCT_VARIANT_TABLE', 'POS_product_variant')
         }
 
-dynamodb = boto3.resource('dynamodb')
 dynamodb_client = boto3.client('dynamodb')
-order_ticket_table = dynamodb.Table('POS_orderTicket')
-order_product_table = dynamodb.Table('POS_orderProduct')
-split_payment_table = dynamodb.Table('POS_orderSplitPayment')
-inventory_movement_table = dynamodb.Table('inventory_Movement')
-pos_product_table = dynamodb.Table('POS_product')
 
 # Define a constant for two decimal places
 TWO_DECIMAL_PLACES = decimal.Decimal('0.01')
@@ -52,9 +48,10 @@ def lambda_handler(event, context):
         SPLIT_PAYMENT_TABLE = tables['SPLIT_PAYMENT_TABLE']
         INVENTORY_MOVEMENT_TABLE = tables['INVENTORY_MOVEMENT_TABLE']
         POS_PRODUCT_TABLE = tables['POS_PRODUCT_TABLE']
+        POS_PRODUCT_VARIANT_TABLE = tables['POS_PRODUCT_VARIANT_TABLE']
         
         print(f"Stage: {stage}")
-        print(f"Using tables: {ORDER_TICKET_TABLE}, {ORDER_PRODUCT_TABLE}, etc.")
+        print(f"Using tables: {ORDER_TICKET_TABLE}, {ORDER_PRODUCT_TABLE}, {POS_PRODUCT_TABLE}, {POS_PRODUCT_VARIANT_TABLE}, {INVENTORY_MOVEMENT_TABLE}")
 
         if 'body' in event:
             order = json.loads(event['body'])
@@ -106,18 +103,51 @@ def lambda_handler(event, context):
             products = order['products']
             grouped_products = group_products(products)
             for product_data in grouped_products.values():
+                # Put order product
                 transaction_items.append({
                     'Put': {
                         'TableName': ORDER_PRODUCT_TABLE,
                         'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_product_record(product_data, new_orderTicket).items()}
                     }
                 })
+
+                # Put inventory movement record (same transaction)
                 transaction_items.append({
                     'Put': {
                         'TableName': INVENTORY_MOVEMENT_TABLE,
                         'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_inventory_movement_record(product_data, new_orderTicket).items()}
                     }
                 })
+
+                # Decrement stock: only variant if variant present; otherwise product stock
+                product_variant_id = product_data.get('product_variant_id', 'no_variant')
+                qty_str = str(product_data['quantity'])
+                if product_variant_id and product_variant_id != 'no_variant':
+                    # Decrement only the variant stock_available (allow negative)
+                    transaction_items.append({
+                        'Update': {
+                            'TableName': POS_PRODUCT_VARIANT_TABLE,
+                            'Key': {'id': {'S': product_variant_id}},
+                            'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
+                            'ExpressionAttributeValues': {
+                                ':zero': {'N': '0'},
+                                ':qty': {'N': qty_str}
+                            }
+                        }
+                    })
+                else:
+                    # Decrement product stock_available when there is no variant (allow negative)
+                    transaction_items.append({
+                        'Update': {
+                            'TableName': POS_PRODUCT_TABLE,
+                            'Key': {'id': {'S': product_data['id']}},
+                            'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
+                            'ExpressionAttributeValues': {
+                                ':zero': {'N': '0'},
+                                ':qty': {'N': qty_str}
+                            }
+                        }
+                    })
 
             # Add split payments to transaction
             if len(split_payments) > 0:
@@ -132,7 +162,7 @@ def lambda_handler(event, context):
             # Log the transaction items for debugging
             print("Transaction Items:", json.dumps(transaction_items, indent=4))
 
-            # Execute the transaction
+            # Execute the transaction (atomic all-or-none)
             dynamodb_client.transact_write_items(TransactItems=transaction_items)
 
             return {

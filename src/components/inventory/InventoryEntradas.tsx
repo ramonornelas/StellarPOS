@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import {
   Autocomplete,
   CircularProgress,
 } from "@mui/material";
+import { DataContext } from "../../dataContext";
 
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -61,20 +62,44 @@ const InventoryEntradas: React.FC = () => {
     {}
   );
   const userId = sessionStorage.getItem("stellar_userid");
+  const dataContext = useContext(DataContext);
 
-  React.useEffect(() => {
-    setLoading(true);
-    fetchProducts()
-      .then((data) => {
-        setProducts(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false));
+  // Initialize by ensuring global data is loaded and keep local products in sync
+  useEffect(() => {
+    let mounted = true;
+    const init = async () => {
+      setLoading(true);
+      try {
+        if (dataContext && typeof dataContext.fetchData === "function") {
+          await dataContext.fetchData();
+        }
+        if (mounted) {
+          setProducts(
+            Array.isArray(dataContext.products) ? dataContext.products : []
+          );
+        }
+      } catch (err) {
+        if (mounted) setProducts([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    init();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // Keep local products list synchronized with DataContext changes
+  useEffect(() => {
+    setProducts(
+      Array.isArray(dataContext.products) ? dataContext.products : []
+    );
+  }, [dataContext.products]);
 
   const handleAddRow = () => {
     const newRowIndex = rows.length;
-    setRows([...rows, createEmptyEntradaRow()]);
+    setRows([createEmptyEntradaRow(), ...rows]);
     setTimeout(() => {
       const productInput = document.querySelector(
         `#product-autocomplete-${newRowIndex}`
@@ -98,14 +123,14 @@ const InventoryEntradas: React.FC = () => {
     const updated = [...rows];
     let error = "";
 
-    // Para productos sin variantes, verificar que no esté ya seleccionado
+    // For products without variants, check if already selected
     if (product && !product.has_variants) {
       if (isProductAlreadySelected(product.id, rows, idx)) {
         error = "Este producto ya está seleccionado.";
       }
     }
 
-    // Para productos con variantes, verificar que no esté ya seleccionado
+    // For products with variants, check if already selected
     if (product && product.has_variants) {
       const isAlreadySelected = rows.some(
         (row, index) => row.product?.id === product.id && index !== idx
@@ -122,19 +147,19 @@ const InventoryEntradas: React.FC = () => {
       updated[idx].initialQty = 0;
       updated[idx].finalQty = 0;
 
-      // Si el producto tiene variantes, cargarlas
+      // If the product has variants, fetch them
       if (product?.has_variants) {
         updated[idx].loadingVariants = true;
         setRows([...updated]);
 
         try {
           const response = await fetchProductVariantsByProductId(product.id);
-          // La API devuelve un objeto con la propiedad 'variants'
+          // The API returns an object with the 'variants' property
           const validVariants = Array.isArray(response?.variants)
             ? response.variants
             : [];
           updated[idx].variants = validVariants;
-          // Inicializar con una entrada vacía para la primera variante
+          // Initialize with an empty entry for the first variant
           updated[idx].variantEntries = [createEmptyVariantEntry()];
           console.log(
             `Loaded ${validVariants.length} variants for product ${product.name}:`,
@@ -149,7 +174,7 @@ const InventoryEntradas: React.FC = () => {
           setRows([...updated]);
         }
       } else {
-        // Si el producto no tiene variantes, usar el stock del producto directamente
+        // If the product has no variants, use the product's stock directly
         updated[idx].initialQty = Number(product?.stock_available ?? 0);
         const addedQty =
           updated[idx].addedQty === "" || updated[idx].addedQty === 0
@@ -174,7 +199,7 @@ const InventoryEntradas: React.FC = () => {
     const updated = [...rows];
     let error = "";
 
-    // Verificar si la variante ya está seleccionada
+    // Verify if the variant is already selected
     if (variant && updated[rowIdx].product) {
       if (isVariantAlreadySelected(variant.id, rows, rowIdx, variantIdx)) {
         error = "Esta variante ya está seleccionada.";
@@ -185,7 +210,7 @@ const InventoryEntradas: React.FC = () => {
       updated[rowIdx].variantEntries[variantIdx].variant = variant;
 
       if (variant) {
-        // Usar el stock_available de la variante
+        // Use the stock_available of the variant
         updated[rowIdx].variantEntries[variantIdx].initialQty = Number(
           variant.stock_available ?? 0
         );
@@ -220,14 +245,14 @@ const InventoryEntradas: React.FC = () => {
     const updated = [...rows];
     updated[rowIdx].variantEntries.splice(variantIdx, 1);
 
-    // Si después de eliminar la variante no quedan variantes, eliminar toda la fila
+    // If after removing the variant no variants remain, remove the entire row
     if (shouldAutoRemoveRow(updated[rowIdx])) {
       setRows(rows.filter((_, i) => i !== rowIdx));
-      // Limpiar errores de la fila eliminada
+      // Clear errors from the removed row
       setRowErrors((prev) => {
         const copy = { ...prev };
         delete copy[rowIdx];
-        // También limpiar errores de variantes de esta fila
+        // Also clear variant errors from this row
         Object.keys(copy).forEach((key) => {
           if (key.startsWith(`${rowIdx}-variant-`)) {
             delete copy[key];
@@ -236,13 +261,13 @@ const InventoryEntradas: React.FC = () => {
         return copy;
       });
     } else {
-      // Si quedan variantes pero es la última entrada, mantener al menos una entrada vacía
+      // If there are variants left but it's the last entry, keep at least one empty entry
       if (updated[rowIdx].variantEntries.length === 0) {
         updated[rowIdx].variantEntries = [createEmptyVariantEntry()];
       }
 
       setRows(updated);
-      // Limpiar el error de la variante específica eliminada
+      // Clear the error of the specific removed variant
       setRowErrors((prev) => {
         const copy = { ...prev };
         delete copy[`${rowIdx}-variant-${variantIdx}`];
@@ -307,7 +332,7 @@ const InventoryEntradas: React.FC = () => {
   const handleConfirm = async () => {
     setSubmitting(true);
     try {
-      // Preparar el payload para el endpoint
+      // Prepare items for the API request
       const items: Array<{
         product_id: string;
         product_variant_id: string | null;
@@ -317,7 +342,7 @@ const InventoryEntradas: React.FC = () => {
       rows.forEach((row) => {
         if (row.product) {
           if (row.product.has_variants) {
-            // Agregar cada variante seleccionada con cantidad
+            // Add each selected variant with quantity
             row.variantEntries.forEach((variantEntry) => {
               if (
                 variantEntry.variant &&
@@ -332,7 +357,7 @@ const InventoryEntradas: React.FC = () => {
               }
             });
           } else {
-            // Producto sin variantes
+            // Add the product directly if it has no variants
             if (row.addedQty && Number(row.addedQty) > 0) {
               items.push({
                 product_id: row.product.id,
@@ -359,13 +384,21 @@ const InventoryEntradas: React.FC = () => {
         setRows([]);
         setRowErrors({});
         openSnackBarInventorySuccess(response.movements.length);
-        fetchProducts()
-          .then((data) => {
-            setProducts(Array.isArray(data) ? data : []);
-          })
-          .catch((error) => {
-            console.error("Error reloading products:", error);
-          });
+        // Refresh global dataset so UI shows updated stock immediately
+        try {
+          if (dataContext && typeof dataContext.fetchData === "function") {
+            await dataContext.fetchData();
+          } else {
+            // Fallback to local fetch if DataContext not available
+            fetchProducts()
+              .then((data) => setProducts(Array.isArray(data) ? data : []))
+              .catch((error) =>
+                console.error("Error reloading products:", error)
+              );
+          }
+        } catch (err) {
+          console.error("Error refreshing global dataset:", err);
+        }
       } else {
         throw new Error(response.message || "Error al procesar las entradas");
       }
@@ -383,13 +416,22 @@ const InventoryEntradas: React.FC = () => {
     const searchValue = searchValues[idx] || "";
     const selectableProducts = getSelectableProducts(products, rows, idx);
 
-    return selectableProducts.filter((p) =>
-      p.name.toLowerCase().includes(searchValue.toLowerCase())
-    );
+    return selectableProducts
+      .filter((p) => p.name.toLowerCase().includes(searchValue.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   return (
     <Box>
+      <Button
+        startIcon={<AddIcon />}
+        onClick={handleAddRow}
+        variant="contained"
+        size="small"
+        sx={{ mb: 2 }}
+      >
+        Agregar producto
+      </Button>
       <TableContainer sx={{ mb: 2 }}>
         <Table size="small">
           <TableHead>
@@ -504,14 +546,16 @@ const InventoryEntradas: React.FC = () => {
                       >
                         <TableCell sx={{ pl: 4 }}>
                           <Autocomplete
-                            options={row.variants.filter((v) => {
-                              return !isVariantAlreadySelected(
-                                v.id,
-                                rows,
-                                idx,
-                                variantIdx
-                              );
-                            })}
+                            options={row.variants
+                              .filter((v) => {
+                                return !isVariantAlreadySelected(
+                                  v.id,
+                                  rows,
+                                  idx,
+                                  variantIdx
+                                );
+                              })
+                              .sort((a, b) => a.name.localeCompare(b.name))}
                             getOptionLabel={(option) => option.name}
                             value={variantEntry.variant}
                             onChange={(_, value) =>
@@ -635,18 +679,6 @@ const InventoryEntradas: React.FC = () => {
                 )}
               </React.Fragment>
             ))}
-            <TableRow>
-              <TableCell colSpan={5} align="center">
-                <Button
-                  startIcon={<AddIcon />}
-                  onClick={handleAddRow}
-                  variant="contained"
-                  size="small"
-                >
-                  Agregar producto
-                </Button>
-              </TableCell>
-            </TableRow>
           </TableBody>
         </Table>
       </TableContainer>
