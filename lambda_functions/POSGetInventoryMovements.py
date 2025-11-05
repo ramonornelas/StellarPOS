@@ -26,7 +26,7 @@ def get_table_name(table_type, stage):
             'variant': os.getenv('TEST_POS_PRODUCT_VARIANT_TABLE', 'test_POS_product_variant'),
             'movement': os.getenv('TEST_INVENTORY_MOVEMENT_TABLE', 'test_inventory_movement'),
             'movement_run': os.getenv('TEST_INVENTORY_MOVEMENT_RUN_TABLE', 'test_inventory_movement_run'),
-            'user': os.getenv('TEST_USER_TABLE', 'test_user')
+            'user': os.getenv('TEST_USER_TABLE', 'test_stellar_user')
         }
     else:
         table_names = {
@@ -34,7 +34,7 @@ def get_table_name(table_type, stage):
             'variant': os.getenv('POS_PRODUCT_VARIANT_TABLE', 'POS_product_variant'),
             'movement': os.getenv('INVENTORY_MOVEMENT_TABLE', 'inventory_movement'),
             'movement_run': os.getenv('INVENTORY_MOVEMENT_RUN_TABLE', 'inventory_movement_run'),
-            'user': os.getenv('USER_TABLE', 'user')
+            'user': os.getenv('USER_TABLE', 'stellar_user')
         }
     return table_names.get(table_type)
 
