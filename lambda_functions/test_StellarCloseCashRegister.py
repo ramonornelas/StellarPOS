@@ -18,8 +18,7 @@ current_datetime = datetime.utcnow().isoformat() + 'Z'
 # Mock event and context for cash register closeout (cierre de caja) with returns
 event = {
     'body': json.dumps({
-        'id': "f17a67dc-25d2-4970-adc4-ce9b43faff64",
-        'cash_register_id': 'af5fd7d8-5e56-4a85-8a0e-54f8eac5b47d',  # Cash register with returns
+        'id': "6598a7db-1aad-4e46-ba95-658a6cce9c1b",
         'closing_amount': 2000,
         'closed_at': current_datetime,
         'status': 'closed',
@@ -34,8 +33,7 @@ context = {}
 print("🧪 Testing StellarCloseCashRegister with cash returns scenario")
 print("=" * 60)
 print(f"📋 Test Configuration:")
-print(f"   Cash Register ID: af5fd7d8-5e56-4a85-8a0e-54f8eac5b47d")
-print(f"   Closeout ID: f17a67dc-25d2-4970-adc4-ce9b43faff64")
+print(f"   Closeout ID: 6598a7db-1aad-4e46-ba95-658a6cce9c1b")
 print(f"   Closing DateTime: {current_datetime}")
 print(f"   Cash Sales: $500.00")
 print(f"   Closing Amount: $2000.00")

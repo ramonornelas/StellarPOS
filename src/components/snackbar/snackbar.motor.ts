@@ -137,3 +137,24 @@ export const openSnackBarSaveChangesFirst = () => {
     autoHideDuration: 4000,
   });
 };
+
+export const openSnackBarReturnSuccess = (totalAmount: number) => {
+  enqueueSnackbar(
+    `Devolución procesada exitosamente. ${formatCurrency(
+      totalAmount
+    )} reembolsado.`,
+    {
+      variant: "success",
+      style: { opacity: "90%" },
+      autoHideDuration: 5000,
+    }
+  );
+};
+
+export const openSnackBarReturnError = (message: string) => {
+  enqueueSnackbar(`Error al procesar la devolución: ${message}`, {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 5000,
+  });
+};

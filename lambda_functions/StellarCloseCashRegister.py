@@ -83,10 +83,10 @@ def lambda_handler(event, context):
             status = data.get('status', 'closed')
 
             # Validate required fields
-            if not cash_register_id:
+            if not closeout_id:
                 return {
                     'statusCode': 400,
-                    'body': json.dumps({'message': 'cash_register_id is required'})
+                    'body': json.dumps({'message': 'closeout_id is required'})
                 }
 
             # Optional fields
@@ -109,8 +109,8 @@ def lambda_handler(event, context):
                 }
 
             # Get cash returns for this cash register
-            cash_returns = get_cash_returns(return_ticket_table, cash_register_id)
-            
+            cash_returns = get_cash_returns(return_ticket_table, closeout_id)
+
             # Calculate expected_amount with new formula: opening_amount + cash_sales - cash_returns
             expected_amount = (opening_amount + cash_sales - cash_returns).quantize(TWO_DECIMAL_PLACES)
             difference_amount = (closing_amount - expected_amount).quantize(TWO_DECIMAL_PLACES)
