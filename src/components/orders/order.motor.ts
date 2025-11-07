@@ -68,24 +68,12 @@ const normalizeVariantId = (
 export const groupOrderProducts = (
   products: ProductOrder[]
 ): GroupedProduct[] => {
-  console.log("🔧 groupOrderProducts - Input products:", products);
-
   const productsGrouped = products.reduce((acc, product) => {
     // Normalize the variant ID for consistent grouping
     const normalizedVariantId = normalizeVariantId(
       product.product_id,
       product.product_variant_id
     );
-
-    console.log(`🔧 Processing product:`, {
-      product_id: product.product_id,
-      original_variant_id: product.product_variant_id,
-      normalized_variant_id: normalizedVariantId,
-      product_name: product.product_name,
-      quantity: product.quantity,
-      product_price: product.product_price,
-      total: product.total,
-    });
 
     // Find existing grouped product by product_id and normalized variant_id
     const found = acc.find(
@@ -97,7 +85,6 @@ export const groupOrderProducts = (
     if (found) {
       // If found, add the quantity to the existing product
       found.qty += Number(product.quantity) || 1;
-      console.log(`🔧 Updated existing group:`, found);
     } else {
       // If not found, create a new entry
       // Calculate unit price from total/quantity if available, fallback to product_price
@@ -115,14 +102,8 @@ export const groupOrderProducts = (
       };
 
       acc.push(newGroupedProduct);
-      console.log(`🔧 Created new group:`, newGroupedProduct);
     }
     return acc;
   }, [] as GroupedProduct[]);
-
-  console.log(
-    "🔧 groupOrderProducts - Final grouped products:",
-    productsGrouped
-  );
   return productsGrouped;
 };

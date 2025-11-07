@@ -128,16 +128,6 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
             : Number(product.product_price) || 0;
         const amount = unitPrice * quantity;
 
-        console.log(`💰 Refund calculation for product ${productId}:`, {
-          productName: product.product_name || product.name,
-          total: product.total,
-          quantity: product.quantity,
-          product_price: product.product_price,
-          calculated_unit_price: unitPrice,
-          refund_quantity: quantity,
-          refund_amount: amount,
-        });
-
         return total + amount;
       }
 
