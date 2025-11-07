@@ -3,11 +3,8 @@ import { Box, Container, Typography, TextField } from "@mui/material";
 import { useOrders, useOrdersSummary } from "../components/orders/orders.data";
 import { OrderItem } from "../components/orders/order-item.component";
 import { PaymentSummary } from "../components/orders/payment-summary.component";
-import {
-  ReturnModal,
-  ReturnData,
-} from "../components/orders/return-modal.component";
-import { Order } from "../components/orders/order.model";
+import { ReturnModal } from "../components/orders/return-modal.component";
+import { Order, ReturnData } from "../components/orders/order.model";
 import { ordersByTicket } from "../components/orders/order.motor";
 import { submitReturn } from "../functions/apiFunctions";
 import {
@@ -34,7 +31,7 @@ export const Orders: React.FC = () => {
   const orders = useOrders(dateString);
   const { summary, loading: summaryLoading } = useOrdersSummary(dateString);
   const ordersSortedByTicket = ordersByTicket(orders, "desc");
-  const totalSum = orders.reduce((sum, order) => sum + order.total, 0);
+  const totalSum = orders.reduce((sum, order) => sum + Number(order.total), 0);
 
   // Maneja el cambio de fecha local
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {

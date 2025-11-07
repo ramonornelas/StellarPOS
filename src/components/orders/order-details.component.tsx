@@ -1,6 +1,6 @@
 import { AccordionDetails, Box, Divider, Typography } from "@mui/material";
-import { Order } from "./order.model";
-import { groupProducts } from "../cart/cart.motor";
+import { Order, ProductOrder } from "./order.model";
+import { groupOrderProducts } from "./order.motor";
 import classes from "./css/order-details.module.css";
 import {
   mapPaymentMethod,
@@ -14,7 +14,10 @@ interface OrderDetailsProps {
 export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
   const { order } = props;
 
-  const productsGrouped = groupProducts(order.products);
+  // Cast the products to the correct type since the backend sends OrderProductData
+  const productsGrouped = groupOrderProducts(
+    order.products as unknown as ProductOrder[]
+  );
   const splitPayments = order.splitPayments;
 
   return (
@@ -42,15 +45,15 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
       )}
       <Divider sx={{ m: 1 }} />
       <Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
-        Subtotal: {formatCurrency(order.subtotal)}
+        Subtotal: {formatCurrency(Number(order.subtotal))}
       </Typography>
-      {order.discount > 0 && (
+      {Number(order.discount) > 0 && (
         <Typography variant="body1" component="p" sx={{ textAlign: "right" }}>
-          Descuento: - {formatCurrency(order.discount)}
+          Descuento: - {formatCurrency(Number(order.discount))}
         </Typography>
       )}
       <Typography variant="h5" component="p" sx={{ textAlign: "right" }}>
-        <strong>Total: {formatCurrency(order.total)}</strong>
+        <strong>Total: {formatCurrency(Number(order.total))}</strong>
       </Typography>
       {(splitPayments?.length ?? 0) > 0 && (
         <>
@@ -112,7 +115,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
             );
           });
         })()}
-      {order.tip > 0 && (
+      {Number(order.tip) > 0 && (
         <>
           <Divider sx={{ m: 1 }} />
           <Typography
@@ -120,14 +123,14 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
             component="p"
             sx={{ textAlign: "right", fontSize: "0.9rem" }}
           >
-            Propina: (+{formatCurrency(order.tip)})
+            Propina: (+{formatCurrency(Number(order.tip))})
           </Typography>
           <Typography
             variant="h6"
             component="p"
             sx={{ textAlign: "right", fontSize: "1rem" }}
           >
-            Total con propina: ({formatCurrency(order.total_with_tip)})
+            Total con propina: ({formatCurrency(Number(order.total_with_tip))})
           </Typography>
         </>
       )}
@@ -139,7 +142,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
             component="p"
             sx={{ textAlign: "right", fontSize: "0.9rem" }}
           >
-            Recibido: {formatCurrency(order.received_amount)}
+            Recibido: {formatCurrency(Number(order.received_amount))}
           </Typography>
         </>
       )}
@@ -149,7 +152,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
           component="p"
           sx={{ textAlign: "right", fontSize: "0.9rem" }}
         >
-          Cambio: {formatCurrency(order.change)}
+          Cambio: {formatCurrency(Number(order.change))}
         </Typography>
       )}
     </AccordionDetails>

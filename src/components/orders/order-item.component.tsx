@@ -57,7 +57,7 @@ export const OrderItem: React.FC<OrderProps> = (props) => {
           </Box>
           <Box className={classes["accordion-badge-container"]}>
             <Typography variant="body2" component="p">
-              Total: {formatCurrency(order.total)}
+              Total: {formatCurrency(Number(order.total))}
             </Typography>
             {onReturnClick && (
               <Button

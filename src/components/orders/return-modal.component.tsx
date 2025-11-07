@@ -17,8 +17,7 @@ import {
   Divider,
   Alert,
 } from "@mui/material";
-import { Order } from "./order.model";
-import { Product } from "../products/products.model";
+import { Order, ProductOrder, ReturnData, ReturnProduct } from "./order.model";
 import { formatCurrency } from "../../functions/generalFunctions";
 
 interface ReturnModalProps {
@@ -29,22 +28,6 @@ interface ReturnModalProps {
   loading?: boolean;
 }
 
-export interface ReturnProduct {
-  id: string;
-  variant_id?: string;
-  quantity: number;
-  name: string;
-  price: number;
-}
-
-export interface ReturnData {
-  order_id: string;
-  cash_register_id: string;
-  products: ReturnProduct[];
-  refund_method: "cash" | "card" | "transfer";
-  notes: string;
-}
-
 export const ReturnModal: React.FC<ReturnModalProps> = ({
   open,
   order,
@@ -52,8 +35,11 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
   onSubmit,
   loading = false,
 }) => {
-  const [selectedProducts, setSelectedProducts] = useState<
-    Record<string, number>
+  const [selectedProductKeys, setSelectedProductKeys] = useState<Set<string>>(
+    new Set()
+  );
+  const [productQuantities, setProductQuantities] = useState<
+    Record<string, number | undefined>
   >({});
   const [refundMethod, setRefundMethod] = useState<
     "cash" | "card" | "transfer"
@@ -64,37 +50,40 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!open) {
-      setSelectedProducts({});
+      setSelectedProductKeys(new Set());
+      setProductQuantities({});
       setRefundMethod("cash");
       setNotes("");
       setError(null);
     }
   }, [open]);
 
-  // Helper function to normalize variant IDs
-  const normalizeVariantId = (productId: string, variantId?: string | null) => {
-    const result =
-      !variantId || variantId === "no_variant" || variantId === productId
-        ? ""
-        : variantId;
-
-    return result;
+  // Helper function to normalize variant IDs (consistent with order.motor.ts)
+  const normalizeVariantId = (
+    productId: string,
+    variantId?: string | null
+  ): string => {
+    if (!variantId || variantId === "no_variant" || variantId === productId) {
+      return "";
+    }
+    return variantId;
   };
 
-  const handleProductSelection = (
-    product: Product & { product_id?: string },
-    quantity: number
-  ) => {
-    // Use product_id if available, fallback to id
-    const productId = product.product_id || product.id;
-    // Normalize variant_id using helper function
+  const handleProductToggle = (product: ProductOrder, selected: boolean) => {
+    const productId = product.product_id;
     const variantId = normalizeVariantId(productId, product.product_variant_id);
     const key = `${productId}|${variantId}`;
 
-    if (quantity > 0) {
-      setSelectedProducts((prev) => ({ ...prev, [key]: quantity }));
+    if (selected) {
+      setSelectedProductKeys((prev) => new Set([...prev, key]));
+      setProductQuantities((prev) => ({ ...prev, [key]: 1 }));
     } else {
-      setSelectedProducts((prev) => {
+      setSelectedProductKeys((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+      setProductQuantities((prev) => {
         const { [key]: removed, ...rest } = prev;
         void removed; // Suppress unused variable warning
         return rest;
@@ -102,57 +91,99 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
     }
   };
 
+  const handleQuantityChange = (product: ProductOrder, quantity: number) => {
+    const productId = product.product_id;
+    const variantId = normalizeVariantId(productId, product.product_variant_id);
+    const key = `${productId}|${variantId}`;
+
+    // Only update quantity if the product is selected
+    if (selectedProductKeys.has(key)) {
+      setProductQuantities((prev) => ({ ...prev, [key]: quantity }));
+    }
+  };
+
   const totalRefund = useMemo(() => {
     if (!order) return 0;
 
-    return Object.entries(selectedProducts).reduce((total, [key, quantity]) => {
+    return Array.from(selectedProductKeys).reduce((total, key) => {
+      const quantity = productQuantities[key];
+
+      // Skip if quantity is undefined, 0 or invalid
+      if (!quantity || quantity <= 0) return total;
+
       const [productId, variantId] = key.split("|");
 
-      const product = order.products.find(
-        (p: Product & { product_id?: string }) => {
-          const pId = p.product_id || p.id;
-          const pVariantId = normalizeVariantId(pId, p.product_variant_id);
+      const product = order.products.find((p: ProductOrder) => {
+        const pId = p.product_id;
+        const pVariantId = normalizeVariantId(pId, p.product_variant_id);
 
-          return pId === productId && pVariantId === (variantId || "");
-        }
-      );
+        return pId === productId && pVariantId === (variantId || "");
+      });
 
       if (product) {
-        const amount = product.price * quantity;
+        // Calculate unit price: prioritize total/quantity, fallback to product_price
+        const unitPrice =
+          product.total && Number(product.quantity) > 0
+            ? Number(product.total) / Number(product.quantity)
+            : Number(product.product_price) || 0;
+        const amount = unitPrice * quantity;
+
+        console.log(`💰 Refund calculation for product ${productId}:`, {
+          productName: product.product_name || product.name,
+          total: product.total,
+          quantity: product.quantity,
+          product_price: product.product_price,
+          calculated_unit_price: unitPrice,
+          refund_quantity: quantity,
+          refund_amount: amount,
+        });
 
         return total + amount;
       }
 
       return total;
     }, 0);
-  }, [order, selectedProducts]);
+  }, [order, selectedProductKeys, productQuantities]);
 
   const handleSubmit = () => {
     if (!order) return;
 
-    // Validate at least one product is selected
-    if (Object.keys(selectedProducts).length === 0) {
-      setError("Debe seleccionar al menos un producto para devolver");
+    // Validate at least one product is selected with valid quantity
+    const validProducts = Array.from(selectedProductKeys).filter((key) => {
+      const qty = productQuantities[key];
+      return qty !== undefined && qty > 0;
+    });
+
+    if (validProducts.length === 0) {
+      setError(
+        "Debe seleccionar al menos un producto para devolver con cantidad válida"
+      );
       return;
     }
 
     // Build return products array
-    const returnProducts: ReturnProduct[] = Object.entries(
-      selectedProducts
-    ).map(([key, quantity]) => {
+    const returnProducts: ReturnProduct[] = validProducts.map((key) => {
+      const quantity = productQuantities[key] || 0;
       const [productId, variantId] = key.split("|");
-      const product = order.products.find((p) => {
-        const pId = (p as Product & { product_id?: string }).product_id || p.id;
+      const product = order.products.find((p: ProductOrder) => {
+        const pId = p.product_id;
         const pVariantId = normalizeVariantId(pId, p.product_variant_id);
         return pId === productId && pVariantId === (variantId || "");
       });
+
+      const unitPrice =
+        product && product.total && Number(product.quantity) > 0
+          ? Number(product.total) / Number(product.quantity)
+          : product
+          ? Number(product.product_price) || 0
+          : 0;
 
       return {
         id: productId,
         variant_id: variantId || undefined,
         quantity,
-        name: product?.name || "Producto desconocido",
-        price: product?.price || 0,
+        name: product?.name || product?.product_name || "Producto desconocido",
+        price: unitPrice,
       };
     });
 
@@ -186,18 +217,23 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
         </Typography>
 
         <Box sx={{ mb: 3 }}>
-          {order.products.map((product) => {
+          {order.products.map((product: ProductOrder) => {
             // Use the same key generation logic as handleProductSelection
-            const productId =
-              (product as Product & { product_id?: string }).product_id ||
-              product.id;
+            const productId = product.product_id;
             const variantId = normalizeVariantId(
               productId,
               product.product_variant_id
             );
             const key = `${productId}|${variantId}`;
-            const maxQuantity = product.quantity || 1;
-            const currentQuantity = selectedProducts[key] || 0;
+            const maxQuantity = Number(product.quantity) || 1;
+            const isSelected = selectedProductKeys.has(key);
+            const currentQuantity = productQuantities[key];
+
+            // Calculate unit price: prioritize total/quantity, fallback to product_price
+            const unitPrice =
+              product.total && Number(product.quantity) > 0
+                ? Number(product.total) / Number(product.quantity)
+                : Number(product.product_price) || 0;
 
             return (
               <Box
@@ -214,13 +250,9 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={currentQuantity > 0}
+                      checked={isSelected}
                       onChange={(e) => {
-                        if (e.target.checked) {
-                          handleProductSelection(product, 1);
-                        } else {
-                          handleProductSelection(product, 0);
-                        }
+                        handleProductToggle(product, e.target.checked);
                       }}
                     />
                   }
@@ -229,24 +261,40 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                 />
 
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body1">{product.name}</Typography>
+                  <Typography variant="body1">
+                    {product.name || product.product_name}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Precio: {formatCurrency(product.price)} | Disponible:{" "}
+                    Precio unitario: {formatCurrency(unitPrice)} | Disponible:{" "}
                     {maxQuantity}
                   </Typography>
                 </Box>
 
-                {currentQuantity > 0 && (
+                {isSelected && (
                   <TextField
                     type="number"
                     label="Cantidad"
-                    value={currentQuantity}
+                    value={currentQuantity !== undefined ? currentQuantity : ""}
                     onChange={(e) => {
-                      const quantity = Math.min(
-                        parseInt(e.target.value) || 0,
-                        maxQuantity
-                      );
-                      handleProductSelection(product, quantity);
+                      const inputValue = e.target.value;
+
+                      // Allow completely empty input (user is clearing the field)
+                      if (inputValue === "") {
+                        setProductQuantities((prev) => ({
+                          ...prev,
+                          [key]: undefined,
+                        }));
+                        return;
+                      }
+
+                      // Parse and validate quantity
+                      const parsedValue = parseInt(inputValue);
+                      if (isNaN(parsedValue) || parsedValue < 1) {
+                        return; // Don't update if invalid
+                      }
+
+                      const quantity = Math.min(parsedValue, maxQuantity);
+                      handleQuantityChange(product, quantity);
                     }}
                     inputProps={{ min: 1, max: maxQuantity }}
                     size="small"
@@ -311,7 +359,14 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || Object.keys(selectedProducts).length === 0}
+          disabled={
+            loading ||
+            selectedProductKeys.size === 0 ||
+            Array.from(selectedProductKeys).every((key) => {
+              const qty = productQuantities[key];
+              return !qty || qty <= 0;
+            })
+          }
         >
           {loading ? "Procesando..." : "Confirmar Devolución"}
         </Button>
