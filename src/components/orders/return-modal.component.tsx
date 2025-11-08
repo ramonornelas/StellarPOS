@@ -138,6 +138,14 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
   const handleSubmit = () => {
     if (!order) return;
 
+    // Get current cash register ID from sessionStorage
+    const currentCashRegisterId =
+      sessionStorage.getItem("cashRegisterId") || "";
+    if (!currentCashRegisterId) {
+      setError("No se encontró la caja registradora activa");
+      return;
+    }
+
     // Validate at least one product is selected with valid quantity
     const validProducts = Array.from(selectedProductKeys).filter((key) => {
       const qty = productQuantities[key];
@@ -179,7 +187,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
 
     const returnData: ReturnData = {
       order_id: order.id,
-      cash_register_id: order.cash_register_id,
+      cash_register_id: currentCashRegisterId,
       products: returnProducts,
       refund_method: refundMethod,
       notes: notes.trim(),

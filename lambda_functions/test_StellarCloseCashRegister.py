@@ -33,7 +33,7 @@ context = {}
 print("🧪 Testing StellarCloseCashRegister with cash returns scenario")
 print("=" * 60)
 print(f"📋 Test Configuration:")
-print(f"   Closeout ID: 6598a7db-1aad-4e46-ba95-658a6cce9c1b")
+print(f"   Cash Register ID: 6598a7db-1aad-4e46-ba95-658a6cce9c1b")
 print(f"   Closing DateTime: {current_datetime}")
 print(f"   Cash Sales: $500.00")
 print(f"   Closing Amount: $2000.00")
