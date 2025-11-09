@@ -76,8 +76,7 @@ def lambda_handler(event, context):
             data = json.loads(event['body'])
 
             # Required fields
-            closeout_id = data.get('id')
-            cash_register_id = data.get('cash_register_id')
+            cash_register_id = data.get('id')
             closing_amount = decimal.Decimal(str(data['closing_amount'])).quantize(TWO_DECIMAL_PLACES)
             closed_at = data['closed_at']
             status = data.get('status', 'closed')
@@ -99,7 +98,7 @@ def lambda_handler(event, context):
             # Fetch opening_amount from DynamoDB
             opening_amount = decimal.Decimal('0.00')
             try:
-                get_response = cash_register_closeout_table.get_item(Key={'id': closeout_id})
+                get_response = cash_register_closeout_table.get_item(Key={'id': cash_register_id})
                 opening_amount = decimal.Decimal(str(get_response['Item'].get('opening_amount', '0.00'))).quantize(TWO_DECIMAL_PLACES)
             except Exception as e:
                 print(f"Error fetching opening_amount: {e}")
@@ -110,7 +109,7 @@ def lambda_handler(event, context):
 
             # Get cash returns for this cash register
             cash_returns = get_cash_returns(return_ticket_table, cash_register_id)
-            
+
             # Calculate expected_amount with new formula: opening_amount + cash_sales - cash_returns
             expected_amount = (opening_amount + cash_sales - cash_returns).quantize(TWO_DECIMAL_PLACES)
             difference_amount = (closing_amount - expected_amount).quantize(TWO_DECIMAL_PLACES)
@@ -143,7 +142,7 @@ def lambda_handler(event, context):
             }
 
             response = cash_register_closeout_table.update_item(
-                Key={'id': closeout_id},
+                Key={'id': cash_register_id},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values,
                 ExpressionAttributeNames=expression_names,
