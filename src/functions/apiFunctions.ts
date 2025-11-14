@@ -1,6 +1,7 @@
 import axios from "axios";
 import { BASE_URL, API_STAGE } from "../apiConfig";
 import { AUTH_BASE_URL } from "../apiConfig";
+import { OrderTicketPayload } from "../components/cart/cart.model";
 
 const getApiUrl = (path: string, baseUrl: string = BASE_URL) => {
   return API_STAGE === "PROD"
@@ -90,7 +91,7 @@ export const searchUser = async (email: string) => {
   }
 };
 
-export const postCreateOrder = async (newOrderTicket: any) => {
+export const postCreateOrder = async (newOrderTicket: OrderTicketPayload) => {
   try {
     await axios.post(getApiUrl("orders"), newOrderTicket);
     return true;
@@ -286,6 +287,86 @@ export const submitReturn = async (returnData: {
     return data;
   } catch (error) {
     console.error("Error submitting return:", error);
+    throw error;
+  }
+};
+
+// Inventory movements functions
+export const fetchInventoryMovements = async (
+  filters: Record<string, string | undefined> = {},
+  page: number = 1,
+  limit: number = 50
+) => {
+  const queryParams = new URLSearchParams();
+
+  // Add pagination
+  queryParams.append("page", page.toString());
+  queryParams.append("limit", limit.toString());
+
+  // Add filters
+  if (filters.movement_type) {
+    queryParams.append("movement_type", filters.movement_type);
+  }
+  if (filters.date_from) {
+    queryParams.append("date_from", filters.date_from);
+  }
+  if (filters.date_to) {
+    queryParams.append("date_to", filters.date_to);
+  }
+  if (filters.user_id) {
+    queryParams.append("user_id", filters.user_id);
+  }
+  if (filters.product_search) {
+    queryParams.append(
+      "product_search",
+      encodeURIComponent(filters.product_search)
+    );
+  }
+  if (filters.run_id) {
+    queryParams.append("run_id", filters.run_id);
+  }
+
+  try {
+    const response = await fetch(
+      getApiUrl(`inventory/movements?${queryParams.toString()}`),
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching inventory movements:", error);
+    throw error;
+  }
+};
+
+export const fetchInventoryMovementRunDetails = async (runId: string) => {
+  try {
+    const response = await fetch(
+      getApiUrl(`inventory/movements/run/${runId}`),
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching run details:", error);
     throw error;
   }
 };

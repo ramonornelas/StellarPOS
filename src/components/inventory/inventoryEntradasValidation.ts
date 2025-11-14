@@ -392,6 +392,11 @@ export const getSelectableProducts = (
       return false;
     }
 
+    // Exclude combos from inventory management
+    if (product.is_combo) {
+      return false;
+    }
+
     // If the product has variants, it can only be selected once
     if (product.has_variants) {
       return !entradas.some(

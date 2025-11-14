@@ -13,39 +13,40 @@ def test_TEST_environment():
             'resourcePath': '/orders'
         },
         'body': json.dumps({
-            'date': '2025-10-28',
-            'ticket': '#010',
-            'subtotal': 12,
+            'date': '2025-11-12',
+            'ticket': '#400',
+            'subtotal': 15,
             'payment_method': 'cash',
             'products': [
                 {
-                    'product_name': 'Propoleo en greña',
-                    'display_order': 999,
-                    'price': 80,
-                    'id': '37689e49-79cd-43d1-abe0-c62a8856e731',
-                    'product_id': '37689e49-79cd-43d1-abe0-c62a8856e731',
-                    'name': 'Propoleo en greña',
-                    'image_url': 'https://pos-padrey-images.s3.us-west-1.amazonaws.com/products/IMG_2634_CR.jpg',
-                    'is_combo': False,
-                    'is_active': True,
-                    'quantity': 1
+                    'id': 'e1c3b8a2-4f7d-4c8e-9a1b-2d5e6f7c8b9a',
+                    'name': 'Combo paletas',
+                    'price': 15,
+                    'quantity': 1,
+                    'category_name': 'Dulces',
+                    'is_combo': True,
+                    'combo_products': [
+                        {
+                            'product_id': 'b26083e1-c89c-488b-bbed-6e087cac460d',
+                            'quantity_per_combo': 3
+                        }
+                    ]
                 }
             ],
             'split_payments': [
                 {
                     'id': 1,
-                    'amount': 6,
+                    'amount': 15,
                     'payment_method': 'cash'
                 }
             ],
             'discount': 0,
             'tip': 0,
-            'received_amount': 6,
+            'received_amount': 15,
             'change': 0,
             'notes': '',
-            'cash_register_id': '45de088e-561e-436f-bedb-944f94abeb55',
-            'updated_user_id': 'test_user_123',
-            'updated_username': 'testuser'
+            'cash_register_id': 'dc2934e5-6637-4c5c-8592-d946fd1021ad',
+            'updated_user_id': 'd1af46ca-0fdd-43f4-8443-64c8d20c4e71'
         })
     }
     

@@ -4,6 +4,7 @@ import ProductTable from "../components/products/product-table.component";
 import InventoryEntradas from "../components/inventory/InventoryEntradas";
 import InventoryConteoFisico from "../components/inventory/InventoryConteoFisico";
 import InventoryAdjust from "../components/inventory/InventoryAdjust";
+import InventoryMovements from "../components/inventory/InventoryMovements";
 import {
   useCanViewProducts,
   useCanViewInventoryEntries,
@@ -142,6 +143,14 @@ const ProductsAdminPage: React.FC = () => {
                       )}
                     />
                   )}
+                  <Tab
+                    label="Historial de Movimientos"
+                    {...a11yProps(
+                      (canViewInventoryEntries ? 1 : 0) +
+                        (canViewInventoryPhysicalCount ? 1 : 0) +
+                        (canViewInventoryAdjustments ? 1 : 0)
+                    )}
+                  />
                 </Tabs>
               </Box>
 
@@ -198,6 +207,26 @@ const ProductsAdminPage: React.FC = () => {
                   </Box>
                 </CustomTabPanel>
               )}
+
+              <CustomTabPanel
+                value={inventoryTabValue}
+                index={
+                  (canViewInventoryEntries ? 1 : 0) +
+                  (canViewInventoryPhysicalCount ? 1 : 0) +
+                  (canViewInventoryAdjustments ? 1 : 0)
+                }
+              >
+                <Box sx={{ p: 2 }}>
+                  <Typography
+                    variant="h6"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Historial de Movimientos
+                  </Typography>
+                  <InventoryMovements />
+                </Box>
+              </CustomTabPanel>
             </Box>
           </CustomTabPanel>
         )}

@@ -23,6 +23,7 @@ import { appContext } from "../../appContext";
 import { generateNewOrderId, getLastOrderId } from "../orders/order.motor";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+
 import {
   openSnackBarOrderRegistered,
   openSnackBarSplitPaymentRegistered,
@@ -49,6 +50,7 @@ import PercentIcon from "@mui/icons-material/Percent";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import CloseIcon from "@mui/icons-material/Close";
 import ClearIcon from "@mui/icons-material/Clear";
+import { OrderProductPayload } from "./cart.model";
 
 export const CalcTotal: React.FC = () => {
   const navigate = useNavigate();
@@ -232,13 +234,19 @@ export const CalcTotal: React.FC = () => {
       // Process products to ensure correct structure for the API
       const processedProducts = productsInCart.map((product) => {
         console.log(productsInCart);
-        const baseProduct = {
+        const baseProduct: OrderProductPayload = {
           id: product.id, // Always use the main product ID
           name: product.name,
           price: product.price,
-          quantity: product.quantity,
+          quantity: product.quantity || 1, // Default to 1 if undefined
           category_name: product.category_name || "",
+          is_combo: product.is_combo || false, // Add combo flag
         };
+
+        // If this is a combo, add the combo products metadata
+        if (product.is_combo && product.combo_products) {
+          baseProduct.combo_products = product.combo_products;
+        }
 
         // Check if this IS a variant (has product_variant_id that differs from product id)
         if (

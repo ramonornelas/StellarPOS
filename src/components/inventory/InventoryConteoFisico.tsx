@@ -427,7 +427,7 @@ const InventoryConteoFisico: React.FC = () => {
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2">
               <strong>Reconteo Requerido:</strong> Se detectaron diferencias en
-              los siguientes items. Debes completar el reconteo de TODOS los
+              los siguientes productos. Debes completar el reconteo de TODOS los
               productos mostrados.
             </Typography>
           </Alert>
@@ -463,32 +463,36 @@ const InventoryConteoFisico: React.FC = () => {
               }
             </strong>
           </Typography>
-          <Chip
-            label={
-              currentItems.filter(
-                (item) =>
-                  !item.isProductHeader &&
-                  item.counted_quantity !== "" &&
-                  Number(item.counted_quantity) >= 0
-              ).length ===
-              currentItems.filter((item) => !item.isProductHeader).length
-                ? "✓ Completo"
-                : "Pendiente"
-            }
-            size="small"
-            color={
-              currentItems.filter(
-                (item) =>
-                  !item.isProductHeader &&
-                  item.counted_quantity !== "" &&
-                  Number(item.counted_quantity) >= 0
-              ).length ===
-              currentItems.filter((item) => !item.isProductHeader).length
-                ? "success"
-                : "warning"
-            }
-            variant="outlined"
-          />
+          {currentItems.filter(
+            (item) => !item.isProductHeader && item.counted_quantity !== ""
+          ).length > 0 && (
+            <Chip
+              label={
+                currentItems.filter(
+                  (item) =>
+                    !item.isProductHeader &&
+                    item.counted_quantity !== "" &&
+                    Number(item.counted_quantity) >= 0
+                ).length ===
+                currentItems.filter((item) => !item.isProductHeader).length
+                  ? "✓ Completo"
+                  : "Pendiente"
+              }
+              size="small"
+              color={
+                currentItems.filter(
+                  (item) =>
+                    !item.isProductHeader &&
+                    item.counted_quantity !== "" &&
+                    Number(item.counted_quantity) >= 0
+                ).length ===
+                currentItems.filter((item) => !item.isProductHeader).length
+                  ? "success"
+                  : "warning"
+              }
+              variant="outlined"
+            />
+          )}
         </Box>
       </Box>
 
@@ -507,7 +511,7 @@ const InventoryConteoFisico: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
-                    No hay items para contar
+                    No hay productos para contar
                   </Typography>
                 </TableCell>
               </TableRow>

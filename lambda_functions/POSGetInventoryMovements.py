@@ -17,6 +17,8 @@ from datetime import datetime
 from decimal import Decimal
 import base64
 from urllib.parse import unquote
+import unicodedata
+import re
 
 def get_table_name(table_type, stage):
     """Get table name based on the stage and table type"""
@@ -39,6 +41,29 @@ def get_table_name(table_type, stage):
     return table_names.get(table_type)
 
 dynamodb = boto3.resource('dynamodb')
+
+def normalize_text_for_search(text):
+    """
+    Normalize text for case-insensitive and accent-insensitive search
+    Converts 'Ácido' -> 'acido', 'SHAMPOO' -> 'shampoo', etc.
+    """
+    if not text:
+        return ""
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove accents/diacritics using Unicode normalization
+    # NFD = Normal Form Decomposed (separates base characters from accents)
+    text = unicodedata.normalize('NFD', text)
+    
+    # Remove combining characters (accents)
+    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+    
+    # Optional: remove extra whitespace and special characters for cleaner matching
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -215,7 +240,7 @@ def validate_list_parameters(query_params):
     # Movement type
     movement_type = query_params.get('movement_type')
     if movement_type:
-        if movement_type not in ['addition', 'adjustment', 'count']:
+        if movement_type not in ['addition', 'adjustment', 'count', 'return', 'sale']:
             errors.append({'field': 'movement_type', 'reason': 'Invalid movement type'})
         else:
             filters['movement_type'] = movement_type
@@ -361,7 +386,10 @@ def filter_by_product_search(movements, search_term, stage):
         try:
             response = product_table.get_item(Key={'id': product_id})
             if 'Item' in response:
-                product_names[product_id] = response['Item'].get('name', '').lower()
+                # Normalize product name for search
+                product_names[product_id] = normalize_text_for_search(
+                    response['Item'].get('name', '')
+                )
         except:
             continue
     
@@ -370,20 +398,24 @@ def filter_by_product_search(movements, search_term, stage):
         try:
             response = variant_table.get_item(Key={'id': variant_id})
             if 'Item' in response:
-                variant_names[variant_id] = response['Item'].get('name', '').lower()
+                # Normalize variant name for search
+                variant_names[variant_id] = normalize_text_for_search(
+                    response['Item'].get('name', '')
+                )
         except:
             continue
     
-    # Filter movements by search term
-    search_term_lower = search_term.lower()
+    # Normalize search term
+    search_term_normalized = normalize_text_for_search(search_term)
     filtered_movements = []
     
     for movement in movements:
         product_name = product_names.get(movement['product_id'], '')
         variant_name = variant_names.get(movement.get('product_variant_id'), '')
         
-        if (search_term_lower in product_name or 
-            search_term_lower in variant_name):
+        # Check if normalized search term is in normalized product/variant names
+        if (search_term_normalized in product_name or 
+            search_term_normalized in variant_name):
             filtered_movements.append(movement)
     
     return filtered_movements

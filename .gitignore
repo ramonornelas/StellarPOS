@@ -32,3 +32,5 @@ PRODUCT_REFACTORING_SUMMARY.md
 # Documentation and templates
 templates/
 user_stories/
+test-results/
+playwright-report/
