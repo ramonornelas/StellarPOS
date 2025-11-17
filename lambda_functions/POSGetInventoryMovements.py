@@ -308,9 +308,8 @@ def query_movements(movement_table, filters):
         filter_expressions.append('created_datetime <= :date_to')
         expression_values[':date_to'] = filters['date_to']
     
-    if filters.get('user_id'):
-        filter_expressions.append('user_id = :user_id')
-        expression_values[':user_id'] = filters['user_id']
+    # Note: user_id filter is applied after scan because sales use 'updated_user_id' field
+    # while other movements use 'user_id' field
     
     if filters.get('run_id'):
         filter_expressions.append('run_id = :run_id')
@@ -344,6 +343,10 @@ def query_movements(movement_table, filters):
         # Need to pass stage for product search filtering
         stage = filters.get('stage', 'prod')
         all_items = filter_by_product_search(all_items, filters['product_search'], stage)
+    
+    # Apply user_id filter (handles both user_id and updated_user_id fields)
+    if filters.get('user_id'):
+        all_items = filter_by_user_id(all_items, filters['user_id'])
     
     # Sort by created_datetime descending
     all_items.sort(key=lambda x: x.get('created_datetime', ''), reverse=True)
@@ -420,6 +423,26 @@ def filter_by_product_search(movements, search_term, stage):
     
     return filtered_movements
 
+def filter_by_user_id(movements, user_id):
+    """Filter movements by user ID, handling both user_id and updated_user_id fields"""
+    if not user_id:
+        return movements
+    
+    filtered_movements = []
+    
+    for movement in movements:
+        # For 'sale' movements, check 'user_id' first, then 'updated_user_id' for backward compatibility
+        # For other movements, check 'user_id'
+        if movement.get('movement_type') == 'sale':
+            movement_user_id = movement.get('user_id') or movement.get('updated_user_id')
+            if movement_user_id == user_id:
+                filtered_movements.append(movement)
+        else:
+            if movement.get('user_id') == user_id:
+                filtered_movements.append(movement)
+    
+    return filtered_movements
+
 def enrich_movements_data(movements, product_table, variant_table, user_table, movement_run_table):
     """Enrich movements with product, variant, user, and run data"""
     enriched = []
@@ -454,8 +477,15 @@ def enrich_movements_data(movements, product_table, variant_table, user_table, m
                     variant_cache[variant_id] = {}
             variant = variant_cache[variant_id]
         
-        # Get user data
-        user_id = movement.get('user_id')
+        # Get user data - handle different user_id fields based on movement type
+        # For 'sale' movements, prefer 'user_id' but fallback to 'updated_user_id' for backward compatibility
+        # For other movements, use 'user_id'
+        user_id = None
+        if movement.get('movement_type') == 'sale':
+            user_id = movement.get('user_id') or movement.get('updated_user_id')
+        else:
+            user_id = movement.get('user_id')
+        
         if user_id and user_id not in user_cache:
             try:
                 response = user_table.get_item(Key={'id': user_id})
@@ -495,7 +525,7 @@ def enrich_movements_data(movements, product_table, variant_table, user_table, m
             'new_quantity': float(movement.get('new_quantity', 0)),
             'notes': movement.get('notes', ''),
             'user_id': user_id,
-            'user_name': user.get('name', 'Unknown User'),
+            'user_name': user.get('username', 'Unknown User'),
             'created_datetime': movement.get('created_datetime'),
             'run_id': run_id,
             'run_type': run_data.get('movement_type', 'manual'),

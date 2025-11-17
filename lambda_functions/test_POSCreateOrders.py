@@ -13,7 +13,7 @@ def test_TEST_environment():
             'resourcePath': '/orders'
         },
         'body': json.dumps({
-            'date': '2025-11-12',
+            'date': '2025-11-17',
             'ticket': '#400',
             'subtotal': 15,
             'payment_method': 'cash',
@@ -73,7 +73,7 @@ def test_TEST_environment_with_variant():
             'resourcePath': '/orders'
         },
         'body': json.dumps({
-            'date': '2025-10-28',
+            'date': '2025-11-17',
             'ticket': '#020',
             'subtotal': 12,
             'payment_method': 'cash',

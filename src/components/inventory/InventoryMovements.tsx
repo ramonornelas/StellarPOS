@@ -65,17 +65,35 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-// Helper function to format date without timezone conversion
+// Helper function to format date without timezone conversion (start of day)
 const formatDateToLocal = (date: Date): string => {
   const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}T00:00:00`;
 };
 
-// Helper function to create a local Date object from YYYY-MM-DD string
+// Helper function to format date for "date_to" to include the entire day
+const formatDateToLocalEndOfDay = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}-${month}-${day}T23:59:59`;
+};
+
+// Helper function to create a local Date object from YYYY-MM-DD string or YYYY-MM-DD HH:mm:ss string or ISO string
 const createLocalDateFromString = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(num => parseInt(num, 10));
+  // Extract just the date part if there's a time component
+  let datePart = dateString;
+  if (dateString.includes(" ")) {
+    datePart = dateString.split(" ")[0];
+  } else if (dateString.includes("T")) {
+    datePart = dateString.split("T")[0];
+  }
+
+  const [year, month, day] = datePart
+    .split("-")
+    .map((num) => parseInt(num, 10));
   // Create date in local timezone (month is 0-indexed in Date constructor)
   return new Date(year, month - 1, day);
 };
@@ -316,13 +334,13 @@ const InventoryMovements: React.FC = () => {
               <DatePicker
                 label="Fecha desde"
                 value={
-                  tempFilters.date_from ? createLocalDateFromString(tempFilters.date_from) : null
+                  tempFilters.date_from
+                    ? createLocalDateFromString(tempFilters.date_from)
+                    : null
                 }
                 onChange={(date) => {
-                  handleFilterChange(
-                    "date_from",
-                    date ? formatDateToLocal(date) : null
-                  );
+                  const formattedDate = date ? formatDateToLocal(date) : null;
+                  handleFilterChange("date_from", formattedDate);
                 }}
                 slotProps={{ textField: { size: "small", fullWidth: true } }}
               />
@@ -332,13 +350,21 @@ const InventoryMovements: React.FC = () => {
               <DatePicker
                 label="Fecha hasta"
                 value={
-                  tempFilters.date_to ? createLocalDateFromString(tempFilters.date_to) : null
+                  tempFilters.date_to
+                    ? createLocalDateFromString(tempFilters.date_to)
+                    : null
                 }
                 onChange={(date) => {
-                  handleFilterChange(
-                    "date_to",
-                    date ? formatDateToLocal(date) : null
+                  const formattedDate = date
+                    ? formatDateToLocalEndOfDay(date)
+                    : null;
+                  console.log(
+                    "Fecha hasta seleccionada:",
+                    date,
+                    "-> Formato enviado:",
+                    formattedDate
                   );
+                  handleFilterChange("date_to", formattedDate);
                 }}
                 slotProps={{ textField: { size: "small", fullWidth: true } }}
               />

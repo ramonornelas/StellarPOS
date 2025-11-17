@@ -928,15 +928,6 @@ const ProductTable: React.FC = () => {
                   </TableCell>
                   <TableCell style={{ padding: "4px 8px" }}>
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Tooltip title="Cancelar">
-                        <IconButton
-                          onClick={handleCancelAdd}
-                          color="error"
-                          size="small"
-                        >
-                          <CancelIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                       <Tooltip title="Agregar">
                         <IconButton
                           onClick={handleAdd}
@@ -944,6 +935,15 @@ const ProductTable: React.FC = () => {
                           size="small"
                         >
                           <CheckIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Cancelar">
+                        <IconButton
+                          onClick={handleCancelAdd}
+                          color="error"
+                          size="small"
+                        >
+                          <CancelIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Box>
