@@ -407,3 +407,24 @@ export const applyPhysicalCount = async (
     throw error;
   }
 };
+
+// Get combo products for a specific combo ID
+export const getComboProducts = async (comboId: string) => {
+  try {
+    const combos = await fetchProductCombos();
+    return combos
+      .filter((combo: { product_id: string }) => combo.product_id === comboId)
+      .map(
+        (combo: {
+          included_product_id: string;
+          included_product_quantity?: number;
+        }) => ({
+          product_id: combo.included_product_id,
+          quantity_per_combo: combo.included_product_quantity || 1,
+        })
+      );
+  } catch (error) {
+    console.error("Error fetching combo products:", error);
+    return [];
+  }
+};

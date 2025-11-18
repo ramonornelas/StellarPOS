@@ -95,6 +95,11 @@ export const getFilteredProducts = (
       return false;
     }
 
+    // Exclude combos from inventory adjustments
+    if (product.is_combo) {
+      return false;
+    }
+
     if (!product.has_variants) {
       return !isProductAlreadySelected(product.id, rows, idx);
     }

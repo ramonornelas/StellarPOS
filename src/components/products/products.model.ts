@@ -15,6 +15,12 @@ export interface Product {
   stock_available?: number;
   barcode?: string;
   variants?: ProductVariant[];
+  combo_products?: ComboProduct[];
+}
+
+export interface ComboProduct {
+  product_id: string;
+  quantity_per_combo: number;
 }
 
 export interface ProductVariant {

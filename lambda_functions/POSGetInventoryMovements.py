@@ -17,6 +17,8 @@ from datetime import datetime
 from decimal import Decimal
 import base64
 from urllib.parse import unquote
+import unicodedata
+import re
 
 def get_table_name(table_type, stage):
     """Get table name based on the stage and table type"""
@@ -39,6 +41,29 @@ def get_table_name(table_type, stage):
     return table_names.get(table_type)
 
 dynamodb = boto3.resource('dynamodb')
+
+def normalize_text_for_search(text):
+    """
+    Normalize text for case-insensitive and accent-insensitive search
+    Converts 'Ácido' -> 'acido', 'SHAMPOO' -> 'shampoo', etc.
+    """
+    if not text:
+        return ""
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove accents/diacritics using Unicode normalization
+    # NFD = Normal Form Decomposed (separates base characters from accents)
+    text = unicodedata.normalize('NFD', text)
+    
+    # Remove combining characters (accents)
+    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+    
+    # Optional: remove extra whitespace and special characters for cleaner matching
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -215,7 +240,7 @@ def validate_list_parameters(query_params):
     # Movement type
     movement_type = query_params.get('movement_type')
     if movement_type:
-        if movement_type not in ['addition', 'adjustment', 'count']:
+        if movement_type not in ['addition', 'adjustment', 'count', 'return', 'sale']:
             errors.append({'field': 'movement_type', 'reason': 'Invalid movement type'})
         else:
             filters['movement_type'] = movement_type
@@ -283,9 +308,8 @@ def query_movements(movement_table, filters):
         filter_expressions.append('created_datetime <= :date_to')
         expression_values[':date_to'] = filters['date_to']
     
-    if filters.get('user_id'):
-        filter_expressions.append('user_id = :user_id')
-        expression_values[':user_id'] = filters['user_id']
+    # Note: user_id filter is applied after scan because sales use 'updated_user_id' field
+    # while other movements use 'user_id' field
     
     if filters.get('run_id'):
         filter_expressions.append('run_id = :run_id')
@@ -319,6 +343,10 @@ def query_movements(movement_table, filters):
         # Need to pass stage for product search filtering
         stage = filters.get('stage', 'prod')
         all_items = filter_by_product_search(all_items, filters['product_search'], stage)
+    
+    # Apply user_id filter (handles both user_id and updated_user_id fields)
+    if filters.get('user_id'):
+        all_items = filter_by_user_id(all_items, filters['user_id'])
     
     # Sort by created_datetime descending
     all_items.sort(key=lambda x: x.get('created_datetime', ''), reverse=True)
@@ -361,7 +389,10 @@ def filter_by_product_search(movements, search_term, stage):
         try:
             response = product_table.get_item(Key={'id': product_id})
             if 'Item' in response:
-                product_names[product_id] = response['Item'].get('name', '').lower()
+                # Normalize product name for search
+                product_names[product_id] = normalize_text_for_search(
+                    response['Item'].get('name', '')
+                )
         except:
             continue
     
@@ -370,21 +401,45 @@ def filter_by_product_search(movements, search_term, stage):
         try:
             response = variant_table.get_item(Key={'id': variant_id})
             if 'Item' in response:
-                variant_names[variant_id] = response['Item'].get('name', '').lower()
+                # Normalize variant name for search
+                variant_names[variant_id] = normalize_text_for_search(
+                    response['Item'].get('name', '')
+                )
         except:
             continue
     
-    # Filter movements by search term
-    search_term_lower = search_term.lower()
+    # Normalize search term
+    search_term_normalized = normalize_text_for_search(search_term)
     filtered_movements = []
     
     for movement in movements:
         product_name = product_names.get(movement['product_id'], '')
         variant_name = variant_names.get(movement.get('product_variant_id'), '')
         
-        if (search_term_lower in product_name or 
-            search_term_lower in variant_name):
+        # Check if normalized search term is in normalized product/variant names
+        if (search_term_normalized in product_name or 
+            search_term_normalized in variant_name):
             filtered_movements.append(movement)
+    
+    return filtered_movements
+
+def filter_by_user_id(movements, user_id):
+    """Filter movements by user ID, handling both user_id and updated_user_id fields"""
+    if not user_id:
+        return movements
+    
+    filtered_movements = []
+    
+    for movement in movements:
+        # For 'sale' movements, check 'user_id' first, then 'updated_user_id' for backward compatibility
+        # For other movements, check 'user_id'
+        if movement.get('movement_type') == 'sale':
+            movement_user_id = movement.get('user_id') or movement.get('updated_user_id')
+            if movement_user_id == user_id:
+                filtered_movements.append(movement)
+        else:
+            if movement.get('user_id') == user_id:
+                filtered_movements.append(movement)
     
     return filtered_movements
 
@@ -422,8 +477,15 @@ def enrich_movements_data(movements, product_table, variant_table, user_table, m
                     variant_cache[variant_id] = {}
             variant = variant_cache[variant_id]
         
-        # Get user data
-        user_id = movement.get('user_id')
+        # Get user data - handle different user_id fields based on movement type
+        # For 'sale' movements, prefer 'user_id' but fallback to 'updated_user_id' for backward compatibility
+        # For other movements, use 'user_id'
+        user_id = None
+        if movement.get('movement_type') == 'sale':
+            user_id = movement.get('user_id') or movement.get('updated_user_id')
+        else:
+            user_id = movement.get('user_id')
+        
         if user_id and user_id not in user_cache:
             try:
                 response = user_table.get_item(Key={'id': user_id})
@@ -463,7 +525,7 @@ def enrich_movements_data(movements, product_table, variant_table, user_table, m
             'new_quantity': float(movement.get('new_quantity', 0)),
             'notes': movement.get('notes', ''),
             'user_id': user_id,
-            'user_name': user.get('name', 'Unknown User'),
+            'user_name': user.get('username', 'Unknown User'),
             'created_datetime': movement.get('created_datetime'),
             'run_id': run_id,
             'run_type': run_data.get('movement_type', 'manual'),

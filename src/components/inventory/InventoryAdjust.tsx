@@ -19,6 +19,7 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Tooltip,
 } from "@mui/material";
 import { DataContext } from "../../dataContext";
 
@@ -57,6 +58,7 @@ import {
   removeVariantError,
   setError,
 } from "./inventoryAdjustHelpers";
+import { Info } from "@mui/icons-material";
 
 const InventoryAdjust: React.FC = () => {
   const [rows, setRows] = useState<AdjustmentRow[]>([]);
@@ -523,7 +525,22 @@ const InventoryAdjust: React.FC = () => {
             <TableRow>
               <TableCell>Producto</TableCell>
               <TableCell align="right">Stock Actual</TableCell>
-              <TableCell align="right">Ajuste (Δ)</TableCell>
+              <TableCell
+                align="right"
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+              >
+                <Tooltip
+                  sx={{
+                    fontSize: "1.2rem",
+                    cursor: "pointer",
+                    color: "info.main",
+                  }}
+                  title="Puedes ingresar cantidades negativas o positivas"
+                >
+                  <Info />
+                </Tooltip>
+                <span>Cantidad</span>
+              </TableCell>
               <TableCell align="right">Stock Final</TableCell>
               <TableCell>Notas del Producto</TableCell>
               <TableCell align="center">Acciones</TableCell>

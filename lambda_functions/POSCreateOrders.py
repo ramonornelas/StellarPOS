@@ -15,7 +15,8 @@ def get_table_names(stage):
             'SPLIT_PAYMENT_TABLE': os.getenv('TEST_SPLIT_PAYMENT_TABLE', 'test_POS_orderSplitPayment'),
             'INVENTORY_MOVEMENT_TABLE': os.getenv('TEST_INVENTORY_MOVEMENT_TABLE', 'test_inventory_movement'),
             'POS_PRODUCT_TABLE': os.getenv('TEST_POS_PRODUCT_TABLE', 'test_POS_product'),
-            'POS_PRODUCT_VARIANT_TABLE': os.getenv('TEST_POS_PRODUCT_VARIANT_TABLE', 'test_POS_product_variant')
+            'POS_PRODUCT_VARIANT_TABLE': os.getenv('TEST_POS_PRODUCT_VARIANT_TABLE', 'test_POS_product_variant'),
+            'POS_PRODUCT_COMBO_TABLE': os.getenv('POS_PRODUCT_COMBO_TABLE', 'test_POS_product_combo')
         }
     else:
         return {
@@ -24,7 +25,8 @@ def get_table_names(stage):
             'SPLIT_PAYMENT_TABLE': os.getenv('SPLIT_PAYMENT_TABLE', 'POS_orderSplitPayment'),
             'INVENTORY_MOVEMENT_TABLE': os.getenv('INVENTORY_MOVEMENT_TABLE', 'inventory_movement'),
             'POS_PRODUCT_TABLE': os.getenv('POS_PRODUCT_TABLE', 'POS_product'),
-            'POS_PRODUCT_VARIANT_TABLE': os.getenv('POS_PRODUCT_VARIANT_TABLE', 'POS_product_variant')
+            'POS_PRODUCT_VARIANT_TABLE': os.getenv('POS_PRODUCT_VARIANT_TABLE', 'POS_product_variant'),
+            'POS_PRODUCT_COMBO_TABLE': os.getenv('POS_PRODUCT_COMBO_TABLE', 'POS_product_combo')
         }
 
 dynamodb_client = boto3.client('dynamodb')
@@ -49,9 +51,10 @@ def lambda_handler(event, context):
         INVENTORY_MOVEMENT_TABLE = tables['INVENTORY_MOVEMENT_TABLE']
         POS_PRODUCT_TABLE = tables['POS_PRODUCT_TABLE']
         POS_PRODUCT_VARIANT_TABLE = tables['POS_PRODUCT_VARIANT_TABLE']
+        POS_PRODUCT_COMBO_TABLE = tables['POS_PRODUCT_COMBO_TABLE']
         
         print(f"Stage: {stage}")
-        print(f"Using tables: {ORDER_TICKET_TABLE}, {ORDER_PRODUCT_TABLE}, {POS_PRODUCT_TABLE}, {POS_PRODUCT_VARIANT_TABLE}, {INVENTORY_MOVEMENT_TABLE}")
+        print(f"Using tables: {ORDER_TICKET_TABLE}, {ORDER_PRODUCT_TABLE}, {POS_PRODUCT_TABLE}, {POS_PRODUCT_VARIANT_TABLE}, {INVENTORY_MOVEMENT_TABLE}, {POS_PRODUCT_COMBO_TABLE}")
 
         if 'body' in event:
             order = json.loads(event['body'])
@@ -95,7 +98,7 @@ def lambda_handler(event, context):
             transaction_items.append({
                 'Put': {
                     'TableName': ORDER_TICKET_TABLE,
-                    'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in new_orderTicket.items()}
+                    'Item': convert_to_dynamodb_item(new_orderTicket)
                 }
             })
 
@@ -107,40 +110,65 @@ def lambda_handler(event, context):
                 transaction_items.append({
                     'Put': {
                         'TableName': ORDER_PRODUCT_TABLE,
-                        'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_product_record(product_data, new_orderTicket).items()}
+                        'Item': convert_to_dynamodb_item(create_order_product_record(product_data, new_orderTicket))
                     }
                 })
 
-                # Put inventory movement record (same transaction)
-                transaction_items.append({
-                    'Put': {
-                        'TableName': INVENTORY_MOVEMENT_TABLE,
-                        'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_inventory_movement_record(product_data, new_orderTicket).items()}
-                    }
-                })
-
-                # Decrement stock: only variant if variant present; otherwise product stock
-                product_variant_id = product_data.get('product_variant_id', 'no_variant')
-                qty_str = str(product_data['quantity'])
-                if product_variant_id and product_variant_id != 'no_variant':
-                    # Decrement only the variant stock_available (allow negative)
+                # Only create inventory movement and stock updates for non-combo products
+                # Combos don't have inventory themselves, only their components do
+                if not product_data.get('is_combo', False):
+                    # Put inventory movement record (same transaction)
                     transaction_items.append({
-                        'Update': {
-                            'TableName': POS_PRODUCT_VARIANT_TABLE,
-                            'Key': {'id': {'S': product_variant_id}},
-                            'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
-                            'ExpressionAttributeValues': {
-                                ':zero': {'N': '0'},
-                                ':qty': {'N': qty_str}
-                            }
+                        'Put': {
+                            'TableName': INVENTORY_MOVEMENT_TABLE,
+                            'Item': convert_to_dynamodb_item(create_inventory_movement_record(product_data, new_orderTicket, None, None, POS_PRODUCT_TABLE, POS_PRODUCT_VARIANT_TABLE))
                         }
                     })
-                else:
-                    # Decrement product stock_available when there is no variant (allow negative)
+
+                    # Decrement stock: only variant if variant present; otherwise product stock
+                    product_variant_id = product_data.get('product_variant_id', 'no_variant')
+                    qty_str = str(product_data['quantity'])
+                    if product_variant_id and product_variant_id != 'no_variant':
+                        # Decrement only the variant stock_available (allow negative)
+                        transaction_items.append({
+                            'Update': {
+                                'TableName': POS_PRODUCT_VARIANT_TABLE,
+                                'Key': {'id': {'S': product_variant_id}},
+                                'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
+                                'ExpressionAttributeValues': {
+                                    ':zero': {'N': '0'},
+                                    ':qty': {'N': qty_str}
+                                }
+                            }
+                        })
+                    else:
+                        # Decrement product stock_available when there is no variant (allow negative)
+                        transaction_items.append({
+                            'Update': {
+                                'TableName': POS_PRODUCT_TABLE,
+                                'Key': {'id': {'S': product_data['id']}},
+                                'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
+                                'ExpressionAttributeValues': {
+                                    ':zero': {'N': '0'},
+                                    ':qty': {'N': qty_str}
+                                }
+                            }
+                        })
+
+            # Process combo products and their components
+            try:
+                # Calculate decrements for all combo components
+                combo_decrements, combo_details = calculate_combo_decrements(products, POS_PRODUCT_COMBO_TABLE, POS_PRODUCT_TABLE)
+                
+                # Apply component decrements to inventory and create movement records
+                for component_product_id, decrement_quantity in combo_decrements.items():
+                    qty_str = str(decrement_quantity)
+                    
+                    # Update stock
                     transaction_items.append({
                         'Update': {
                             'TableName': POS_PRODUCT_TABLE,
-                            'Key': {'id': {'S': product_data['id']}},
+                            'Key': {'id': {'S': component_product_id}},
                             'UpdateExpression': 'SET stock_available = if_not_exists(stock_available, :zero) - :qty',
                             'ExpressionAttributeValues': {
                                 ':zero': {'N': '0'},
@@ -148,6 +176,26 @@ def lambda_handler(event, context):
                             }
                         }
                     })
+                    
+                    # Create inventory movement record for combo component
+                    combo_name = combo_details.get(component_product_id, "Combo desconocido")
+                    movement_record = create_combo_inventory_movement_record(
+                        component_product_id, 
+                        decrement_quantity, 
+                        new_orderTicket, 
+                        combo_name,
+                        POS_PRODUCT_TABLE
+                    )
+                    transaction_items.append({
+                        'Put': {
+                            'TableName': INVENTORY_MOVEMENT_TABLE,
+                            'Item': convert_to_dynamodb_item(movement_record)
+                        }
+                    })
+                    
+            except Exception as combo_error:
+                print(f"Error processing combo components: {combo_error}")
+                raise combo_error
 
             # Add split payments to transaction
             if len(split_payments) > 0:
@@ -155,7 +203,7 @@ def lambda_handler(event, context):
                     transaction_items.append({
                         'Put': {
                             'TableName': SPLIT_PAYMENT_TABLE,
-                            'Item': {k: {'S': str(v)} if isinstance(v, str) else {'N': str(v)} for k, v in create_order_split_payment_record(split_payment, new_orderTicket).items()}
+                            'Item': convert_to_dynamodb_item(create_order_split_payment_record(split_payment, new_orderTicket))
                         }
                     })
 
@@ -184,6 +232,25 @@ def lambda_handler(event, context):
 def get_current_datetime():
     return datetime.datetime.now().isoformat()
 
+def convert_to_dynamodb_item(data):
+    """
+    Convert Python data types to DynamoDB format
+    """
+    item = {}
+    for key, value in data.items():
+        if value is None:
+            continue  # Skip None values
+        elif isinstance(value, str):
+            item[key] = {'S': value}
+        elif isinstance(value, (int, float, decimal.Decimal)):
+            item[key] = {'N': str(value)}
+        elif isinstance(value, bool):
+            item[key] = {'BOOL': value}
+        else:
+            # For any other type, convert to string
+            item[key] = {'S': str(value)}
+    return item
+
 # Update the group_products function to ensure prices and totals are rounded
 def group_products(products):
     grouped_products = {}
@@ -192,6 +259,8 @@ def group_products(products):
         product_variant_id = product.get('product_variant_id', 'no_variant')
         price = decimal.Decimal(str(product.get('price', 0))).quantize(TWO_DECIMAL_PLACES)
         quantity = decimal.Decimal(str(product.get('quantity', 1))).quantize(TWO_DECIMAL_PLACES)
+        is_combo = product.get('is_combo', False)
+        combo_products = product.get('combo_products', [])
         key = (product_id, product_variant_id)
         
         if key in grouped_products:
@@ -205,7 +274,9 @@ def group_products(products):
                 'total': (price * quantity).quantize(TWO_DECIMAL_PLACES),
                 'name': product.get('name', ''),
                 'price': price,
-                'category_name': product.get('category_name', '')
+                'category_name': product.get('category_name', ''),
+                'is_combo': is_combo,
+                'combo_products': combo_products
             }
     return grouped_products
 
@@ -227,7 +298,21 @@ def create_order_product_record(product_data, new_orderTicket):
     }
 
 # Ensure quantization in create_inventory_movement_record
-def create_inventory_movement_record(product_data, new_orderTicket):
+def create_inventory_movement_record(product_data, new_orderTicket, previous_quantity=None, new_quantity=None, pos_product_table=None, pos_product_variant_table=None):
+    # For sales, quantity should be negative to indicate stock reduction
+    sale_quantity = -abs(product_data['quantity'])  # Make sure it's negative
+    
+    # If previous_quantity and new_quantity not provided, calculate them
+    if previous_quantity is None or new_quantity is None:
+        current_stock = get_current_stock(
+            product_data['id'], 
+            product_data.get('product_variant_id', 'no_variant'),
+            pos_product_table,
+            pos_product_variant_table
+        )
+        previous_quantity = current_stock
+        new_quantity = current_stock + sale_quantity  # sale_quantity is negative
+    
     return {
         'id': str(uuid.uuid4()),
         'product_id': product_data['id'],
@@ -236,12 +321,15 @@ def create_inventory_movement_record(product_data, new_orderTicket):
         'movement_type': 'sale',
         'date': new_orderTicket['date'],
         'transactionTicket_id': new_orderTicket['id'],
-        'quantity': product_data['quantity'],
+        'quantity': sale_quantity,
+        'previous_quantity': previous_quantity.quantize(TWO_DECIMAL_PLACES),
+        'new_quantity': new_quantity.quantize(TWO_DECIMAL_PLACES),
         'product_price': product_data['price'].quantize(TWO_DECIMAL_PLACES),
         'product_cost': product_data.get('cost', decimal.Decimal('0.00')).quantize(TWO_DECIMAL_PLACES),
         'notes': new_orderTicket.get('notes', ''),
         'created_datetime': get_current_datetime(),
         'updated_datetime': get_current_datetime(),
+        'user_id': new_orderTicket['updated_user_id'],  # For compatibility with other systems
         'updated_user_id': new_orderTicket['updated_user_id']
     }
 
@@ -255,5 +343,177 @@ def create_order_split_payment_record(split_payment, new_orderTicket):
         'amount': amount,
         'created_datetime': get_current_datetime(),
         'updated_datetime': get_current_datetime(),
+        'updated_user_id': new_orderTicket['updated_user_id']
+    }
+
+def get_combo_components(combo_product_id, combo_table_name):
+    """
+    Retrieve combo components from POS_product_combo table
+    Returns list of component products with their quantities
+    """
+    try:
+        response = dynamodb_client.query(
+            TableName=combo_table_name,
+            KeyConditionExpression='product_id = :product_id',
+            ExpressionAttributeValues={
+                ':product_id': {'S': combo_product_id}
+            }
+        )
+        
+        components = []
+        for item in response.get('Items', []):
+            components.append({
+                'included_product_id': item['included_product_id']['S'],
+                'included_product_quantity': decimal.Decimal(item['included_product_quantity']['N']).quantize(TWO_DECIMAL_PLACES)
+            })
+        
+        return components
+    except Exception as e:
+        print(f"Error retrieving combo components for {combo_product_id}: {e}")
+        raise e
+
+def validate_combo_components(combo_components, product_table_name):
+    """
+    Validate that all combo component products exist and are active
+    """
+    try:
+        for component in combo_components:
+            response = dynamodb_client.get_item(
+                TableName=product_table_name,
+                Key={'id': {'S': component['included_product_id']}}
+            )
+            
+            if 'Item' not in response:
+                raise ValueError(f"Component product {component['included_product_id']} not found")
+            
+            # Check if product is active (assuming is_active field exists)
+            item = response['Item']
+            if 'is_active' in item and item['is_active'].get('BOOL', True) is False:
+                raise ValueError(f"Component product {component['included_product_id']} is not active")
+        
+        return True
+    except Exception as e:
+        print(f"Error validating combo components: {e}")
+        raise e
+
+def get_current_stock(product_id, variant_id=None, pos_product_table=None, pos_product_variant_table=None):
+    """
+    Get current stock for a product or product variant
+    Returns current stock_available as Decimal
+    """
+    try:
+        if variant_id and variant_id != 'no_variant':
+            # Get variant stock
+            response = dynamodb_client.get_item(
+                TableName=pos_product_variant_table,
+                Key={'id': {'S': variant_id}},
+                ProjectionExpression='stock_available'
+            )
+            if 'Item' in response and 'stock_available' in response['Item']:
+                return decimal.Decimal(response['Item']['stock_available']['N']).quantize(TWO_DECIMAL_PLACES)
+        else:
+            # Get product stock
+            response = dynamodb_client.get_item(
+                TableName=pos_product_table,
+                Key={'id': {'S': product_id}},
+                ProjectionExpression='stock_available'
+            )
+            if 'Item' in response and 'stock_available' in response['Item']:
+                return decimal.Decimal(response['Item']['stock_available']['N']).quantize(TWO_DECIMAL_PLACES)
+        
+        # Default to 0 if no stock found
+        return decimal.Decimal('0.00')
+    except Exception as e:
+        print(f"Error getting current stock for product {product_id}, variant {variant_id}: {e}")
+        return decimal.Decimal('0.00')
+
+def calculate_combo_decrements(products, combo_table_name, product_table_name):
+    """
+    Calculate inventory decrements for all combo components in the order
+    Returns tuple: (decrements_dict, combo_details_dict)
+    where combo_details_dict maps component_product_id -> combo_name
+    """
+    component_decrements = {}
+    combo_details = {}  # Maps component_product_id -> combo_name for inventory movements
+    
+    for product in products:
+        # Check if this product is a combo
+        is_combo = product.get('is_combo', False)
+        if not is_combo:
+            continue
+            
+        combo_quantity = decimal.Decimal(str(product.get('quantity', 1))).quantize(TWO_DECIMAL_PLACES)
+        combo_name = product.get('name', f"Combo {product['id']}")
+        
+        # Try to get combo components from payload first (if available)
+        combo_components_from_payload = product.get('combo_products', [])
+        combo_components = []
+        
+        if combo_components_from_payload:
+            # Use components from payload
+            print(f"Using combo components from payload for combo {product['id']}")
+            for component in combo_components_from_payload:
+                combo_components.append({
+                    'included_product_id': component['product_id'],
+                    'included_product_quantity': decimal.Decimal(str(component['quantity_per_combo'])).quantize(TWO_DECIMAL_PLACES)
+                })
+        else:
+            # Fallback: Get combo components from database
+            print(f"Fetching combo components from database for combo {product['id']}")
+            combo_components = get_combo_components(product['id'], combo_table_name)
+        
+        if not combo_components:
+            print(f"Warning: No components found for combo {product['id']}")
+            continue
+            
+        # Validate components exist and are active (only when fetching from DB)
+        if not combo_components_from_payload:
+            validate_combo_components(combo_components, product_table_name)
+        
+        # Calculate decrements for each component
+        for component in combo_components:
+            included_product_id = component['included_product_id']
+            included_quantity = component['included_product_quantity']
+            
+            # Store combo name for inventory movement records
+            combo_details[included_product_id] = combo_name
+            
+            # Calculate total decrement: combo_quantity × included_product_quantity
+            decrement = (combo_quantity * included_quantity).quantize(TWO_DECIMAL_PLACES)
+            
+            # Aggregate decrements if same component appears in multiple combos
+            if included_product_id in component_decrements:
+                component_decrements[included_product_id] += decrement
+            else:
+                component_decrements[included_product_id] = decrement
+                
+    return component_decrements, combo_details
+
+def create_combo_inventory_movement_record(component_product_id, decrement_quantity, new_orderTicket, combo_product_name, pos_product_table=None):
+    """
+    Create inventory movement record for combo component
+    """
+    # Get current stock before decrement
+    current_stock = get_current_stock(component_product_id, 'no_variant', pos_product_table, None)
+    previous_quantity = current_stock
+    new_quantity = current_stock - decrement_quantity  # decrement_quantity is positive, subtract it
+    
+    return {
+        'id': str(uuid.uuid4()),
+        'product_id': component_product_id,
+        'product_variant_id': 'no_variant',  # Combo components don't have variants for now
+        'product_name': f'Vendido en combo: {combo_product_name}',
+        'movement_type': 'sale',  # Regular sale, not a special combo type
+        'date': new_orderTicket['date'],
+        'transactionTicket_id': new_orderTicket['id'],
+        'quantity': -decrement_quantity,  # Negative because it's a decrement/sale
+        'previous_quantity': previous_quantity.quantize(TWO_DECIMAL_PLACES),
+        'new_quantity': new_quantity.quantize(TWO_DECIMAL_PLACES),
+        'product_price': decimal.Decimal('0.00'),  # Component doesn't have individual price in combo sale
+        'product_cost': decimal.Decimal('0.00'),
+        'notes': f'Vendido como componente del combo: {combo_product_name}',
+        'created_datetime': get_current_datetime(),
+        'updated_datetime': get_current_datetime(),
+        'user_id': new_orderTicket['updated_user_id'],  # For compatibility with other systems
         'updated_user_id': new_orderTicket['updated_user_id']
     }

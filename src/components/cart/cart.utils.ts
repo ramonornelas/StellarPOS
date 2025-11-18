@@ -1,6 +1,6 @@
 import { Product } from "../products/products.model";
 import { openSnackBarComboAdded } from "../snackbar/snackbar.motor";
-import { fetchProductCombos } from "../products/products-api";
+import { fetchProductCombos, getComboProducts } from "../products/products-api";
 
 export const getComboUpdates = (
   cart: Product[],
@@ -130,19 +130,33 @@ const updateCartWithCombos = async (
         }
       });
 
-      Object.values(comboQuantityMap).forEach(({ combo, quantity }) => {
+      // Process combos with proper async handling
+      for (const { combo, quantity } of Object.values(comboQuantityMap)) {
+        // Get combo products configuration
+        const comboProducts = await getComboProducts(combo.id);
+        
         // Check if the combo already exists in the cart
         const existingIdx = finalCart.findIndex((item) => item.id === combo.id);
         if (existingIdx !== -1) {
-          // If it exists, add the quantity
+          // If it exists, add the quantity and update metadata
           const prevQty = finalCart[existingIdx].quantity ?? 1;
-          finalCart[existingIdx].quantity = prevQty + quantity;
+          finalCart[existingIdx] = {
+            ...finalCart[existingIdx],
+            quantity: prevQty + quantity,
+            is_combo: true,
+            combo_products: comboProducts
+          };
         } else {
-          // If it doesn't exist, push it
-          const comboWithQty = { ...combo, quantity };
-          finalCart.push(comboWithQty);
+          // If it doesn't exist, push it with combo metadata
+          const comboWithMetadata = { 
+            ...combo, 
+            quantity,
+            is_combo: true,
+            combo_products: comboProducts
+          };
+          finalCart.push(comboWithMetadata);
         }
-      });
+      }
 
       // Show a single snackbar message indicating the number of combos added for each type
       const comboSummary = Object.entries(comboCountMap)
@@ -155,11 +169,17 @@ const updateCartWithCombos = async (
       if (comboSummary) {
         openSnackBarComboAdded(`Combos agregados:\n${comboSummary}`);
       }
+      
+      // Update cart only if combos were confirmed and applied
+      setProductsInCart(finalCart);
+    } else {
+      // If not confirmed, keep the original cart
+      setProductsInCart(updatedCart);
     }
-    // If not confirmed, do not apply any combo
+  } else {
+    // No combos to add, just update the cart with the current changes
+    setProductsInCart(finalCart);
   }
-
-  setProductsInCart(finalCart);
 };
 
 const getApplicableCombos = async (): Promise<
@@ -167,7 +187,7 @@ const getApplicableCombos = async (): Promise<
 > => {
   try {
     const combos = await fetchProductCombos();
-    return combos.map((combo: any) => ({
+    return combos.map((combo: { included_product_id: string; product_id: string; included_product_quantity: number }) => ({
       productId: combo.included_product_id,
       comboId: combo.product_id,
       comboThreshold: combo.included_product_quantity,

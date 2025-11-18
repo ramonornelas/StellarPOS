@@ -167,6 +167,9 @@ const ProductTable: React.FC = () => {
       ? products.filter((product) => product.is_active)
       : products;
 
+    // Exclude combos from product administration
+    filtered = filtered.filter((product) => !product.is_combo);
+
     filtered = filterProductsBySearch(filtered, searchTerm);
 
     if (!sortConfig) {
@@ -769,21 +772,6 @@ const ProductTable: React.FC = () => {
                 padding: "4px 8px",
                 fontWeight: "bold",
               }}
-              onClick={() => handleSort("is_combo")}
-            >
-              Combo{" "}
-              {sortConfig?.key === "is_combo"
-                ? sortConfig.direction === "asc"
-                  ? "▲"
-                  : "▼"
-                : ""}
-            </TableCell>
-            <TableCell
-              style={{
-                cursor: "pointer",
-                padding: "4px 8px",
-                fontWeight: "bold",
-              }}
               onClick={() => handleSort("is_active")}
             >
               Visible en caja{" "}
@@ -932,14 +920,6 @@ const ProductTable: React.FC = () => {
                   </TableCell>
                   <TableCell style={{ padding: "4px 8px" }}>
                     <Checkbox
-                      name="is_combo"
-                      checked={!!newProduct.is_combo}
-                      onChange={handleAddChange}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell style={{ padding: "4px 8px" }}>
-                    <Checkbox
                       name="is_active"
                       checked={!!newProduct.is_active}
                       onChange={handleAddChange}
@@ -948,15 +928,6 @@ const ProductTable: React.FC = () => {
                   </TableCell>
                   <TableCell style={{ padding: "4px 8px" }}>
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Tooltip title="Cancelar">
-                        <IconButton
-                          onClick={handleCancelAdd}
-                          color="error"
-                          size="small"
-                        >
-                          <CancelIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                       <Tooltip title="Agregar">
                         <IconButton
                           onClick={handleAdd}
@@ -964,6 +935,15 @@ const ProductTable: React.FC = () => {
                           size="small"
                         >
                           <CheckIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Cancelar">
+                        <IconButton
+                          onClick={handleCancelAdd}
+                          color="error"
+                          size="small"
+                        >
+                          <CancelIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -1203,28 +1183,6 @@ const ProductTable: React.FC = () => {
                     <TableCell style={{ padding: "4px 8px" }}>
                       {editId === product.id ? (
                         <Checkbox
-                          name="is_combo"
-                          checked={!!editData.is_combo}
-                          onChange={handleChange}
-                          size="small"
-                        />
-                      ) : (
-                        <Checkbox
-                          name="is_combo"
-                          checked={!!product.is_combo}
-                          onClick={() =>
-                            handleCheckboxToggle(product, "is_combo")
-                          }
-                          sx={{
-                            "& svg": { fill: "#4d4d4d" },
-                            ":hover": { backgroundColor: "transparent" },
-                          }}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell style={{ padding: "4px 8px" }}>
-                      {editId === product.id ? (
-                        <Checkbox
                           name="is_active"
                           checked={!!editData.is_active}
                           onChange={handleChange}
@@ -1247,15 +1205,6 @@ const ProductTable: React.FC = () => {
                     <TableCell style={{ padding: "4px 8px" }}>
                       {editId === product.id ? (
                         <Box sx={{ display: "flex", gap: 1 }}>
-                          <Tooltip title="Cancelar">
-                            <IconButton
-                              onClick={handleCancelEdit}
-                              color="error"
-                              size="small"
-                            >
-                              <CancelIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
                           <Tooltip title="Guardar">
                             <IconButton
                               onClick={handleSave}
@@ -1263,6 +1212,15 @@ const ProductTable: React.FC = () => {
                               size="small"
                             >
                               <CheckIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Cancelar">
+                            <IconButton
+                              onClick={handleCancelEdit}
+                              color="error"
+                              size="small"
+                            >
+                              <CancelIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </Box>
