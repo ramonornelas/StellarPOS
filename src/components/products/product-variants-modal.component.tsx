@@ -11,10 +11,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 import { Product, ProductVariantModal } from "./products.model";
 import classes from "./css/modal-select-variant.module.css";
 import {
@@ -22,10 +25,14 @@ import {
   deleteProductVariant,
   fetchProductVariantsByProductId,
   updateProductVariant,
+  generateBarcode,
 } from "./products-api";
 import Button from "@mui/material/Button";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { DataContext } from "../../dataContext";
+import { BarcodeModal } from "./barcode-modal.component";
+import { enqueueSnackbar } from "notistack";
+import { openSnackBarProductError } from "../snackbar/snackbar.motor";
 
 interface ProductVariantsModalProps {
   open: boolean;
@@ -58,6 +65,14 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
     name: string;
   } | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  // Barcode generation state
+  const [barcodeModalOpen, setBarcodeModalOpen] = React.useState(false);
+  const [barcodeModalVariant, setBarcodeModalVariant] =
+    React.useState<ProductVariantModal | null>(null);
+  const [generatingBarcode, setGeneratingBarcode] = React.useState<
+    string | null
+  >(null); // variant ID being processed
 
   // Use DataContext as single source of truth; call fetchData after changes
   const { fetchData } = React.useContext(DataContext);
@@ -221,6 +236,67 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
     setEditingVariant(null);
   };
 
+  // Barcode generation handlers
+  const handleBarcodeClick = (variant: ProductVariantModal) => {
+    if (variant.barcode) {
+      // Variant already has a barcode, show confirmation modal
+      setBarcodeModalVariant(variant);
+      setBarcodeModalOpen(true);
+    } else {
+      // Variant doesn't have a barcode, generate directly
+      handleGenerateBarcode(variant.id, false);
+    }
+  };
+
+  const handleGenerateBarcode = async (
+    variantId: string,
+    overwrite: boolean = false
+  ) => {
+    setGeneratingBarcode(variantId);
+    try {
+      const result = await generateBarcode(product.id, overwrite, variantId);
+      if (result.status === "success") {
+        // Show success message
+        enqueueSnackbar("Código de barras generado exitosamente", {
+          variant: "success",
+          autoHideDuration: 3000,
+        });
+        // Refresh variants to get the updated barcode
+        const data = await fetchProductVariantsByProductId(product.id);
+        const variantsList = Array.isArray(data?.variants) ? data.variants : [];
+        setVariants(sortVariants(variantsList));
+        // Refresh global data
+        if (fetchData) {
+          await fetchData();
+        }
+      } else {
+        throw new Error(result.message || "Error al generar código de barras");
+      }
+    } catch (error) {
+      console.error("Error generating barcode:", error);
+      openSnackBarProductError(
+        error instanceof Error
+          ? error.message
+          : "Error al generar código de barras"
+      );
+    } finally {
+      setGeneratingBarcode(null);
+      setBarcodeModalOpen(false);
+      setBarcodeModalVariant(null);
+    }
+  };
+
+  const handleConfirmBarcodeGeneration = () => {
+    if (barcodeModalVariant) {
+      handleGenerateBarcode(barcodeModalVariant.id, true);
+    }
+  };
+
+  const handleCloseBarcodeModal = () => {
+    setBarcodeModalOpen(false);
+    setBarcodeModalVariant(null);
+  };
+
   return (
     <>
       <Modal
@@ -287,22 +363,47 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
                       <span>{variant.name}</span>
                       <span>{formatCurrency(Number(variant.price))}</span>
                     </Button>
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => handleEditVariant(variant)}
-                      sx={{ flexShrink: 0 }}
+                    <Tooltip title="Editar variante">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => handleEditVariant(variant)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip
+                      title={
+                        variant.barcode
+                          ? `Código: ${variant.barcode}`
+                          : "Generar código de barras"
+                      }
                     >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDeleteClick(variant)}
-                      sx={{ flexShrink: 0 }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                      <IconButton
+                        size="small"
+                        color="secondary"
+                        onClick={() => handleBarcodeClick(variant)}
+                        disabled={generatingBarcode === variant.id}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        {generatingBarcode === variant.id ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <QrCodeIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Eliminar variante">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(variant)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 ))}
               </Box>
@@ -417,6 +518,16 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Barcode generation modal */}
+      <BarcodeModal
+        open={barcodeModalOpen}
+        onClose={handleCloseBarcodeModal}
+        item={barcodeModalVariant}
+        itemType="variante"
+        onConfirm={handleConfirmBarcodeGeneration}
+        isGenerating={generatingBarcode === barcodeModalVariant?.id}
+      />
     </>
   );
 };

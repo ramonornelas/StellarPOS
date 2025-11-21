@@ -309,15 +309,6 @@ def validate_and_prepare_items(items, product_table, variant_table, movement_typ
                 movement_quantity = quantity  # quantity is the delta
                 new_stock = current_stock + quantity
             
-            # Validate new stock is not negative
-            if new_stock < 0:
-                errors.append({
-                    'product_id': product_id,
-                    'product_variant_id': variant_id,
-                    'reason': f'Resulting stock would be negative: {new_stock}'
-                })
-                continue
-            
             # For count movements, only create movement record if there's an actual change
             if movement_type == 'count' and movement_quantity == 0:
                 # Skip creating movement record for zero delta count movements

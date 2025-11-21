@@ -408,6 +408,53 @@ export const applyPhysicalCount = async (
   }
 };
 
+export const generateBarcode = async (
+  productId: string,
+  overwrite: boolean = false,
+  variantId?: string
+) => {
+  try {
+    const queryParams = new URLSearchParams();
+    if (overwrite) queryParams.append("overwrite", "true");
+    if (variantId) queryParams.append("variant_id", variantId);
+
+    const queryString = queryParams.toString();
+    const url = getApiUrl(
+      `products/${productId}/generate-barcode${
+        queryString ? `?${queryString}` : ""
+      }`
+    );
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Extract the detailed error message from the errors array if available
+      if (
+        errorData.errors &&
+        Array.isArray(errorData.errors) &&
+        errorData.errors.length > 0
+      ) {
+        const errorReason = errorData.errors[0].reason;
+        throw new Error(
+          errorReason || errorData.message || "Error generating barcode"
+        );
+      }
+      throw new Error(errorData.message || "Error generating barcode");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error generating barcode:", error);
+    throw error;
+  }
+};
+
 // Get combo products for a specific combo ID
 export const getComboProducts = async (comboId: string) => {
   try {
