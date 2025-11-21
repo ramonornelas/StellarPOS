@@ -4,7 +4,9 @@ import {
   updateProduct,
   deleteProduct,
   uploadProductImage,
+  generateBarcode,
 } from "./products-api";
+import { enqueueSnackbar } from "notistack";
 import {
   openSnackBarProductAdded,
   openSnackBarProductError,
@@ -46,8 +48,10 @@ import CheckIcon from "@mui/icons-material/Check";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AddIcon from "@mui/icons-material/Add";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { ProductVariantsModal } from "./product-variants-modal.component";
+import { BarcodeModal } from "./barcode-modal.component";
 import { DataContext } from "../../dataContext";
 
 const ProductTable: React.FC = () => {
@@ -106,6 +110,14 @@ const ProductTable: React.FC = () => {
     name: "",
     price: "",
   });
+
+  // Barcode generation state
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
+  const [barcodeModalProduct, setBarcodeModalProduct] =
+    useState<Product | null>(null);
+  const [generatingBarcode, setGeneratingBarcode] = useState<string | null>(
+    null
+  ); // product ID being processed
 
   // Create stable references to avoid dependency warnings
   const contextProducts = dataContext?.products;
@@ -586,6 +598,63 @@ const ProductTable: React.FC = () => {
     }
   };
 
+  // Barcode generation handlers
+  const handleBarcodeClick = (product: Product) => {
+    if (product.barcode) {
+      // Product already has a barcode, show confirmation modal
+      setBarcodeModalProduct(product);
+      setBarcodeModalOpen(true);
+    } else {
+      // Product doesn't have a barcode, generate directly
+      handleGenerateBarcode(product.id, false);
+    }
+  };
+
+  const handleGenerateBarcode = async (
+    productId: string,
+    overwrite: boolean = false
+  ) => {
+    setGeneratingBarcode(productId);
+    try {
+      const result = await generateBarcode(productId, overwrite);
+      if (result.status === "success") {
+        // Show success message
+        enqueueSnackbar("Código de barras generado exitosamente", {
+          variant: "success",
+          autoHideDuration: 3000,
+        });
+        // Refresh products to get the updated barcode
+        if (dataContext?.fetchData) {
+          await dataContext.fetchData();
+        }
+      } else {
+        throw new Error(result.message || "Error al generar código de barras");
+      }
+    } catch (error) {
+      console.error("Error generating barcode:", error);
+      openSnackBarProductError(
+        error instanceof Error
+          ? error.message
+          : "Error al generar código de barras"
+      );
+    } finally {
+      setGeneratingBarcode(null);
+      setBarcodeModalOpen(false);
+      setBarcodeModalProduct(null);
+    }
+  };
+
+  const handleConfirmBarcodeGeneration = () => {
+    if (barcodeModalProduct) {
+      handleGenerateBarcode(barcodeModalProduct.id, true);
+    }
+  };
+
+  const handleCloseBarcodeModal = () => {
+    setBarcodeModalOpen(false);
+    setBarcodeModalProduct(null);
+  };
+
   return (
     <TableContainer component={Paper} sx={{ px: 1.5, py: 2 }}>
       <Box sx={{ margin: "10px" }}>
@@ -719,6 +788,9 @@ const ProductTable: React.FC = () => {
             <TableCell style={{ padding: "4px 8px", fontWeight: "bold" }}>
               Imagen
             </TableCell>
+            <TableCell style={{ padding: "4px 8px", fontWeight: "bold" }}>
+              Código de Barras
+            </TableCell>
             <TableCell
               style={{
                 cursor: "pointer",
@@ -789,7 +861,7 @@ const ProductTable: React.FC = () => {
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+              <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                 <CircularProgress size={24} />
                 <Typography
                   variant="body2"
@@ -872,6 +944,13 @@ const ProductTable: React.FC = () => {
                         </Alert>
                       )}
                     </Box>
+                  </TableCell>
+                  <TableCell style={{ padding: "4px 8px" }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontSize: "0.75rem" }}
+                    ></Typography>
                   </TableCell>
                   <TableCell style={{ padding: "4px 8px" }}>
                     <TextField
@@ -1059,6 +1138,101 @@ const ProductTable: React.FC = () => {
                         >
                           <span style={{ color: "#fff", fontSize: 18 }}>?</span>
                         </div>
+                      )}
+                    </TableCell>
+                    <TableCell style={{ padding: "4px 8px" }}>
+                      {editId === product.id ? (
+                        product.barcode ? (
+                          <Box>
+                            <Typography variant="body2">
+                              {product.barcode}
+                            </Typography>
+                            <Tooltip title="Regenerar código de barras">
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleBarcodeClick(product)}
+                                disabled={generatingBarcode === product.id}
+                                sx={{
+                                  fontSize: "0.65rem",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                  mt: 0.5,
+                                }}
+                              >
+                                <QrCodeIcon fontSize="small" />
+                                {`Regenerar`}
+                              </Button>
+                            </Tooltip>
+                          </Box>
+                        ) : (
+                          <Tooltip title="Generar código de barras">
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleBarcodeClick(product)}
+                              disabled={generatingBarcode === product.id}
+                              sx={{
+                                fontSize: "0.65rem",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                              }}
+                            >
+                              <QrCodeIcon fontSize="small" />
+                              {`Generar`}
+                            </Button>
+                          </Tooltip>
+                        )
+                      ) : (
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                        >
+                          {product.barcode ? (
+                            <Typography variant="body2">
+                              {product.barcode}
+                            </Typography>
+                          ) : (
+                            <Tooltip title="Generar código de barras">
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => handleBarcodeClick(product)}
+                                disabled={generatingBarcode === product.id}
+                                sx={{
+                                  fontSize: "0.65rem",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
+                                <QrCodeIcon fontSize="small" />
+                                {`Generar`}
+                              </Button>
+                            </Tooltip>
+                          )}
+                          {/*  <Tooltip
+                          title={
+                            product.barcode
+                              ? "Regenerar código de barras"
+                              : "Generar código de barras"
+                          }
+                        >
+                          <IconButton
+                            onClick={() => handleBarcodeClick(product)}
+                            size="small"
+                            disabled={generatingBarcode === product.id}
+                            color={product.barcode ? "default" : "primary"}
+                          >
+                            {generatingBarcode === product.id ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <QrCodeIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        </Tooltip> */}
+                        </Box>
                       )}
                     </TableCell>
                     <TableCell style={{ padding: "4px 8px" }}>
@@ -1305,6 +1479,16 @@ const ProductTable: React.FC = () => {
           product={variantModalProduct}
         />
       )}
+
+      {/* Barcode Confirmation Modal */}
+      <BarcodeModal
+        open={barcodeModalOpen}
+        onClose={handleCloseBarcodeModal}
+        item={barcodeModalProduct}
+        itemType="producto"
+        onConfirm={handleConfirmBarcodeGeneration}
+        isGenerating={generatingBarcode === barcodeModalProduct?.id}
+      />
 
       {/* Diálogo de confirmación para eliminar producto */}
       <Dialog

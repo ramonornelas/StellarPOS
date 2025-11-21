@@ -56,6 +56,7 @@ export interface ProductVariantModal {
   description: string;
   product_id: string;
   product_name: string;
+  barcode: string;
 }
 
 // Types for inventory movements
