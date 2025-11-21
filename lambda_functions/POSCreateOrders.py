@@ -93,6 +93,7 @@ def lambda_handler(event, context):
 
             # Prepare the transaction items
             transaction_items = []
+            inventory_movement_count = 0
 
             # Add order ticket to transaction
             transaction_items.append({
@@ -118,12 +119,15 @@ def lambda_handler(event, context):
                 # Combos don't have inventory themselves, only their components do
                 if not product_data.get('is_combo', False):
                     # Put inventory movement record (same transaction)
+                    movement_record = create_inventory_movement_record(product_data, new_orderTicket, None, None, POS_PRODUCT_TABLE, POS_PRODUCT_VARIANT_TABLE)
+                    print(f"Created inventory movement record for product {product_data['id']}: {movement_record}")
                     transaction_items.append({
                         'Put': {
                             'TableName': INVENTORY_MOVEMENT_TABLE,
-                            'Item': convert_to_dynamodb_item(create_inventory_movement_record(product_data, new_orderTicket, None, None, POS_PRODUCT_TABLE, POS_PRODUCT_VARIANT_TABLE))
+                            'Item': convert_to_dynamodb_item(movement_record)
                         }
                     })
+                    inventory_movement_count += 1
 
                     # Decrement stock: only variant if variant present; otherwise product stock
                     product_variant_id = product_data.get('product_variant_id', 'no_variant')
@@ -186,12 +190,14 @@ def lambda_handler(event, context):
                         combo_name,
                         POS_PRODUCT_TABLE
                     )
+                    print(f"Created inventory movement record for combo component {component_product_id}: {movement_record}")
                     transaction_items.append({
                         'Put': {
                             'TableName': INVENTORY_MOVEMENT_TABLE,
                             'Item': convert_to_dynamodb_item(movement_record)
                         }
                     })
+                    inventory_movement_count += 1
                     
             except Exception as combo_error:
                 print(f"Error processing combo components: {combo_error}")
@@ -209,9 +215,11 @@ def lambda_handler(event, context):
 
             # Log the transaction items for debugging
             print("Transaction Items:", json.dumps(transaction_items, indent=4))
+            print(f"Total inventory movement records added: {inventory_movement_count}")
 
             # Execute the transaction (atomic all-or-none)
             dynamodb_client.transact_write_items(TransactItems=transaction_items)
+            print("Transaction executed successfully. Inventory movements should be saved.")
 
             return {
                 'statusCode': 201,
