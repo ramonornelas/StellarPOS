@@ -18,6 +18,9 @@ import {
   Chip,
   Alert,
   CircularProgress,
+  Collapse,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -26,6 +29,9 @@ import { es } from "date-fns/locale";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import {
   InventoryMovement,
   MovementFilters,
@@ -37,8 +43,6 @@ import {
   formatMovementDateTime,
   formatQuantityChange,
   getProductDisplayName,
-  updateURLWithFilters,
-  parseFiltersFromURL,
 } from "./inventoryMovementsHelpers";
 import {
   fetchInventoryMovements,
@@ -47,6 +51,7 @@ import {
 import { Grid } from "@mui/material";
 import InventoryMovementsModal from "./InventoryMovementsModal";
 import NumberedPagination from "./NumberedPagination";
+import { useInventoryFiltersStore } from "./stores/inventoryFiltersStore";
 
 // Custom hook for debounced value
 function useDebounce<T>(value: T, delay: number): T {
@@ -99,6 +104,16 @@ const createLocalDateFromString = (dateString: string): Date => {
 };
 
 const InventoryMovements: React.FC = () => {
+  // Zustand store for filters
+  const {
+    filters,
+    currentPage,
+    setFilters,
+    setCurrentPage,
+    clearFilters: clearStoreFilters,
+    syncFromURL,
+  } = useInventoryFiltersStore();
+
   // State management
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [pagination, setPagination] = useState<MovementPagination>({
@@ -109,12 +124,16 @@ const InventoryMovements: React.FC = () => {
     has_next: false,
     has_previous: false,
   });
-  const [filters, setFilters] = useState<MovementFilters>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter form state
-  const [tempFilters, setTempFilters] = useState<MovementFilters>({});
+  // Track if component is initialized
+  const isInitialized = React.useRef(false);
+
+  // Filter form state (temporary, before debounce) - initialize with store values
+  const [tempFilters, setTempFilters] = useState<MovementFilters>(
+    () => filters
+  );
 
   // Debounced filters for search (delay for product search and user/run IDs)
   const debouncedProductSearch = useDebounce(
@@ -132,16 +151,58 @@ const InventoryMovements: React.FC = () => {
   const [runDetailsLoading, setRunDetailsLoading] = useState(false);
   const [runDetailsError, setRunDetailsError] = useState<string | null>(null);
 
-  // Initialize filters from URL on component mount
+  // Filters visibility state
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  // Initialize filters from URL/store on component mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const { filters: urlFilters, page: urlPage } = parseFiltersFromURL();
-    setFilters(urlFilters);
-    setTempFilters(urlFilters);
-    setPagination((prev) => ({ ...prev, current_page: urlPage }));
+    // Check if URL has any filter params
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFilterParams =
+      urlParams.has("movement_type") ||
+      urlParams.has("date_from") ||
+      urlParams.has("date_to") ||
+      urlParams.has("user_id") ||
+      urlParams.has("product_search") ||
+      urlParams.has("run_id") ||
+      urlParams.has("page");
+
+    if (hasFilterParams) {
+      // If URL has params, they take precedence (e.g. shared link)
+      syncFromURL();
+    } else {
+      // If URL has no params, restore from store (persistence)
+      const storeState = useInventoryFiltersStore.getState();
+      if (
+        Object.keys(storeState.filters).length > 0 ||
+        storeState.currentPage > 1
+      ) {
+        useInventoryFiltersStore.getState().syncToURL();
+      }
+    }
+
+    // Update tempFilters with the current store values (either from URL or persistence)
+    const currentFilters = useInventoryFiltersStore.getState().filters;
+    setTempFilters(currentFilters);
+    setPagination((prev) => ({
+      ...prev,
+      current_page: useInventoryFiltersStore.getState().currentPage,
+    }));
+
+    // Mark as initialized after a brief delay to allow debounce to sync
+    setTimeout(() => {
+      isInitialized.current = true;
+    }, 100);
   }, []);
 
   // Auto-apply filters when debounced values change
   useEffect(() => {
+    // Skip if not initialized yet
+    if (!isInitialized.current) {
+      return;
+    }
+
     const newFilters: MovementFilters = {
       movement_type: tempFilters.movement_type,
       date_from: tempFilters.date_from,
@@ -162,7 +223,6 @@ const InventoryMovements: React.FC = () => {
     });
 
     setFilters(newFilters);
-    setPagination((prev) => ({ ...prev, current_page: 1 }));
   }, [
     tempFilters.movement_type,
     tempFilters.date_from,
@@ -170,6 +230,7 @@ const InventoryMovements: React.FC = () => {
     debouncedProductSearch,
     debouncedUserId,
     debouncedRunId,
+    setFilters,
   ]);
 
   const loadMovements = useCallback(async () => {
@@ -179,7 +240,7 @@ const InventoryMovements: React.FC = () => {
     try {
       const response = await fetchInventoryMovements(
         filters as Record<string, string | undefined>,
-        pagination.current_page,
+        currentPage,
         pagination.page_size
       );
 
@@ -195,17 +256,12 @@ const InventoryMovements: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.current_page, pagination.page_size]);
+  }, [filters, currentPage, pagination.page_size]);
 
   // Load movements when filters or page change
   useEffect(() => {
     loadMovements();
   }, [loadMovements]);
-
-  // Update URL when filters change
-  useEffect(() => {
-    updateURLWithFilters(filters, pagination.current_page);
-  }, [filters, pagination.current_page]);
 
   const handleFilterChange = (
     key: keyof MovementFilters,
@@ -219,14 +275,16 @@ const InventoryMovements: React.FC = () => {
 
   const clearFilters = () => {
     setTempFilters({});
-    setPagination((prev) => ({ ...prev, current_page: 1 }));
+    clearStoreFilters();
   };
 
   const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
     setPagination((prev) => ({ ...prev, current_page: newPage }));
   };
 
   const handleRowsPerPageChange = (newPageSize: number) => {
+    setCurrentPage(1);
     setPagination((prev) => ({
       ...prev,
       page_size: newPageSize,
@@ -288,13 +346,44 @@ const InventoryMovements: React.FC = () => {
     ).length;
   }, [filters]);
 
+  // Accumulate all known users to prevent them from disappearing when filtering
+  const [knownUsers, setKnownUsers] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (movements.length > 0) {
+      setKnownUsers((prev) => {
+        const newMap = new Map(prev);
+        let hasChanges = false;
+
+        movements.forEach((movement) => {
+          if (
+            movement.user_id &&
+            movement.user_name &&
+            !newMap.has(movement.user_id)
+          ) {
+            newMap.set(movement.user_id, movement.user_name);
+            hasChanges = true;
+          }
+        });
+
+        return hasChanges ? newMap : prev;
+      });
+    }
+  }, [movements]);
+
+  const uniqueUsers = useMemo(() => {
+    return Array.from(knownUsers.entries())
+      .map(([id, name]) => ({
+        id,
+        name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [knownUsers]);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
       <Box sx={{ width: "100%", p: 2 }}>
         {/* Header */}
-        <Typography variant="h5" gutterBottom>
-          Historial de Movimientos de Inventario
-        </Typography>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -303,125 +392,176 @@ const InventoryMovements: React.FC = () => {
         )}
 
         {/* Filters */}
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Filtros{" "}
-            {activeFiltersCount > 0 && `(${activeFiltersCount} activos)`}
-          </Typography>
+        <Paper sx={{ mb: 2 }}>
+          {/* Filter Header - Always Visible */}
+          <Box
+            sx={{
+              p: 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              "&:hover": {
+                backgroundColor: "action.hover",
+              },
+            }}
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <FilterListIcon color="action" />
+              <Typography variant="h6">
+                Filtros
+                {activeFiltersCount > 0 && (
+                  <Chip
+                    label={activeFiltersCount}
+                    size="small"
+                    color="primary"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Typography>
+            </Box>
+            <IconButton size="small">
+              {filtersExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          </Box>
 
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={2.4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Tipo de Movimiento</InputLabel>
-                <Select
-                  value={tempFilters.movement_type || ""}
-                  label="Tipo de Movimiento"
-                  onChange={(e) =>
-                    handleFilterChange("movement_type", e.target.value)
-                  }
-                >
-                  <MenuItem value="">Todos</MenuItem>
-                  <MenuItem value="addition">📦 Entrada</MenuItem>
-                  <MenuItem value="adjustment">⚙️ Ajuste</MenuItem>
-                  <MenuItem value="count">📋 Conteo Físico</MenuItem>
-                  <MenuItem value="return">🔄 Devolución</MenuItem>
-                  <MenuItem value="sale">💰 Venta</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+          {/* Collapsible Filter Content */}
+          <Collapse in={filtersExpanded}>
+            <Box sx={{ p: 2 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Tipo de Movimiento</InputLabel>
+                    <Select
+                      value={tempFilters.movement_type || ""}
+                      label="Tipo de Movimiento"
+                      onChange={(e) =>
+                        handleFilterChange("movement_type", e.target.value)
+                      }
+                    >
+                      <MenuItem value="">Todos</MenuItem>
+                      <MenuItem value="addition">📦 Entrada</MenuItem>
+                      <MenuItem value="adjustment">⚙️ Ajuste</MenuItem>
+                      <MenuItem value="count">📋 Conteo Físico</MenuItem>
+                      <MenuItem value="return">🔄 Devolución</MenuItem>
+                      <MenuItem value="sale">💰 Venta</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <DatePicker
-                label="Fecha desde"
-                value={
-                  tempFilters.date_from
-                    ? createLocalDateFromString(tempFilters.date_from)
-                    : null
-                }
-                onChange={(date) => {
-                  const formattedDate = date ? formatDateToLocal(date) : null;
-                  handleFilterChange("date_from", formattedDate);
-                }}
-                slotProps={{ textField: { size: "small", fullWidth: true } }}
-              />
-            </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <DatePicker
+                    label="Fecha desde"
+                    value={
+                      tempFilters.date_from
+                        ? createLocalDateFromString(tempFilters.date_from)
+                        : null
+                    }
+                    onChange={(date) => {
+                      const formattedDate = date
+                        ? formatDateToLocal(date)
+                        : null;
+                      handleFilterChange("date_from", formattedDate);
+                    }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
+                  />
+                </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <DatePicker
-                label="Fecha hasta"
-                value={
-                  tempFilters.date_to
-                    ? createLocalDateFromString(tempFilters.date_to)
-                    : null
-                }
-                onChange={(date) => {
-                  const formattedDate = date
-                    ? formatDateToLocalEndOfDay(date)
-                    : null;
-                  console.log(
-                    "Fecha hasta seleccionada:",
-                    date,
-                    "-> Formato enviado:",
-                    formattedDate
-                  );
-                  handleFilterChange("date_to", formattedDate);
-                }}
-                slotProps={{ textField: { size: "small", fullWidth: true } }}
-              />
-            </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <DatePicker
+                    label="Fecha hasta"
+                    value={
+                      tempFilters.date_to
+                        ? createLocalDateFromString(tempFilters.date_to)
+                        : null
+                    }
+                    onChange={(date) => {
+                      const formattedDate = date
+                        ? formatDateToLocalEndOfDay(date)
+                        : null;
+                      console.log(
+                        "Fecha hasta seleccionada:",
+                        date,
+                        "-> Formato enviado:",
+                        formattedDate
+                      );
+                      handleFilterChange("date_to", formattedDate);
+                    }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
+                  />
+                </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <TextField
-                size="small"
-                fullWidth
-                label="Buscar producto"
-                value={tempFilters.product_search || ""}
-                onChange={(e) =>
-                  handleFilterChange("product_search", e.target.value)
-                }
-                InputProps={{
-                  startAdornment: (
-                    <SearchIcon sx={{ mr: 1, color: "action.active" }} />
-                  ),
-                }}
-              />
-            </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    label="Buscar producto"
+                    value={tempFilters.product_search || ""}
+                    onChange={(e) =>
+                      handleFilterChange("product_search", e.target.value)
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <SearchIcon sx={{ mr: 1, color: "action.active" }} />
+                      ),
+                    }}
+                  />
+                </Grid>
 
-            <Grid item xs={12} sm={6} md={2.4}>
-              <TextField
-                size="small"
-                fullWidth
-                label="Usuario ID"
-                placeholder="ID del usuario"
-                value={tempFilters.user_id || ""}
-                onChange={(e) => handleFilterChange("user_id", e.target.value)}
-              />
-            </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Usuario</InputLabel>
+                    <Select
+                      value={tempFilters.user_id || ""}
+                      label="Usuario"
+                      onChange={(e) =>
+                        handleFilterChange("user_id", e.target.value)
+                      }
+                    >
+                      <MenuItem value="">Todos</MenuItem>
+                      {uniqueUsers.map((user) => (
+                        <MenuItem key={user.id} value={user.id}>
+                          {user.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-            <Grid item xs={12} sm={6} md={6}>
-              <TextField
-                size="small"
-                fullWidth
-                label="Run ID"
-                placeholder="ID del run/operación"
-                value={tempFilters.run_id || ""}
-                onChange={(e) => handleFilterChange("run_id", e.target.value)}
-              />
-            </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    label="Run ID"
+                    placeholder="ID del run/operación"
+                    value={tempFilters.run_id || ""}
+                    onChange={(e) =>
+                      handleFilterChange("run_id", e.target.value)
+                    }
+                  />
+                </Grid>
 
-            <Grid item xs={12}>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  onClick={clearFilters}
-                  startIcon={<ClearIcon />}
-                  disabled={loading}
-                >
-                  Limpiar Filtros
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={clearFilters}
+                      startIcon={<ClearIcon />}
+                      disabled={loading}
+                    >
+                      Limpiar Filtros
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          </Collapse>
         </Paper>
 
         {/* Results summary */}
@@ -443,15 +583,17 @@ const InventoryMovements: React.FC = () => {
         {/* Movements table */}
         <Paper>
           <TableContainer>
-            <Table>
+            <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Fecha/Hora</TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>
+                    Fecha/Hora
+                  </TableCell>
                   <TableCell>Tipo</TableCell>
                   <TableCell>Producto</TableCell>
+                  <TableCell align="right">Inicial</TableCell>
                   <TableCell align="right">Cambio</TableCell>
-                  <TableCell align="right">Stock Anterior</TableCell>
-                  <TableCell align="right">Stock Nuevo</TableCell>
+                  <TableCell align="right">Final</TableCell>
                   <TableCell>Usuario</TableCell>
                   <TableCell>Notas</TableCell>
                   <TableCell>Run ID</TableCell>
@@ -475,21 +617,52 @@ const InventoryMovements: React.FC = () => {
                 ) : (
                   movements.map((movement) => (
                     <TableRow key={movement.id} hover>
-                      <TableCell>
-                        <Typography variant="body2">
+                      {/* Fecha/Hora - Single line, no wrap */}
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
                           {formatMovementDateTime(movement.created_datetime)}
                         </Typography>
                       </TableCell>
+
+                      {/* Tipo */}
                       <TableCell>{getMovementTypeChip(movement)}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {getProductDisplayName(movement)}
+
+                      {/* Producto - Truncated with tooltip */}
+                      <TableCell sx={{ maxWidth: 200 }}>
+                        <Tooltip title={getProductDisplayName(movement)} arrow>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.875rem",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {getProductDisplayName(movement)}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+
+                      {/* Stock Anterior */}
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
+                          {movement.previous_quantity}
                         </Typography>
                       </TableCell>
+
+                      {/* Cambio */}
                       <TableCell align="right">
                         <Typography
                           variant="body2"
                           sx={{
+                            fontSize: "0.875rem",
                             color:
                               movement.quantity > 0
                                 ? "success.main"
@@ -500,26 +673,52 @@ const InventoryMovements: React.FC = () => {
                           {formatQuantityChange(movement.quantity)}
                         </Typography>
                       </TableCell>
+
+                      {/* Stock Nuevo */}
                       <TableCell align="right">
-                        <Typography variant="body2">
-                          {movement.previous_quantity}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography variant="body2">
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: "0.875rem" }}
+                        >
                           {movement.new_quantity}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {movement.user_name}
-                        </Typography>
+
+                      {/* Usuario - Truncated with tooltip */}
+                      <TableCell sx={{ maxWidth: 120 }}>
+                        <Tooltip title={movement.user_name || ""} arrow>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.875rem",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {movement.user_name}
+                          </Typography>
+                        </Tooltip>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ maxWidth: 200 }}>
-                          {movement.notes}
-                        </Typography>
+
+                      {/* Notas - Truncated with tooltip */}
+                      <TableCell sx={{ maxWidth: 150 }}>
+                        <Tooltip title={movement.notes || ""} arrow>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.875rem",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {movement.notes || "-"}
+                          </Typography>
+                        </Tooltip>
                       </TableCell>
+
+                      {/* Run ID */}
                       <TableCell>
                         {movement.run_id ? (
                           <Button
@@ -527,11 +726,16 @@ const InventoryMovements: React.FC = () => {
                             variant="text"
                             startIcon={<InfoIcon />}
                             onClick={() => handleRunClick(movement.run_id!)}
+                            sx={{ fontSize: "0.75rem", py: 0.5 }}
                           >
                             {movement.run_id.substring(0, 8)}...
                           </Button>
                         ) : (
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.875rem" }}
+                          >
                             -
                           </Typography>
                         )}

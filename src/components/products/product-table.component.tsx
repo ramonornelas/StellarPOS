@@ -754,13 +754,20 @@ const ProductTable: React.FC = () => {
               <>
                 <strong>{filteredAndSortedProducts.length}</strong> producto
                 {filteredAndSortedProducts.length !== 1 ? "s" : ""}
-                {filteredAndSortedProducts.length !== products.length && (
-                  <>
-                    {" "}
-                    de <strong>{products.length}</strong> total
-                    {products.length !== 1 ? "es" : ""}
-                  </>
-                )}
+                {(() => {
+                  // Calculate total non-combo products
+                  const totalNonComboProducts = products.filter(
+                    (p) => !p.is_combo
+                  ).length;
+                  return filteredAndSortedProducts.length !==
+                    totalNonComboProducts ? (
+                    <>
+                      {" "}
+                      de <strong>{totalNonComboProducts}</strong> total
+                      {totalNonComboProducts !== 1 ? "es" : ""}
+                    </>
+                  ) : null;
+                })()}
               </>
             )}
           </Typography>

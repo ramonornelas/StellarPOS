@@ -16,13 +16,11 @@ export const formatMovementDateTime = (datetime: string): string => {
 
     if (isBackendDateTime) {
       // Backend sends UTC time as local string - append 'Z' to treat as UTC
-      processedDateString = datetime.endsWith("Z")
-        ? datetime
-        : datetime + "Z";
+      processedDateString = datetime.endsWith("Z") ? datetime : datetime + "Z";
     }
 
     const date = new Date(processedDateString);
-    
+
     // Check if the date is valid
     if (isNaN(date.getTime())) {
       console.warn("Invalid date string provided:", datetime);
@@ -130,12 +128,37 @@ export const parseFiltersFromURL = (): {
 
 /**
  * Update URL with current filters (for bookmarking)
+ * Preserves tab and inventoryTab parameters from parent component
  */
 export const updateURLWithFilters = (
   filters: MovementFilters,
   page: number = 1
 ): void => {
-  const queryString = buildFiltersQueryString(filters, page);
+  // Get existing URL params
+  const currentParams = new URLSearchParams(window.location.search);
+
+  // Preserve tab-related params
+  const tab = currentParams.get("tab");
+  const inventoryTab = currentParams.get("inventoryTab");
+
+  // Build new params with filters
+  const params = new URLSearchParams();
+
+  // Add preserved tab params first
+  if (tab) params.set("tab", tab);
+  if (inventoryTab) params.set("inventoryTab", inventoryTab);
+
+  // Add filter params
+  if (page > 1) params.set("page", page.toString());
+  if (filters.movement_type) params.set("movement_type", filters.movement_type);
+  if (filters.date_from) params.set("date_from", filters.date_from);
+  if (filters.date_to) params.set("date_to", filters.date_to);
+  if (filters.user_id) params.set("user_id", filters.user_id);
+  if (filters.product_search)
+    params.set("product_search", filters.product_search);
+  if (filters.run_id) params.set("run_id", filters.run_id);
+
+  const queryString = params.toString();
   const newUrl = queryString
     ? `${window.location.pathname}?${queryString}`
     : window.location.pathname;

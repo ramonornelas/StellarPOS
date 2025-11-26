@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -21,7 +21,11 @@ import {
   Paper,
   Chip,
   CircularProgress,
+  IconButton,
+  Tooltip,
+  Snackbar,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import {
   RunDetailsResponse,
   MOVEMENT_TYPE_CONFIG,
@@ -70,6 +74,13 @@ const getMovementTypeChip = (movementType: string, model: string) => {
 export const InventoryMovementsModal: React.FC<
   InventoryMovementsModalProps
 > = ({ open, onClose, runDetails, loading, error }) => {
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const handleCopyRunId = (runId: string) => {
+    navigator.clipboard.writeText(runId);
+    setSnackbarOpen(true);
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>Detalles del Run de Movimientos</DialogTitle>
@@ -90,9 +101,21 @@ export const InventoryMovementsModal: React.FC<
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      ID: {runDetails.run_info.id}
-                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        ID: {runDetails.run_info.id}
+                      </Typography>
+                      <Tooltip title="Copiar Run ID">
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            handleCopyRunId(runDetails.run_info.id)
+                          }
+                        >
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
                       Fecha:{" "}
                       {formatMovementDateTime(
@@ -131,10 +154,9 @@ export const InventoryMovementsModal: React.FC<
                   <TableRow>
                     <TableCell>Producto</TableCell>
                     <TableCell>Tipo</TableCell>
-                    <TableCell align="right">Cantidad</TableCell>
-                    <TableCell align="right">Anterior</TableCell>
-                    <TableCell align="right">Nuevo</TableCell>
-                    <TableCell align="center">Reconteo</TableCell>
+                    <TableCell align="right">Inicial</TableCell>
+                    <TableCell align="right">Cambio</TableCell>
+                    <TableCell align="right">Final</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -154,6 +176,9 @@ export const InventoryMovementsModal: React.FC<
                         )}
                       </TableCell>
                       <TableCell align="right">
+                        {movement.previous_quantity}
+                      </TableCell>
+                      <TableCell align="right">
                         <Typography
                           variant="body2"
                           sx={{
@@ -168,33 +193,7 @@ export const InventoryMovementsModal: React.FC<
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        {movement.previous_quantity}
-                      </TableCell>
-                      <TableCell align="right">
                         {movement.new_quantity}
-                      </TableCell>
-                      <TableCell align="center">
-                        {movement.movement_type === "count" ? (
-                          movement.required_recount !== undefined ? (
-                            movement.required_recount ? (
-                              <Chip label="Sí" color="warning" size="small" />
-                            ) : (
-                              <Chip label="No" color="success" size="small" />
-                            )
-                          ) : (
-                            <Chip
-                              label="No aplica"
-                              color="default"
-                              size="small"
-                            />
-                          )
-                        ) : (
-                          <Chip
-                            label="No aplica"
-                            color="default"
-                            size="small"
-                          />
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -209,6 +208,12 @@ export const InventoryMovementsModal: React.FC<
       <DialogActions>
         <Button onClick={onClose}>Cerrar</Button>
       </DialogActions>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarOpen(false)}
+        message="Run ID copiado al portapapeles"
+      />
     </Dialog>
   );
 };
