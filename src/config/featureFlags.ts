@@ -15,4 +15,7 @@ export const featureFlags = {
   productsModalShowAddProductButton: false, // Show add product button in the products modal
   productsListShowBarcodeScanner: false, // Show barcode scanner in the products list
   productsCardShowStockAvailable: false, // Show available stock on the product card
+
+  // Home / Sales Screen
+  homeEnableBarcodeScanner: true, // Enable external barcode scanner on home/sales screen
 };

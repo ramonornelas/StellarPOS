@@ -158,3 +158,22 @@ export const openSnackBarReturnError = (message: string) => {
     autoHideDuration: 5000,
   });
 };
+
+export const openSnackBarBarcodeSuccess = (
+  productName: string,
+  quantity: number
+) => {
+  enqueueSnackbar(`✓ ${productName} agregado (cantidad: ${quantity})`, {
+    variant: "success",
+    style: { opacity: "90%" },
+    autoHideDuration: 2500,
+  });
+};
+
+export const openSnackBarBarcodeError = (message: string) => {
+  enqueueSnackbar(`✗ ${message}`, {
+    variant: "error",
+    style: { opacity: "90%" },
+    autoHideDuration: 3000,
+  });
+};

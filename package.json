@@ -32,7 +32,8 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-qr-barcode-scanner": "^2.0.0",
-    "react-router-dom": "^6.23.1"
+    "react-router-dom": "^6.23.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

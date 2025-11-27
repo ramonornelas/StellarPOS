@@ -455,6 +455,53 @@ export const generateBarcode = async (
   }
 };
 
+// Fetch product by barcode
+export const fetchProductByBarcode = async (barcode: string) => {
+  try {
+    const response = await fetch(getApiUrl(`products/barcode/${barcode}`));
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("Código de barras no encontrado");
+      }
+      throw new Error("Error al buscar producto por código de barras");
+    }
+
+    const data = await response.json();
+
+    // Check if the response has the expected structure
+    if (!data.success || !data.product) {
+      throw new Error("Respuesta inválida del servidor");
+    }
+
+    const apiProduct = data.product;
+
+    // Map API response to Product interface
+    const product: Product = {
+      id: apiProduct.id,
+      name: apiProduct.name || apiProduct.product_name || "",
+      price: Number(apiProduct.price) || 0,
+      category_id: apiProduct.category || "",
+      category_name: apiProduct.category || "",
+      has_variants: apiProduct.type === "variant",
+      image_url: apiProduct.image_url || "",
+      description: apiProduct.description || "",
+      is_combo: false,
+      product_variant_id:
+        apiProduct.type === "variant" ? apiProduct.id : apiProduct.id,
+      display_order: apiProduct.display_order || 0,
+      stock_available: Number(apiProduct.stock_quantity) || 0,
+      barcode: apiProduct.barcode || barcode,
+      is_active: apiProduct.is_active !== false,
+    };
+
+    return product;
+  } catch (error) {
+    console.error("Error fetching product by barcode:", error);
+    throw error;
+  }
+};
+
 // Get combo products for a specific combo ID
 export const getComboProducts = async (comboId: string) => {
   try {

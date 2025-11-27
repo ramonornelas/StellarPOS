@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs, Tab, Box, Typography, Paper } from "@mui/material";
 import ProductTable from "../components/products/product-table.component";
 import InventoryEntradas from "../components/inventory/InventoryEntradas";
@@ -11,6 +11,7 @@ import {
   useCanViewInventoryPhysicalCount,
   useCanViewInventoryAdjustments,
 } from "../components/users/userPermissionsContext";
+import { useTabStore } from "../components/inventory/stores/tabStore";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -42,9 +43,11 @@ function a11yProps(index: number) {
 }
 
 const ProductsAdminPage: React.FC = () => {
-  const [mainTabValue, setMainTabValue] = React.useState(0);
-  const [inventoryTabValue, setInventoryTabValue] = React.useState(0);
+  // Zustand store
+  const { mainTab, inventoryTab, setMainTab, setInventoryTab, syncFromURL } =
+    useTabStore();
 
+  // Permissions
   const canViewProducts = useCanViewProducts();
   const canViewInventoryEntries = useCanViewInventoryEntries();
   const canViewInventoryPhysicalCount = useCanViewInventoryPhysicalCount();
@@ -55,18 +58,85 @@ const ProductsAdminPage: React.FC = () => {
     canViewInventoryPhysicalCount ||
     canViewInventoryAdjustments;
 
+  // Sync from URL on mount (for direct URL access or refresh)
+  useEffect(() => {
+    syncFromURL();
+  }, [syncFromURL]);
+
+  // Convert tab keys to indices based on permissions
+  const getMainTabIndex = (): number => {
+    if (mainTab === "products" && canViewProducts) return 0;
+    if (mainTab === "inventory" && canViewAnyInventory) {
+      return canViewProducts ? 1 : 0;
+    }
+    return 0;
+  };
+
+  const getInventoryTabIndex = (): number => {
+    let currentIndex = 0;
+
+    if (inventoryTab === "entradas" && canViewInventoryEntries)
+      return currentIndex;
+    if (canViewInventoryEntries) currentIndex++;
+
+    if (inventoryTab === "conteo" && canViewInventoryPhysicalCount)
+      return currentIndex;
+    if (canViewInventoryPhysicalCount) currentIndex++;
+
+    if (inventoryTab === "ajustes" && canViewInventoryAdjustments)
+      return currentIndex;
+    if (canViewInventoryAdjustments) currentIndex++;
+
+    if (inventoryTab === "historial") return currentIndex;
+
+    return 0;
+  };
+
+  // Handle tab changes
   const handleMainTabChange = (
     _event: React.SyntheticEvent,
     newValue: number
   ) => {
-    setMainTabValue(newValue);
+    if (canViewProducts && newValue === 0) {
+      setMainTab("products");
+    } else if (canViewAnyInventory && newValue === (canViewProducts ? 1 : 0)) {
+      setMainTab("inventory");
+    }
   };
 
   const handleInventoryTabChange = (
     _event: React.SyntheticEvent,
     newValue: number
   ) => {
-    setInventoryTabValue(newValue);
+    let currentIndex = 0;
+
+    if (canViewInventoryEntries) {
+      if (newValue === currentIndex) {
+        setInventoryTab("entradas");
+        return;
+      }
+      currentIndex++;
+    }
+
+    if (canViewInventoryPhysicalCount) {
+      if (newValue === currentIndex) {
+        setInventoryTab("conteo");
+        return;
+      }
+      currentIndex++;
+    }
+
+    if (canViewInventoryAdjustments) {
+      if (newValue === currentIndex) {
+        setInventoryTab("ajustes");
+        return;
+      }
+      currentIndex++;
+    }
+
+    if (newValue === currentIndex) {
+      setInventoryTab("historial");
+    }
   };
 
   if (!canViewProducts && !canViewAnyInventory) {
@@ -93,7 +163,7 @@ const ProductsAdminPage: React.FC = () => {
 
       <Box sx={{ borderBottom: 2, borderColor: "divider" }}>
         <Tabs
-          value={mainTabValue}
+          value={getMainTabIndex()}
           onChange={handleMainTabChange}
           aria-label="tabs principales"
           sx={{
@@ -109,17 +179,20 @@ const ProductsAdminPage: React.FC = () => {
       </Box>
       <Paper elevation={2} sx={{ width: "100%", mt: 2 }}>
         {canViewProducts && (
-          <CustomTabPanel value={mainTabValue} index={0}>
+          <CustomTabPanel value={getMainTabIndex()} index={0}>
             <ProductTable />
           </CustomTabPanel>
         )}
 
         {canViewAnyInventory && (
-          <CustomTabPanel value={mainTabValue} index={canViewProducts ? 1 : 0}>
+          <CustomTabPanel
+            value={getMainTabIndex()}
+            index={canViewProducts ? 1 : 0}
+          >
             <Box sx={{ width: "100%" }}>
               <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
                 <Tabs
-                  value={inventoryTabValue}
+                  value={getInventoryTabIndex()}
                   onChange={handleInventoryTabChange}
                   aria-label="subtabs de inventario"
                   variant="scrollable"
@@ -136,7 +209,7 @@ const ProductsAdminPage: React.FC = () => {
                   )}
                   {canViewInventoryAdjustments && (
                     <Tab
-                      label="Ajustes de Inventario"
+                      label="Ajustes"
                       {...a11yProps(
                         (canViewInventoryEntries ? 1 : 0) +
                           (canViewInventoryPhysicalCount ? 1 : 0)
@@ -144,7 +217,7 @@ const ProductsAdminPage: React.FC = () => {
                     />
                   )}
                   <Tab
-                    label="Historial de Movimientos"
+                    label="Historial"
                     {...a11yProps(
                       (canViewInventoryEntries ? 1 : 0) +
                         (canViewInventoryPhysicalCount ? 1 : 0) +
@@ -155,15 +228,8 @@ const ProductsAdminPage: React.FC = () => {
               </Box>
 
               {canViewInventoryEntries && (
-                <CustomTabPanel value={inventoryTabValue} index={0}>
+                <CustomTabPanel value={getInventoryTabIndex()} index={0}>
                   <Box sx={{ p: 2 }}>
-                    <Typography
-                      variant="h6"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      Entradas de Inventario
-                    </Typography>
                     <InventoryEntradas />
                   </Box>
                 </CustomTabPanel>
@@ -171,17 +237,10 @@ const ProductsAdminPage: React.FC = () => {
 
               {canViewInventoryPhysicalCount && (
                 <CustomTabPanel
-                  value={inventoryTabValue}
+                  value={getInventoryTabIndex()}
                   index={canViewInventoryEntries ? 1 : 0}
                 >
                   <Box sx={{ p: 2 }}>
-                    <Typography
-                      variant="h6"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      Conteo Físico
-                    </Typography>
                     <InventoryConteoFisico />
                   </Box>
                 </CustomTabPanel>
@@ -189,27 +248,20 @@ const ProductsAdminPage: React.FC = () => {
 
               {canViewInventoryAdjustments && (
                 <CustomTabPanel
-                  value={inventoryTabValue}
+                  value={getInventoryTabIndex()}
                   index={
                     (canViewInventoryEntries ? 1 : 0) +
                     (canViewInventoryPhysicalCount ? 1 : 0)
                   }
                 >
                   <Box sx={{ p: 2 }}>
-                    <Typography
-                      variant="h6"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      Ajustes de Inventario
-                    </Typography>
                     <InventoryAdjust />
                   </Box>
                 </CustomTabPanel>
               )}
 
               <CustomTabPanel
-                value={inventoryTabValue}
+                value={getInventoryTabIndex()}
                 index={
                   (canViewInventoryEntries ? 1 : 0) +
                   (canViewInventoryPhysicalCount ? 1 : 0) +
@@ -217,13 +269,6 @@ const ProductsAdminPage: React.FC = () => {
                 }
               >
                 <Box sx={{ p: 2 }}>
-                  <Typography
-                    variant="h6"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Historial de Movimientos
-                  </Typography>
                   <InventoryMovements />
                 </Box>
               </CustomTabPanel>

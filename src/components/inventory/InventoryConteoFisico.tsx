@@ -48,6 +48,13 @@ const InventoryConteoFisico: React.FC = () => {
     loadProductsWithVariants();
   }, []);
 
+  // Auto-scroll to top when recount mode is activated
+  useEffect(() => {
+    if (mode === "recount") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [mode]);
+
   const loadProductsWithVariants = async () => {
     setLoading(true);
     try {

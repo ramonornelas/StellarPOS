@@ -524,7 +524,7 @@ const InventoryAdjust: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>Producto</TableCell>
-              <TableCell align="right">Stock Actual</TableCell>
+              <TableCell align="right">Inicial</TableCell>
               <TableCell
                 align="right"
                 sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
@@ -535,13 +535,13 @@ const InventoryAdjust: React.FC = () => {
                     cursor: "pointer",
                     color: "info.main",
                   }}
-                  title="Puedes ingresar cantidades negativas o positivas"
+                  title="Puedes ingresar cantidades positivas o negativas"
                 >
                   <Info />
                 </Tooltip>
-                <span>Cantidad</span>
+                <span>Cambio</span>
               </TableCell>
-              <TableCell align="right">Stock Final</TableCell>
+              <TableCell align="right">Final</TableCell>
               <TableCell>Notas del Producto</TableCell>
               <TableCell align="center">Acciones</TableCell>
             </TableRow>
