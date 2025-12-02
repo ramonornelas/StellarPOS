@@ -17,7 +17,6 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import QrCodeIcon from "@mui/icons-material/QrCode";
 import { Product, ProductVariantModal } from "./products.model";
 import classes from "./css/modal-select-variant.module.css";
 import {
@@ -33,6 +32,8 @@ import { DataContext } from "../../dataContext";
 import { BarcodeModal } from "./barcode-modal.component";
 import { enqueueSnackbar } from "notistack";
 import { openSnackBarProductError } from "../snackbar/snackbar.motor";
+import QrCodeOutlinedIcon from "@mui/icons-material/QrCodeOutlined";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 
 interface ProductVariantsModalProps {
   open: boolean;
@@ -389,8 +390,10 @@ export const ProductVariantsModal: React.FC<ProductVariantsModalProps> = ({
                       >
                         {generatingBarcode === variant.id ? (
                           <CircularProgress size={20} />
+                        ) : variant.barcode ? (
+                          <QrCodeIcon fontSize="small" color="primary" />
                         ) : (
-                          <QrCodeIcon fontSize="small" />
+                          <QrCodeOutlinedIcon fontSize="small" color="action" />
                         )}
                       </IconButton>
                     </Tooltip>

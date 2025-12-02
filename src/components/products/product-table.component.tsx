@@ -1154,42 +1154,64 @@ const ProductTable: React.FC = () => {
                             <Typography variant="body2">
                               {product.barcode}
                             </Typography>
-                            <Tooltip title="Regenerar código de barras">
+                            <Tooltip
+                              title={
+                                product.has_variants
+                                  ? "La generación de códigos solo está disponible por variante. Por favor, haz clic en 'Variantes' para continuar."
+                                  : "Regenerar código de barras"
+                              }
+                            >
+                              <span>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleBarcodeClick(product)}
+                                  disabled={
+                                    generatingBarcode === product.id ||
+                                    product.has_variants
+                                  }
+                                  sx={{
+                                    fontSize: "0.65rem",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                    mt: 0.5,
+                                  }}
+                                >
+                                  <QrCodeIcon fontSize="small" />
+                                  {`Regenerar`}
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          </Box>
+                        ) : (
+                          <Tooltip
+                            title={
+                              product.has_variants
+                                ? "La generación de códigos solo está disponible por variante. Por favor, haz clic en 'Variantes' para continuar."
+                                : "Generar código de barras"
+                            }
+                          >
+                            <span>
                               <Button
                                 variant="outlined"
                                 size="small"
                                 onClick={() => handleBarcodeClick(product)}
-                                disabled={generatingBarcode === product.id}
+                                disabled={
+                                  generatingBarcode === product.id ||
+                                  product.has_variants
+                                }
                                 sx={{
                                   fontSize: "0.65rem",
                                   display: "flex",
                                   alignItems: "center",
                                   gap: 0.5,
-                                  mt: 0.5,
                                 }}
                               >
                                 <QrCodeIcon fontSize="small" />
-                                {`Regenerar`}
+                                {`Generar`}
                               </Button>
-                            </Tooltip>
-                          </Box>
-                        ) : (
-                          <Tooltip title="Generar código de barras">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => handleBarcodeClick(product)}
-                              disabled={generatingBarcode === product.id}
-                              sx={{
-                                fontSize: "0.65rem",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 0.5,
-                              }}
-                            >
-                              <QrCodeIcon fontSize="small" />
-                              {`Generar`}
-                            </Button>
+                            </span>
                           </Tooltip>
                         )
                       ) : (
@@ -1201,22 +1223,33 @@ const ProductTable: React.FC = () => {
                               {product.barcode}
                             </Typography>
                           ) : (
-                            <Tooltip title="Generar código de barras">
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => handleBarcodeClick(product)}
-                                disabled={generatingBarcode === product.id}
-                                sx={{
-                                  fontSize: "0.65rem",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 0.5,
-                                }}
-                              >
-                                <QrCodeIcon fontSize="small" />
-                                {`Generar`}
-                              </Button>
+                            <Tooltip
+                              title={
+                                product.has_variants
+                                  ? "La generación de códigos solo está disponible por variante. Por favor, haz clic en 'Variantes' para continuar."
+                                  : "Generar código de barras"
+                              }
+                            >
+                              <span>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleBarcodeClick(product)}
+                                  disabled={
+                                    generatingBarcode === product.id ||
+                                    product.has_variants
+                                  }
+                                  sx={{
+                                    fontSize: "0.65rem",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                  }}
+                                >
+                                  <QrCodeIcon fontSize="small" />
+                                  {`Generar`}
+                                </Button>
+                              </span>
                             </Tooltip>
                           )}
                           {/*  <Tooltip
