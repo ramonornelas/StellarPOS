@@ -1,7 +1,7 @@
 import React from "react";
 import { Product } from "./components/products/products.model";
-import { Order } from "./components/orders/order.model";
 import { Payment } from "./components/cart/cart.model";
+import { Order } from "./types/order";
 
 interface CartCTX {
   productsInCart: Product[];

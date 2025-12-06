@@ -21,11 +21,13 @@ def get_table_names(stage):
     if stage.lower() == 'test':
         return {
             'RETURN_TICKET_TABLE': os.getenv('TEST_RETURN_TICKET_TABLE', 'test_POS_returnTicket'),
+            'RETURN_PRODUCT_TABLE': os.getenv('TEST_RETURN_PRODUCT_TABLE', 'test_POS_returnProduct'),
             'ORDER_PRODUCT_TABLE': os.getenv('TEST_ORDER_PRODUCT_TABLE', 'test_POS_orderProduct')
         }
     else:
         return {
             'RETURN_TICKET_TABLE': os.getenv('RETURN_TICKET_TABLE', 'POS_returnTicket'),
+            'RETURN_PRODUCT_TABLE': os.getenv('RETURN_PRODUCT_TABLE', 'POS_returnProduct'),
             'ORDER_PRODUCT_TABLE': os.getenv('ORDER_PRODUCT_TABLE', 'POS_orderProduct')
         }
 
@@ -45,7 +47,7 @@ def lambda_handler(event, context):
         stage = event.get('requestContext', {}).get('stage', 'dev')
         tables = get_table_names(stage)
         return_ticket_table = dynamodb.Table(tables['RETURN_TICKET_TABLE'])
-        order_product_table = dynamodb.Table(tables['ORDER_PRODUCT_TABLE'])
+        return_product_table = dynamodb.Table(tables['RETURN_PRODUCT_TABLE'])
 
         # Query using created_datetime with begins_with to match the date
         # This matches the pattern used in POSGetReturnsSummary.py
@@ -60,7 +62,6 @@ def lambda_handler(event, context):
             returns = response['Items']
             for return_ticket in returns:
                 return_id = return_ticket['id']
-                order_id = return_ticket.get('order_id')
                 
                 # Rename total_amount to refund_amount
                 if 'total_amount' in return_ticket:
@@ -70,21 +71,26 @@ def lambda_handler(event, context):
                 if 'created_datetime' in return_ticket:
                     return_ticket['date'] = return_ticket['created_datetime'].split('T')[0]
                 
-                # Get ALL products from the original order
-                all_products = []
-                if order_id:
-                    all_products_response = order_product_table.scan(
-                        FilterExpression=Attr('orderTicket_id').eq(order_id)
-                    )
-                    all_products = all_products_response.get('Items', [])
+                # Get products from POS_returnProduct table for this return ticket
+                products_response = return_product_table.scan(
+                    FilterExpression=Attr('returnTicket_id').eq(return_id)
+                )
                 
-                # Mark which products were returned
-                for product in all_products:
-                    # A product is returned if it has any returnTicket_id
-                    # (could be from this return or a different return)
-                    product['is_returned'] = bool(product.get('returnTicket_id'))
+                products = products_response.get('Items', [])
                 
-                return_ticket['products'] = all_products
+                # Clean up product fields - only include required fields
+                clean_products = []
+                for product in products:
+                    clean_product = {
+                        'quantity': product.get('quantity'),
+                        'product_name': product.get('product_name'),
+                        'product_price': product.get('product_price'),
+                        'total': product.get('total'),
+                        'product_id': product.get('product_id')
+                    }
+                    clean_products.append(clean_product)
+                
+                return_ticket['products'] = clean_products
 
             return {
                 'statusCode': 200,

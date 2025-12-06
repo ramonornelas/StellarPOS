@@ -116,187 +116,7 @@ def generate_consecutive_ticket_number(return_ticket_table, current_datetime, st
         timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
         return f"#R{timestamp}"
 
-def validate_no_duplicate_returns(order_product_table, return_products, order_id):
-    """
-    Validate that products being returned haven't been returned before.
-    
-    Args:
-        order_product_table: DynamoDB table reference
-        return_products: List of products to return (each with 'id' and optional 'variant_id')
-        order_id: Original order ID
-    
-    Returns:
-        list: Validation errors if duplicates found, empty list otherwise
-    """
-    errors = []
-    
-    try:
-        # Get all order products for this order
-        response = order_product_table.scan(
-            FilterExpression='orderTicket_id = :order_id',
-            ExpressionAttributeValues={':order_id': order_id}
-        )
-        
-        order_products = response.get('Items', [])
-        
-        # Handle pagination
-        while 'LastEvaluatedKey' in response:
-            response = order_product_table.scan(
-                FilterExpression='orderTicket_id = :order_id',
-                ExpressionAttributeValues={':order_id': order_id},
-                ExclusiveStartKey=response['LastEvaluatedKey']
-            )
-            order_products.extend(response.get('Items', []))
-        
-        # Check each product being returned
-        for i, return_product in enumerate(return_products):
-            product_id = return_product['id']
-            return_variant_id = return_product.get('variant_id')
-            
-            # Normalize variant ID
-            normalized_return_variant = normalize_variant_id(product_id, return_variant_id)
-            
-            # Find matching order product
-            for order_product in order_products:
-                order_product_id = order_product.get('product_id')
-                order_variant_id = order_product.get('product_variant_id')
-                
-                # Normalize order variant ID
-                normalized_order_variant = normalize_variant_id(order_product_id, order_variant_id)
-                
-                # Check if this is the matching product
-                if order_product_id == product_id and normalized_order_variant == normalized_return_variant:
-                    # Check if this product was already returned
-                    existing_return_ticket_id = order_product.get('returnTicket_id')
-                    
-                    if existing_return_ticket_id:
-                        # Product was already returned - this is a duplicate
-                        existing_return_date = order_product.get('returnTicket_date', 'Unknown')
-                        existing_return_ticket = order_product.get('returnTicket_ticket', 'Unknown')
-                        
-                        variant_msg = f" (Variant: {normalized_return_variant})" if normalized_return_variant else ""
-                        
-                        errors.append({
-                            'field': f'products[{i}]',
-                            'reason': (
-                                f'Product {product_id}{variant_msg} has already been returned. '
-                                f'Original return: Ticket {existing_return_ticket}, '
-                                f'Date: {existing_return_date}, '
-                                f'Return ID: {existing_return_ticket_id}'
-                            )
-                        })
-                    break
-        
-        return errors
-        
-    except Exception as e:
-        print(f"Error validating duplicate returns: {str(e)}")
-        # Return empty errors to allow process to continue if validation fails
-        # The business logic validation will catch other issues
-        return []
 
-def update_order_products_with_return_info(order_product_table, order_id, return_products, 
-                                          return_ticket_id, return_date, ticket_number):
-    """
-    Update POS_orderProduct records to mark products as returned.
-    
-    Args:
-        order_product_table: DynamoDB table reference
-        order_id: Original order ID
-        return_products: List of returned products (each with 'id' and optional 'variant_id')
-        return_ticket_id: ID of the return ticket
-        return_date: Date of the return (ISO format datetime string)
-        ticket_number: Consecutive ticket number (e.g., "#R001")
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        print(f"Updating order products with return info - Order: {order_id}, Ticket: {ticket_number}")
-        
-        # Get all order products for this order
-        response = order_product_table.scan(
-            FilterExpression='orderTicket_id = :order_id',
-            ExpressionAttributeValues={':order_id': order_id}
-        )
-        
-        order_products = response.get('Items', [])
-        
-        # Handle pagination
-        while 'LastEvaluatedKey' in response:
-            response = order_product_table.scan(
-                FilterExpression='orderTicket_id = :order_id',
-                ExpressionAttributeValues={':order_id': order_id},
-                ExclusiveStartKey=response['LastEvaluatedKey']
-            )
-            order_products.extend(response.get('Items', []))
-        
-        if not order_products:
-            print(f"WARNING: No order products found for order {order_id}")
-            return False
-        
-        # Update each returned product
-        updates_made = 0
-        for idx, return_product in enumerate(return_products):
-            # return_product here is a record from POS_returnProduct table
-            # which has 'product_id' and 'product_variant_id' fields
-            product_id = return_product.get('product_id')
-            return_variant_id = return_product.get('product_variant_id')
-            
-            if not product_id:
-                print(f"WARNING: return_product missing product_id")
-                continue
-            
-            # Normalize variant ID
-            normalized_return_variant = normalize_variant_id(product_id, return_variant_id)
-            
-            # Find matching order product record
-            found_match = False
-            for order_product in order_products:
-                order_product_id = order_product.get('product_id')
-                order_variant_id = order_product.get('product_variant_id')
-                order_product_record_id = order_product.get('id')
-                
-                # Normalize order variant ID
-                normalized_order_variant = normalize_variant_id(order_product_id, order_variant_id)
-                
-                # Check if this is the matching product
-                if order_product_id == product_id and normalized_order_variant == normalized_return_variant:
-                    found_match = True
-                    # Update this order product record with return information
-                    try:
-                        
-                        order_product_table.update_item(
-                            Key={'id': order_product_record_id},
-                            UpdateExpression=(
-                                'SET returnTicket_id = :return_id, '
-                                'returnTicket_date = :return_date, '
-                                'returnTicket_ticket = :ticket_number, '
-                                'updated_datetime = :updated_datetime'
-                            ),
-                            ExpressionAttributeValues={
-                                ':return_id': return_ticket_id,
-                                ':return_date': return_date,
-                                ':ticket_number': ticket_number,
-                                ':updated_datetime': return_date
-                            }
-                        )
-                        updates_made += 1
-                    except Exception as update_error:
-                        print(f"ERROR updating order product {order_product_record_id}: {str(update_error)}")
-                        return False
-                    
-                    break
-            
-            if not found_match:
-                print(f"WARNING: No matching order product found for product {product_id}")
-        
-        print(f"Updated {updates_made} order products with return info")
-        return True
-        
-    except Exception as e:
-        print(f"ERROR updating order products with return info: {str(e)}")
-        return False
 
 
 def lambda_handler(event, context):
@@ -403,10 +223,7 @@ def process_return(event, stage):
         if validation_errors:
             return error_response(400, 'Invalid return products', validation_errors)
         
-        # Validate that products haven't been returned before (prevent duplicate returns)
-        duplicate_errors = validate_no_duplicate_returns(order_product_table, body['products'], body['order_id'])
-        if duplicate_errors:
-            return error_response(400, 'Duplicate return detected', duplicate_errors)
+
         
         # Get current timestamp
         current_datetime = datetime.utcnow().isoformat() + 'Z'
@@ -418,7 +235,7 @@ def process_return(event, stage):
         return_ticket_id = str(uuid.uuid4())
         return_ticket = {
             'id': return_ticket_id,
-            'order_id': body['order_id'],
+            'orderTicket_id': body['order_id'],
             'refund_method': body['refund_method'],
             'notes': body.get('notes', ''),
             'cash_register_id': body.get('cash_register_id', ''),  # From payload - current cashier processing return
@@ -468,6 +285,7 @@ def process_return(event, stage):
             return_product_record = {
                 'id': str(uuid.uuid4()),
                 'returnTicket_id': return_ticket_id,
+                'orderTicket_id': body['order_id'],
                 'product_id': return_product['id'],
                 'product_variant_id': return_product.get('variant_id'),
                 'product_name': product_details['product_name'],
@@ -617,7 +435,7 @@ def normalize_variant_id(product_id, variant_id):
     return variant_id
 
 def validate_products_in_order(return_products, order_products):
-    """Validate that all returned products are in the original order"""
+    """Validate that all returned products are in the original order and have sufficient quantity to return"""
     errors = []
     
     for i, return_product in enumerate(return_products):
@@ -649,13 +467,22 @@ def validate_products_in_order(return_products, order_products):
                 'reason': f'Product {product_id}{variant_msg} was not found in the original order'
             })
         else:
-            # Check if return quantity doesn't exceed ordered quantity
+            # Check if return quantity doesn't exceed REMAINING returnable quantity
             ordered_quantity = float(matching_product.get('quantity', 0))
-            if quantity > ordered_quantity:
-                errors.append({
-                    'field': f'products[{i}].quantity', 
-                    'reason': f'Return quantity ({quantity}) exceeds ordered quantity ({ordered_quantity})'
-                })
+            already_returned = float(matching_product.get('quantity_returned', 0))
+            remaining_returnable = ordered_quantity - already_returned
+            
+            if quantity > remaining_returnable:
+                if already_returned > 0:
+                    errors.append({
+                        'field': f'products[{i}].quantity', 
+                        'reason': f'Return quantity ({quantity}) exceeds remaining returnable quantity ({remaining_returnable}). Ordered: {ordered_quantity}, Already returned: {already_returned}'
+                    })
+                else:
+                    errors.append({
+                        'field': f'products[{i}].quantity', 
+                        'reason': f'Return quantity ({quantity}) exceeds ordered quantity ({ordered_quantity})'
+                    })
     
     return errors
 
@@ -772,15 +599,48 @@ def execute_return_transaction(return_ticket_table, return_product_table, produc
             movement_table.put_item(Item=movement_record)
             print(f"Created inventory movement record: {movement_record['id']}")
         
-        # Update order products to mark them as returned
-        update_success = update_order_products_with_return_info(
-            order_product_table, order_id, return_products, 
-            return_ticket['id'], current_datetime, ticket_number
-        )
-        
-        if not update_success:
-            print("Warning: Failed to update order products with return info")
-            # Don't fail the entire transaction, but log the warning
+        # Update quantity_returned in POS_orderProduct for each returned product
+        for return_product in return_products:
+            product_id = return_product.get('product_id')
+            variant_id = return_product.get('product_variant_id')
+            returned_qty = return_product.get('quantity', Decimal('0'))
+            
+            # Find matching order product record
+            try:
+                response = order_product_table.scan(
+                    FilterExpression='orderTicket_id = :order_id AND product_id = :product_id',
+                    ExpressionAttributeValues={
+                        ':order_id': order_id,
+                        ':product_id': product_id
+                    }
+                )
+                
+                order_products_list = response.get('Items', [])
+                
+                # Find the matching product (considering variant)
+                for order_product in order_products_list:
+                    order_variant_id = order_product.get('product_variant_id')
+                    
+                    # Match based on variant - both should be same or both None/empty
+                    if normalize_variant_id(product_id, order_variant_id) == normalize_variant_id(product_id, variant_id):
+                        order_product_record_id = order_product.get('id')
+                        
+                        # Increment quantity_returned
+                        order_product_table.update_item(
+                            Key={'id': order_product_record_id},
+                            UpdateExpression='SET quantity_returned = if_not_exists(quantity_returned, :zero) + :qty, updated_datetime = :datetime',
+                            ExpressionAttributeValues={
+                                ':zero': Decimal('0'),
+                                ':qty': returned_qty,
+                                ':datetime': current_datetime
+                            }
+                        )
+                        print(f"Updated quantity_returned for order product {order_product_record_id} by +{returned_qty}")
+                        break
+                        
+            except Exception as qty_update_error:
+                print(f"Warning: Could not update quantity_returned for product {product_id}: {str(qty_update_error)}")
+                # Continue processing - don't fail the entire return for this update issue
         
         return True
         

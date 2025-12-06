@@ -17,12 +17,17 @@ import {
   Divider,
   Alert,
 } from "@mui/material";
-import { Order, ProductOrder, ReturnData, ReturnProduct } from "./order.model";
+import {
+  ProcessedOrder,
+  ProductOrder,
+  ReturnData,
+  ReturnProduct,
+} from "../../types/order";
 import { formatCurrency } from "../../functions/generalFunctions";
 
 interface ReturnModalProps {
   open: boolean;
-  order: Order | null;
+  order: ProcessedOrder | null;
   onClose: () => void;
   onSubmit: (returnData: ReturnData) => void;
   loading?: boolean;
@@ -201,7 +206,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>Procesar Devolución - Ticket #{order.ticket}</DialogTitle>
+      <DialogTitle>Procesar Devolución - Ticket {order.ticket}</DialogTitle>
 
       <DialogContent dividers>
         {error && (
@@ -223,7 +228,10 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
               product.product_variant_id
             );
             const key = `${productId}|${variantId}`;
-            const maxQuantity = Number(product.quantity) || 1;
+            const originalQuantity = Number(product.quantity) || 1;
+            const quantityReturned = Number(product.quantity_returned) || 0;
+            const availableQuantity = originalQuantity - quantityReturned;
+            const isFullyReturned = availableQuantity <= 0;
             const isSelected = selectedProductKeys.has(key);
             const currentQuantity = productQuantities[key];
 
@@ -243,12 +251,15 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                   p: 2,
                   border: "1px solid #e0e0e0",
                   borderRadius: 1,
+                  backgroundColor: isFullyReturned ? "#f5f5f5" : "inherit",
+                  opacity: isFullyReturned ? 0.6 : 1,
                 }}
               >
                 <FormControlLabel
                   control={
                     <Checkbox
                       checked={isSelected}
+                      disabled={isFullyReturned}
                       onChange={(e) => {
                         handleProductToggle(product, e.target.checked);
                       }}
@@ -259,16 +270,35 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                 />
 
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body1">
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      textDecoration: isFullyReturned ? "line-through" : "none",
+                      color: isFullyReturned ? "text.secondary" : "inherit",
+                    }}
+                  >
                     {product.name || product.product_name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Precio unitario: {formatCurrency(unitPrice)} | Disponible:{" "}
-                    {maxQuantity}
+                    Precio unitario: {formatCurrency(unitPrice)} |
+                    {isFullyReturned ? (
+                      <span style={{ color: "#e65100" }}>
+                        {" "}
+                        Ya devuelto completamente
+                      </span>
+                    ) : quantityReturned > 0 ? (
+                      <span style={{ color: "#e65100" }}>
+                        {" "}
+                        Disponible: {availableQuantity} (ya devuelto:{" "}
+                        {quantityReturned})
+                      </span>
+                    ) : (
+                      ` Disponible: ${originalQuantity}`
+                    )}
                   </Typography>
                 </Box>
 
-                {isSelected && (
+                {isSelected && !isFullyReturned && (
                   <TextField
                     type="number"
                     label="Cantidad"
@@ -291,10 +321,11 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                         return; // Don't update if invalid
                       }
 
-                      const quantity = Math.min(parsedValue, maxQuantity);
+                      // Limit to available quantity (not original)
+                      const quantity = Math.min(parsedValue, availableQuantity);
                       handleQuantityChange(product, quantity);
                     }}
-                    inputProps={{ min: 1, max: maxQuantity }}
+                    inputProps={{ min: 1, max: availableQuantity }}
                     size="small"
                     sx={{ width: 100, ml: 2 }}
                   />

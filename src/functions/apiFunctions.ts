@@ -139,6 +139,43 @@ export const fetchOrdersSummary = async (date: string) => {
   }
 };
 
+export const fetchReturns = async (date: string) => {
+  try {
+    const response = await fetch(getApiUrl(`returns/${date}`));
+    if (!response.ok) {
+      // 404 means no returns for this date - return empty array
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error("Network response was not ok");
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Error fetching returns:", error);
+    return [];
+  }
+};
+
+export const fetchReturnsSummary = async (date: string) => {
+  try {
+    const response = await fetch(getApiUrl(`returns/summary?date=${date}`));
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching returns summary:", error);
+    return {
+      status: "error",
+      data: {
+        date,
+        total_amount: 0,
+        total_transactions: 0,
+        refund_methods: [],
+      },
+    };
+  }
+};
+
 export const postOpenCashRegister = async (cashRegisterCut: any) => {
   try {
     const response = await axios.post(

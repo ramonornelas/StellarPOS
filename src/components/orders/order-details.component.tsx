@@ -1,6 +1,19 @@
-import { AccordionDetails, Box, Divider, Typography } from "@mui/material";
-import { Order, ProductOrder } from "./order.model";
-import { groupOrderProducts } from "./order.motor";
+import {
+  AccordionDetails,
+  Box,
+  Divider,
+  Typography,
+  Chip,
+} from "@mui/material";
+import {
+  ProcessedOrder,
+  ProductOrder,
+  ProductReturnInfo,
+} from "../../types/order";
+import {
+  groupOrderProductsWithReturns,
+  ProductWithReturns,
+} from "./order.motor";
 import classes from "./css/order-details.module.css";
 import {
   mapPaymentMethod,
@@ -8,31 +21,64 @@ import {
 } from "../../functions/generalFunctions";
 
 interface OrderDetailsProps {
-  order: Order;
+  order: ProcessedOrder;
 }
 
 export const OrderDetails: React.FC<OrderDetailsProps> = (props) => {
   const { order } = props;
 
-  // Cast the products to the correct type since the backend sends OrderProductData
-  const productsGrouped = groupOrderProducts(
+  // Get products with return information
+  const productsWithReturns = groupOrderProductsWithReturns(
     order.products as unknown as ProductOrder[]
   );
   const splitPayments = order.splitPayments;
 
   return (
     <AccordionDetails sx={{ px: 4 }}>
-      {productsGrouped.map((product) => (
-        <Box
-          key={`${product.id}-${product.product_variant_id}`}
-          className={classes["accordion-details-container"]}
-        >
-          <Typography variant="body1" component="p">
-            {product.qty} x {product.desc}
-          </Typography>
-          <Typography variant="body1" component="p">
-            {formatCurrency(product.unit)}
-          </Typography>
+      {productsWithReturns.map((product: ProductWithReturns) => (
+        <Box key={`${product.id}-${product.product_variant_id}`} sx={{ mb: 1 }}>
+          <Box className={classes["accordion-details-container"]}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body1" component="p">
+                {product.qty} x {product.desc}
+              </Typography>
+              {product.is_returned && (
+                <Chip
+                  label={`↩️ ${product.quantity_returned} devuelto${
+                    Number(product.quantity_returned) > 1 ? "s" : ""
+                  }`}
+                  size="small"
+                  sx={{
+                    fontSize: "0.65rem",
+                    height: 20,
+                    backgroundColor: "#fff3e0",
+                    color: "#e65100",
+                  }}
+                />
+              )}
+            </Box>
+            <Typography variant="body1" component="p">
+              {formatCurrency(product.unit)}
+            </Typography>
+          </Box>
+          {/* Show return details if product has returns */}
+          {product.returns && product.returns.length > 0 && (
+            <Box sx={{ ml: 3, mt: 0.5 }}>
+              {product.returns.map(
+                (returnInfo: ProductReturnInfo, idx: number) => (
+                  <Typography
+                    key={`${returnInfo.returnTicket_id}-${idx}`}
+                    variant="body2"
+                    component="p"
+                    sx={{ color: "#e65100", fontSize: "0.75rem" }}
+                  >
+                    ↩️ {returnInfo.quantity} devuelto - Ticket{" "}
+                    {returnInfo.returnTicket_ticket} ({returnInfo.return_date})
+                  </Typography>
+                )
+              )}
+            </Box>
+          )}
         </Box>
       ))}
       {order.notes && (
