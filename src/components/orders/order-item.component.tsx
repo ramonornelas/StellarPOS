@@ -5,10 +5,11 @@ import {
   Container,
   Typography,
   Button,
+  Chip,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AssignmentReturnIcon from "@mui/icons-material/AssignmentReturn";
-import { Order } from "./order.model";
+import { ProcessedOrder } from "../../types/order";
 import { OrderDetails } from "./order-details.component";
 import classes from "./css/order-item.module.css";
 import { formatDateTime } from "../../functions/generalFunctions";
@@ -18,8 +19,8 @@ import {
 } from "../../functions/generalFunctions";
 
 interface OrderProps {
-  order: Order;
-  onReturnClick?: (order: Order) => void;
+  order: ProcessedOrder;
+  onReturnClick?: (order: ProcessedOrder) => void;
 }
 
 export const OrderItem: React.FC<OrderProps> = (props) => {
@@ -29,12 +30,33 @@ export const OrderItem: React.FC<OrderProps> = (props) => {
   const getOrderDateTime = () => {
     if (order.created_datetime) {
       return formatDateTime(order.created_datetime);
-    } else if (order.datetime) {
-      return formatDateTime(order.datetime);
-    } else {
-      return formatDateTime(order.date);
     }
   };
+
+  // Determine return status for display
+  const getReturnStatusInfo = () => {
+    const status = order.return_status;
+    if (status === "total") {
+      return {
+        label: "Devuelto totalmente",
+        color: "error" as const,
+        activeButton: false,
+      };
+    } else if (status === "partial") {
+      return {
+        label: "Devuelto parcialmente",
+        color: "warning" as const,
+        activeButton: true,
+      };
+    }
+    return {
+      label: null,
+      color: "default" as const,
+      activeButton: true,
+    };
+  };
+
+  const returnStatusInfo = getReturnStatusInfo();
 
   return (
     <Accordion key={order.id} className={classes["order-accordion"]}>
@@ -45,9 +67,19 @@ export const OrderItem: React.FC<OrderProps> = (props) => {
       >
         <Container className={classes["accordion-container"]}>
           <Box>
-            <Typography variant="body1" component="p">
-              <strong>{order.ticket}</strong>
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body1" component="p">
+                <strong>{order.ticket}</strong>
+              </Typography>
+              {returnStatusInfo.label && (
+                <Chip
+                  label={returnStatusInfo.label}
+                  color={returnStatusInfo.color}
+                  size="small"
+                  sx={{ fontSize: "0.7rem", height: 22 }}
+                />
+              )}
+            </Box>
             <Typography variant="body2" component="p" className={classes.date}>
               📅 {getOrderDateTime()}
             </Typography>
@@ -64,6 +96,7 @@ export const OrderItem: React.FC<OrderProps> = (props) => {
                 variant="outlined"
                 size="small"
                 startIcon={<AssignmentReturnIcon />}
+                disabled={!returnStatusInfo.activeButton}
                 onClick={(e) => {
                   e.stopPropagation();
                   onReturnClick(order);

@@ -8,7 +8,6 @@ import { CartPage } from "./pages/cart";
 import { appContext } from "./appContext";
 import { Orders } from "./pages/orders";
 import { NotFoundPage } from "./pages/notFoundPage";
-import { Order } from "./components/orders/order.model";
 import { DataProvider } from "./dataContext";
 import { DatePickerPage } from "./pages/datePickerPage";
 import Login from "./components/login/login.tsx";
@@ -20,6 +19,7 @@ import { CashRegister } from "./pages/cashRegister.tsx";
 import { CashRegisterHistoryPage } from "./pages/cashRegisterHistoryPage.tsx";
 import ProductsAdminPage from "./pages/productsAdminPage";
 import { NoPermissionsPage } from "./pages/noPermissionsPage.tsx";
+import { Order } from "./types/order.ts";
 
 function App() {
   const [productsInCart, setProductsInCart] = React.useState<Product[]>(

@@ -10,7 +10,7 @@ from POSGetReturnsByDate import lambda_handler
 # Test event for the TEST stage
 test_event = {
     'pathParameters': {
-        'date': '2025-12-02'
+        'date': '2025-12-05'
     },
     'requestContext': {
         'stage': 'TEST'

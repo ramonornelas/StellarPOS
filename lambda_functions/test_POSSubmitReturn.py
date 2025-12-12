@@ -31,17 +31,17 @@ from POSSubmitReturn import lambda_handler
 # All tests are configured with 'stage': 'test' to prevent any impact on production data
 
 # Test Configuration - MODIFY THESE VALUES FOR YOUR TESTS
-TEST_ORDER_ID = "c5115d95-82e5-4778-9de0-b7c2aac89120"  # Replace with your test order ID
+TEST_ORDER_ID = "5fbbab6e-f0ce-4b5e-b515-6fe72a1fa80f"  # Replace with your test order ID
 TEST_PRODUCTS = [
     {
-        'id': 'c4f5d82b-b8b2-4970-bb02-60b0e6017810',  # Replace with your test product ID
-        'quantity': 1
-        # 'variant_id': 'variant-id-here'  # Uncomment and add if using variants
+        'id': '94f8230a-c626-4965-a998-d047959f7524',  # Replace with your test product ID
+        'quantity': 1,
+        #'variant_id': 'dca42ac7-e87e-4be7-997f-b5cae2745b4c'  # Uncomment and add if using variants
     },
     {
-        'id': 'b26083e1-c89c-488b-bbed-6e087cac460d',  # Replace with your test product ID
+        'id': 'c4f5d82b-b8b2-4970-bb02-60b0e6017810',  # Replace with your test product ID
         'quantity': 1,
-        'variant_id': '5d0a8fc5-03b1-4f06-bc5e-443aa6e5617c'  # Uncomment and add if using variants
+        #'variant_id': 'c7e1f2a4-3b96-4d20-9d8a-6f0c3e9b1a75'  # Uncomment and add if using variants
     }
     # Add more products as needed:
     # {

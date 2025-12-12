@@ -1,10 +1,28 @@
 import React, { useState } from "react";
-import { Box, Container, Typography, TextField } from "@mui/material";
-import { useOrders, useOrdersSummary } from "../components/orders/orders.data";
+import {
+  Box,
+  Container,
+  Typography,
+  TextField,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  CircularProgress,
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import {
+  useOrders,
+  useOrdersSummary,
+  useReturns,
+  useReturnsSummary,
+} from "../components/orders/orders.data";
 import { OrderItem } from "../components/orders/order-item.component";
+import { ReturnItem } from "../components/orders/return-item.component";
 import { PaymentSummary } from "../components/orders/payment-summary.component";
+import { ReturnsSummaryCard } from "../components/orders/returns-summary.component";
+import { SalesDifferenceCard } from "../components/orders/sales-difference-card.component";
 import { ReturnModal } from "../components/orders/return-modal.component";
-import { Order, ReturnData } from "../components/orders/order.model";
+import { ProcessedOrder, ReturnData } from "../types/order";
 import { ordersByTicket } from "../components/orders/order.motor";
 import { submitReturn } from "../functions/apiFunctions";
 import {
@@ -12,7 +30,6 @@ import {
   openSnackBarReturnError,
 } from "../components/snackbar/snackbar.motor";
 import classes from "./css/orders.module.css";
-import { formatCurrency } from "../functions/generalFunctions";
 
 export const Orders: React.FC = () => {
   // Usa la fecha de hoy como valor inicial por default
@@ -25,13 +42,55 @@ export const Orders: React.FC = () => {
   // Return modal state
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [selectedOrderForReturn, setSelectedOrderForReturn] =
-    useState<Order | null>(null);
+    useState<ProcessedOrder | null>(null);
   const [returnLoading, setReturnLoading] = useState(false);
+
+  // Section expansion state (both expanded by default)
+  const [salesExpanded, setSalesExpanded] = useState(true);
+  const [returnsExpanded, setReturnsExpanded] = useState(true);
+
   const dateString = selectedDate;
-  const orders = useOrders(dateString);
-  const { summary, loading: summaryLoading } = useOrdersSummary(dateString);
+
+  // Orders data
+  const {
+    orders,
+    loading: ordersListLoading,
+    refetch: refetchOrders,
+  } = useOrders(dateString);
+  const {
+    summary: ordersSummary,
+    loading: ordersLoading,
+    refetch: refetchOrdersSummary,
+  } = useOrdersSummary(dateString);
   const ordersSortedByTicket = ordersByTicket(orders, "desc");
-  const totalSum = orders.reduce((sum, order) => sum + Number(order.total), 0);
+
+  // Returns data
+  const {
+    returns,
+    loading: returnsListLoading,
+    refetch: refetchReturns,
+  } = useReturns(dateString);
+  const {
+    summary: returnsSummary,
+    loading: returnsLoading,
+    refetch: refetchReturnsSummary,
+  } = useReturnsSummary(dateString);
+  const returnsSortedByTicket = [...returns].sort((a, b) => {
+    if (!a.ticket || !b.ticket) return 0;
+    return b.ticket.localeCompare(a.ticket);
+  });
+
+  // Refetch all data
+  const refetchAllData = () => {
+    refetchOrders();
+    refetchOrdersSummary();
+    refetchReturns();
+    refetchReturnsSummary();
+  };
+
+  // Calculate totals for the difference card
+  const totalSales = ordersSummary?.total_amount || 0;
+  const totalReturns = returnsSummary?.total_amount || 0;
 
   // Maneja el cambio de fecha local
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +99,7 @@ export const Orders: React.FC = () => {
   };
 
   // Handle return button click
-  const handleReturnClick = (order: Order) => {
+  const handleReturnClick = (order: ProcessedOrder) => {
     setSelectedOrderForReturn(order);
     setReturnModalOpen(true);
   };
@@ -83,6 +142,8 @@ export const Orders: React.FC = () => {
       if (response.status === "success") {
         openSnackBarReturnSuccess(response.data.total_amount);
         handleReturnModalClose();
+        // Refresh all data after successful return
+        refetchAllData();
       } else {
         openSnackBarReturnError(response.message || "Error desconocido");
       }
@@ -110,6 +171,12 @@ export const Orders: React.FC = () => {
     }
   };
 
+  const hasNoData =
+    orders.length === 0 &&
+    returns.length === 0 &&
+    !ordersListLoading &&
+    !returnsListLoading;
+
   return (
     <Container maxWidth="xl" className={classes["main-container"]}>
       <Box mb={2}>
@@ -124,24 +191,112 @@ export const Orders: React.FC = () => {
           size="small"
         />
       </Box>
-      <Typography variant="h5" component="h1" className={classes.header}>
-        {orders.length === 0 ? `No hay ventas en el día` : `Ventas del día`}
-      </Typography>
-      <Typography variant="h5" component="h1" className={classes.header}>
-        {totalSum > 0 ? `Total ${formatCurrency(totalSum)}` : ""}
-      </Typography>
 
-      <PaymentSummary summary={summary} loading={summaryLoading} />
+      {hasNoData ? (
+        <Typography variant="h5" component="h1" className={classes.header}>
+          No hay ventas ni devoluciones en el día
+        </Typography>
+      ) : (
+        <>
+          {/* Summary Cards Row */}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
+            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+              <PaymentSummary summary={ordersSummary} loading={ordersLoading} />
+            </Box>
+            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+              <ReturnsSummaryCard
+                summary={returnsSummary}
+                loading={returnsLoading}
+              />
+            </Box>
+            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+              <SalesDifferenceCard
+                totalSales={totalSales}
+                totalReturns={totalReturns}
+                loading={ordersLoading || returnsLoading}
+              />
+            </Box>
+          </Box>
 
-      <Box className={classes["orders-container"]}>
-        {ordersSortedByTicket.map((order) => (
-          <OrderItem
-            key={order.id}
-            order={order}
-            onReturnClick={handleReturnClick}
-          />
-        ))}
-      </Box>
+          {/* Ventas Section */}
+          <Accordion
+            expanded={salesExpanded}
+            onChange={() => setSalesExpanded(!salesExpanded)}
+            sx={{ mb: 2 }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              sx={{ backgroundColor: "#e3f2fd" }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Ventas ({orders.length})
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <Box className={classes["orders-container"]}>
+                {ordersListLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                    <CircularProgress size={32} />
+                  </Box>
+                ) : ordersSortedByTicket.length === 0 ? (
+                  <Typography
+                    variant="body1"
+                    sx={{ p: 2, color: "text.secondary" }}
+                  >
+                    No hay ventas en esta fecha
+                  </Typography>
+                ) : (
+                  ordersSortedByTicket.map((order) => (
+                    <OrderItem
+                      key={order.id}
+                      order={order}
+                      onReturnClick={handleReturnClick}
+                    />
+                  ))
+                )}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Devoluciones Section */}
+          <Accordion
+            expanded={returnsExpanded}
+            onChange={() => setReturnsExpanded(!returnsExpanded)}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              sx={{ backgroundColor: "#fff3e0" }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "#e65100" }}
+              >
+                Devoluciones ({returns.length})
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <Box className={classes["orders-container"]}>
+                {returnsListLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                    <CircularProgress size={32} sx={{ color: "#e65100" }} />
+                  </Box>
+                ) : returnsSortedByTicket.length === 0 ? (
+                  <Typography
+                    variant="body1"
+                    sx={{ p: 2, color: "text.secondary" }}
+                  >
+                    No hay devoluciones en esta fecha
+                  </Typography>
+                ) : (
+                  returnsSortedByTicket.map((returnItem) => (
+                    <ReturnItem key={returnItem.id} returnItem={returnItem} />
+                  ))
+                )}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        </>
+      )}
 
       <ReturnModal
         open={returnModalOpen}
