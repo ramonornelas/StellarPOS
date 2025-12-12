@@ -50,9 +50,30 @@ def lambda_handler(event, context):
                     FilterExpression=Attr('orderTicket_id').eq(order_id)
                 )
                 if 'Items' in products_response and products_response['Items']:
-                    order['products'] = products_response['Items']
+                    products = products_response['Items']
+                    
+                    # Add is_returned flag to each product
+                    returned_count = 0
+                    for product in products:
+                        # A product is returned if it has a returnTicket_id
+                        product['is_returned'] = bool(product.get('returnTicket_id'))
+                        if product['is_returned']:
+                            returned_count += 1
+                    
+                    order['products'] = products
+                    
+                    # Calculate is_return_status based on returned products
+                    total_products = len(products)
+                    if returned_count == 0:
+                        order['is_return_status'] = 'none'
+                    elif returned_count == total_products:
+                        order['is_return_status'] = 'total'
+                    else:
+                        order['is_return_status'] = 'partial'
                 else:
                     order['products'] = []
+                    order['is_return_status'] = 'none'
+                    
                 split_payment_response = order_split_payment_table.scan(
                     FilterExpression=Attr('orderTicket_id').eq(order_id)
                 )

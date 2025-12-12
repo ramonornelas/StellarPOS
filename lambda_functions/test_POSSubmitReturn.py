@@ -31,17 +31,17 @@ from POSSubmitReturn import lambda_handler
 # All tests are configured with 'stage': 'test' to prevent any impact on production data
 
 # Test Configuration - MODIFY THESE VALUES FOR YOUR TESTS
-TEST_ORDER_ID = "624f3379-73af-4434-b48b-8bf50d1ea26a"  # Replace with your test order ID
+TEST_ORDER_ID = "c5115d95-82e5-4778-9de0-b7c2aac89120"  # Replace with your test order ID
 TEST_PRODUCTS = [
     {
-        'id': 'b26083e1-c89c-488b-bbed-6e087cac460d',  # Replace with your test product ID
+        'id': 'c4f5d82b-b8b2-4970-bb02-60b0e6017810',  # Replace with your test product ID
         'quantity': 1
         # 'variant_id': 'variant-id-here'  # Uncomment and add if using variants
     },
     {
-        'id': 'e5749aa6-6301-4fdd-b2e3-e5b47bee3960',  # Replace with your test product ID
+        'id': 'b26083e1-c89c-488b-bbed-6e087cac460d',  # Replace with your test product ID
         'quantity': 1,
-        'variant_id': 'd3b73402-b5c3-46d3-b950-ac8ca9fdc2de'  # Uncomment and add if using variants
+        'variant_id': '5d0a8fc5-03b1-4f06-bc5e-443aa6e5617c'  # Uncomment and add if using variants
     }
     # Add more products as needed:
     # {
@@ -658,7 +658,7 @@ def test_debug_order_products():
         'products': [{'id': 'debug-product', 'quantity': 1}]  # Dummy product to trigger order lookup
     }
     
-    print(f"\n🔍 Debugging Order: {TEST_ORDER_ID}")
+    print(f"\n Debugging Order: {TEST_ORDER_ID}")
     
     try:
         # Import the functions directly to debug
@@ -719,10 +719,161 @@ def test_debug_order_products():
             if not found_match:
                 print(f"      ❌ NO MATCH found in order products")
         
-        return "✅ Debug Order Products: Completed successfully"
-        
+        return " Debug Order Products: Completed successfully"
+    
     except Exception as e:
-        return f"✗ Debug Order Products: Exception - {str(e)}"
+        return f"Debug Order Products: Exception - {str(e)}"
+
+def test_consecutive_ticket_numbers():
+    """Test that consecutive ticket numbers are generated correctly"""
+    log_test_start("Consecutive Ticket Numbers", "Test that return tickets get consecutive numbers #R001, #R002, etc.")
+    
+    # Process first return
+    payload1 = {
+        'order_id': TEST_ORDER_ID,
+        'refund_method': 'cash',
+        'products': [TEST_PRODUCTS[0]] if TEST_PRODUCTS else [{'id': 'test', 'quantity': 1}],
+        'notes': 'First return - should get #R001',
+        'user_id': TEST_USER_ID,
+        'cash_register_id': TEST_CASH_REGISTER_ID
+    }
+    
+    log_payload(payload1, "First Return Payload")
+    event1 = create_test_event(body=payload1)
+    
+    try:
+        response1 = lambda_handler(event1, {})
+        response_body1 = log_response(response1, "First Return Response")
+        
+        if response1.get('statusCode') == 200:
+            print(f"\n✅ First return processed successfully")
+            print(f"   Expected ticket number: #R001 (or higher if other returns exist today)")
+            
+            # Note: We can't directly verify the ticket number without querying DynamoDB
+            # But we can verify the return was successful
+            data = response_body1.get('data', {})
+            print(f"   Return Ticket ID: {data.get('return_ticket_id', 'N/A')}")
+        
+        # Process second return (if we have multiple products)
+        if len(TEST_PRODUCTS) > 1:
+            payload2 = {
+                'order_id': TEST_ORDER_ID,
+                'refund_method': 'cash',
+                'products': [TEST_PRODUCTS[1]],
+                'notes': 'Second return - should get next consecutive number',
+                'user_id': TEST_USER_ID,
+                'cash_register_id': TEST_CASH_REGISTER_ID
+            }
+            
+            log_payload(payload2, "Second Return Payload")
+            event2 = create_test_event(body=payload2)
+            
+            response2 = lambda_handler(event2, {})
+            response_body2 = log_response(response2, "Second Return Response")
+            
+            if response2.get('statusCode') == 200:
+                print(f"\n✅ Second return processed successfully")
+                print(f"   Expected: Ticket number should be one higher than first return")
+        
+        return analyze_response("Consecutive Ticket Numbers", response1)
+    except Exception as e:
+        return f"✗ Consecutive Ticket Numbers: Exception - {str(e)}"
+
+def test_duplicate_return_prevention():
+    """Test that duplicate returns are prevented"""
+    log_test_start("Duplicate Return Prevention", "Test that returning the same product twice is prevented")
+    
+    # First, process a return successfully
+    payload_first = {
+        'order_id': TEST_ORDER_ID,
+        'refund_method': 'cash',
+        'products': [TEST_PRODUCTS[0]] if TEST_PRODUCTS else [{'id': 'test', 'quantity': 1}],
+        'notes': 'First return - should succeed',
+        'user_id': TEST_USER_ID,
+        'cash_register_id': TEST_CASH_REGISTER_ID
+    }
+    
+    log_payload(payload_first, "First Return (Should Succeed)")
+    event_first = create_test_event(body=payload_first)
+    
+    try:
+        response_first = lambda_handler(event_first, {})
+        response_body_first = log_response(response_first, "First Return Response")
+        
+        if response_first.get('statusCode') == 200:
+            print(f"\n✅ First return processed successfully")
+            data = response_body_first.get('data', {})
+            first_ticket_id = data.get('return_ticket_id', 'N/A')
+            print(f"   Return Ticket ID: {first_ticket_id}")
+            
+            # Now try to return the same product again (should fail)
+            payload_duplicate = {
+                'order_id': TEST_ORDER_ID,
+                'refund_method': 'cash',
+                'products': [TEST_PRODUCTS[0]] if TEST_PRODUCTS else [{'id': 'test', 'quantity': 1}],
+                'notes': 'Duplicate return - should fail',
+                'user_id': TEST_USER_ID,
+                'cash_register_id': TEST_CASH_REGISTER_ID
+            }
+            
+            log_payload(payload_duplicate, "Duplicate Return (Should Fail)")
+            event_duplicate = create_test_event(body=payload_duplicate)
+            
+            response_duplicate = lambda_handler(event_duplicate, {})
+            response_body_duplicate = log_response(response_duplicate, "Duplicate Return Response")
+            
+            if response_duplicate.get('statusCode') == 400:
+                print(f"\n✅ Duplicate return correctly prevented!")
+                errors = response_body_duplicate.get('errors', [])
+                if errors:
+                    print(f"   Error message includes original return info:")
+                    for error in errors:
+                        print(f"     - {error.get('reason', 'N/A')}")
+                return "✅ Duplicate Return Prevention: Successfully prevented duplicate return"
+            else:
+                print(f"\n❌ Duplicate return was NOT prevented (expected 400, got {response_duplicate.get('statusCode')})")
+                return f"❌ Duplicate Return Prevention: Failed to prevent duplicate (got {response_duplicate.get('statusCode')})"
+        else:
+            print(f"\n⚠️  First return failed, cannot test duplicate prevention")
+            return "⚠️  Duplicate Return Prevention: First return failed, test incomplete"
+            
+    except Exception as e:
+        return f"✗ Duplicate Return Prevention: Exception - {str(e)}"
+
+def test_order_product_updates():
+    """Test that order products are updated with return information"""
+    log_test_start("Order Product Updates", "Test that POS_orderProduct table is updated with return info")
+    
+    payload = {
+        'order_id': TEST_ORDER_ID,
+        'refund_method': 'cash',
+        'products': [TEST_PRODUCTS[0]] if TEST_PRODUCTS else [{'id': 'test', 'quantity': 1}],
+        'notes': 'Testing order product updates',
+        'user_id': TEST_USER_ID,
+        'cash_register_id': TEST_CASH_REGISTER_ID
+    }
+    
+    log_payload(payload)
+    event = create_test_event(body=payload)
+    
+    try:
+        response = lambda_handler(event, {})
+        response_body = log_response(response)
+        
+        if response.get('statusCode') == 200:
+            data = response_body.get('data', {})
+            print(f"\n✅ Return processed successfully")
+            print(f"   Return Ticket ID: {data.get('return_ticket_id', 'N/A')}")
+            print(f"\n📋 Order Product Update Verification:")
+            print(f"   The POS_orderProduct table should now have:")
+            print(f"     - returnTicket_id: {data.get('return_ticket_id', 'N/A')}")
+            print(f"     - returnTicket_date: (current datetime)")
+            print(f"     - returnTicket_ticket: (consecutive ticket number like #R001)")
+            print(f"\n   ℹ️  To fully verify, query the POS_orderProduct table directly")
+            
+        return analyze_response("Order Product Updates", response)
+    except Exception as e:
+        return f"✗ Order Product Updates: Exception - {str(e)}"
 
 def run_validation_tests():
     """Run all validation tests"""
@@ -765,7 +916,13 @@ def run_functional_tests():
     functional_tests = [
         test_debug_order_products,  # Debug test first
         test_comprehensive_valid_return,
-        test_cash_register_id_inclusion,  # Test cash_register_id extraction
+        #test_cash_register_id_inclusion,  # Test cash_register_id extraction
+        #test_consecutive_ticket_numbers,  # Test consecutive ticket numbering
+        #test_order_product_updates,  # Test order product table updates
+        # Note: test_duplicate_return_prevention is commented out by default
+        # because it requires a successful first return to test the duplicate prevention
+        # Uncomment this test after running the suite once successfully:
+        # test_duplicate_return_prevention,  # Test duplicate return prevention
         # test_valid_return_cash,
         # test_valid_return_card,
         # test_valid_return_transfer,

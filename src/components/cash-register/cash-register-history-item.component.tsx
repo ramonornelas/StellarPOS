@@ -1,12 +1,21 @@
-import { Accordion, AccordionSummary, AccordionDetails, Box, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Box,
+  Typography,
+} from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { formatCurrency } from "../../functions/generalFunctions";
+import { CashRegister } from "../../types/cashRegister";
 
 interface CashRegisterHistoryItemProps {
-  item: any;
+  item: CashRegister;
 }
 
-export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = ({ item }) => {
+export const CashRegisterHistoryItem: React.FC<
+  CashRegisterHistoryItemProps
+> = ({ item }) => {
   const openedAt = item.opened_at ? new Date(item.opened_at) : null;
   const closedAt = item.closed_at ? new Date(item.closed_at) : null;
 
@@ -20,9 +29,9 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
     Number(item.difference_amount) === 0
   ) {
     differenceColor = "#E8F5E9"; // verde mucho más claro
-  } else if (item.difference_amount > 0) {
+  } else if (Number(item.difference_amount) > 0) {
     differenceColor = "#FFFDE7"; // amarillo mucho más claro
-  } else if (item.difference_amount < 0) {
+  } else if (Number(item.difference_amount) < 0) {
     differenceColor = "#FCE4EC"; // rosa mucho más claro
   }
 
@@ -51,13 +60,27 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
               boxSizing: "border-box",
             }}
           >
-            <Typography variant="caption" sx={{ minWidth: 100 }}>Fecha</Typography>
-            <Typography variant="caption" sx={{ minWidth: 80 }}>Estatus</Typography>
-            <Typography variant="caption" sx={{ minWidth: 120 }}>Hora apertura</Typography>
-            <Typography variant="caption" sx={{ minWidth: 120 }}>Hora cierre</Typography>
-            <Typography variant="caption" sx={{ minWidth: 120 }}>Cierre</Typography>
-            <Typography variant="caption" sx={{ minWidth: 120 }}>Esperado</Typography>
-            <Typography variant="caption" sx={{ minWidth: 120 }}>Diferencia</Typography>
+            <Typography variant="caption" sx={{ minWidth: 100 }}>
+              Fecha
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 80 }}>
+              Estatus
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 120 }}>
+              Hora apertura
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 120 }}>
+              Hora cierre
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 120 }}>
+              Cierre
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 120 }}>
+              Esperado
+            </Typography>
+            <Typography variant="caption" sx={{ minWidth: 120 }}>
+              Diferencia
+            </Typography>
           </Box>
           {/* Data row */}
           <Box
@@ -72,18 +95,34 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
               borderRadius: 1,
             }}
           >
-            <Typography variant="body1" sx={{ minWidth: 100 }}>{item.date ?? "-"}</Typography>
-            <Typography variant="body2" sx={{ minWidth: 80 }}>{statusLabel}</Typography>
-            <Typography variant="body2" sx={{ minWidth: 120 }}>{openedAt ? openedAt.toLocaleTimeString() : "-"}</Typography>
-            <Typography variant="body2" sx={{ minWidth: 120 }}>{closedAt ? closedAt.toLocaleTimeString() : "-"}</Typography>
-            <Typography variant="body2" sx={{ minWidth: 120 }}>
-              {item.closing_amount !== undefined && item.closing_amount !== null ? formatCurrency(item.closing_amount, "es-MX", "MXN") : "-"}
+            <Typography variant="body1" sx={{ minWidth: 100 }}>
+              {item.date ?? "-"}
+            </Typography>
+            <Typography variant="body2" sx={{ minWidth: 80 }}>
+              {statusLabel}
             </Typography>
             <Typography variant="body2" sx={{ minWidth: 120 }}>
-              {item.expected_amount !== undefined && item.expected_amount !== null ? formatCurrency(item.expected_amount, "es-MX", "MXN") : "-"}
+              {openedAt ? openedAt.toLocaleTimeString() : "-"}
             </Typography>
             <Typography variant="body2" sx={{ minWidth: 120 }}>
-              {item.difference_amount !== undefined && item.difference_amount !== null ? formatCurrency(item.difference_amount, "es-MX", "MXN") : "-"}
+              {closedAt ? closedAt.toLocaleTimeString() : "-"}
+            </Typography>
+            <Typography variant="body2" sx={{ minWidth: 120 }}>
+              {item.closing_amount !== undefined && item.closing_amount !== null
+                ? formatCurrency(Number(item.closing_amount), "es-MX", "MXN")
+                : "-"}
+            </Typography>
+            <Typography variant="body2" sx={{ minWidth: 120 }}>
+              {item.expected_amount !== undefined &&
+              item.expected_amount !== null
+                ? formatCurrency(Number(item.expected_amount), "es-MX", "MXN")
+                : "-"}
+            </Typography>
+            <Typography variant="body2" sx={{ minWidth: 120 }}>
+              {item.difference_amount !== undefined &&
+              item.difference_amount !== null
+                ? formatCurrency(Number(item.difference_amount), "es-MX", "MXN")
+                : "-"}
             </Typography>
           </Box>
         </Box>
@@ -91,19 +130,41 @@ export const CashRegisterHistoryItem: React.FC<CashRegisterHistoryItemProps> = (
       <AccordionDetails sx={{ width: "100%", boxSizing: "border-box" }}>
         <Box>
           <Typography variant="body2">
-            <strong>Monto de apertura:</strong> {item.opening_amount !== undefined && item.opening_amount !== null ? formatCurrency(item.opening_amount, "es-MX", "MXN") : "-"}
+            <strong>Monto de apertura:</strong>{" "}
+            {item.opening_amount !== undefined && item.opening_amount !== null
+              ? formatCurrency(Number(item.opening_amount), "es-MX", "MXN")
+              : "-"}
           </Typography>
           <Typography variant="body2">
-            <strong>Ventas en efectivo:</strong> {item.cash_sales !== undefined && item.cash_sales !== null ? formatCurrency(item.cash_sales, "es-MX", "MXN") : "-"}
+            <strong>Ventas en efectivo:</strong>{" "}
+            {item.cash_sales !== undefined && item.cash_sales !== null
+              ? formatCurrency(Number(item.cash_sales), "es-MX", "MXN")
+              : "-"}
           </Typography>
           <Typography variant="body2">
-            <strong>Monto esperado:</strong> {item.expected_amount !== undefined && item.expected_amount !== null ? formatCurrency(item.expected_amount, "es-MX", "MXN") : "-"}
+            <strong>Devoluciones en efectivo:</strong>{" "}
+            {item.cash_sales !== undefined && item.cash_returns !== null
+              ? formatCurrency(Number(item.cash_returns), "es-MX", "MXN")
+              : "-"}
           </Typography>
           <Typography variant="body2">
-            <strong>Monto de cierre:</strong> {item.closing_amount !== undefined && item.closing_amount !== null ? formatCurrency(item.closing_amount, "es-MX", "MXN") : "-"}
+            <strong>Monto esperado:</strong>{" "}
+            {item.expected_amount !== undefined && item.expected_amount !== null
+              ? formatCurrency(Number(item.expected_amount), "es-MX", "MXN")
+              : "-"}
           </Typography>
           <Typography variant="body2">
-            <strong>Diferencia:</strong> {item.difference_amount !== undefined && item.difference_amount !== null ? formatCurrency(item.difference_amount, "es-MX", "MXN") : "-"}
+            <strong>Monto de cierre:</strong>{" "}
+            {item.closing_amount !== undefined && item.closing_amount !== null
+              ? formatCurrency(Number(item.closing_amount), "es-MX", "MXN")
+              : "-"}
+          </Typography>
+          <Typography variant="body2">
+            <strong>Diferencia:</strong>{" "}
+            {item.difference_amount !== undefined &&
+            item.difference_amount !== null
+              ? formatCurrency(Number(item.difference_amount), "es-MX", "MXN")
+              : "-"}
           </Typography>
         </Box>
       </AccordionDetails>
