@@ -18,13 +18,11 @@ current_datetime = datetime.utcnow().isoformat() + 'Z'
 # Mock event and context for cash register closeout (cierre de caja) with returns
 event = {
     'body': json.dumps({
-        'id': "6598a7db-1aad-4e46-ba95-658a6cce9c1b",
-        'closing_amount': 2000,
+        'id': "ccb69872-bcc2-41f3-af42-bfe04719f606",
+        'closing_amount': 1346,
         'closed_at': current_datetime,
-        'status': 'closed',
         'closed_user_id': 'user123',
         'notes': 'Cierre de caja de prueba con retornos incluidos',
-        'cash_sales': 500,
     })
 }
 
@@ -35,10 +33,9 @@ print("=" * 60)
 print(f"📋 Test Configuration:")
 print(f"   Cash Register ID: 6598a7db-1aad-4e46-ba95-658a6cce9c1b")
 print(f"   Closing DateTime: {current_datetime}")
-print(f"   Cash Sales: $500.00")
-print(f"   Closing Amount: $2000.00")
-print(f"   Expected: Function will query cash returns and calculate:")
-print(f"   expected_amount = opening_amount + cash_sales - cash_returns")
+print(f"   Closing Amount: $1346.00")
+print(f"   Expected: Function will calculate cash_sales and cash_returns internally")
+print(f"   Formula: expected_amount = opening_amount + cash_sales - cash_returns")
 print()
 
 # Call the lambda_handler function with TEST stage

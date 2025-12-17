@@ -12,6 +12,7 @@ import { SelectVariant } from "./modal-select-variant.component";
 import React from "react";
 import { formatCurrency } from "../../functions/generalFunctions";
 import { featureFlags } from "../../config/featureFlags";
+import { useCanViewStockAvailable } from "../users/userPermissionsContext";
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
 }) => {
   const { name, stock_available, price, has_variants } = product;
+  const canViewStock = useCanViewStockAvailable();
 
   const numericPrice = Number(price) || 0;
   const formattedPrice =
@@ -90,11 +92,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         >
           {name}
         </Typography>
-        {featureFlags.productsCardShowStockAvailable && (
-          <Typography gutterBottom variant="body2" component="h3">
-            Disponible: {stock_available || 0}
-          </Typography>
-        )}
+        {featureFlags.productsCardShowStockAvailable &&
+          canViewStock &&
+          !has_variants && (
+            <Typography gutterBottom variant="body2" component="h3">
+              Disponible: {stock_available || 0}
+            </Typography>
+          )}
       </CardContent>
       <CardActions className={classes["card-actions"]}>
         <Typography gutterBottom variant="body2" component="p">

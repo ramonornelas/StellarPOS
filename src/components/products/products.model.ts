@@ -40,6 +40,7 @@ export interface ProductVariant {
   created_datetime: string;
   updated_user_id: string;
   is_deleted: boolean;
+  barcode?: string;
 }
 
 export interface Category {

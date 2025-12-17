@@ -22,9 +22,9 @@ export const ReturnsSummaryCard: React.FC<ReturnsSummaryProps> = ({
     );
   }
 
-  if (!summary || summary.refund_methods.length === 0) {
-    return null;
-  }
+  const refundMethods = summary?.refund_methods || [];
+  const totalAmount = summary?.total_amount || 0;
+  const totalTransactions = summary?.total_transactions || 0;
 
   return (
     <Paper
@@ -44,25 +44,34 @@ export const ReturnsSummaryCard: React.FC<ReturnsSummaryProps> = ({
       </Typography>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-        {summary.refund_methods.map((method) => (
-          <Box
-            key={method.method}
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "0.9rem",
-            }}
+        {refundMethods.length > 0 ? (
+          refundMethods.map((method) => (
+            <Box
+              key={method.method}
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "0.9rem",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                • {method.method_display} ({method.transaction_count}):
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {formatCurrency(method.total_amount)}
+              </Typography>
+            </Box>
+          ))
+        ) : (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontStyle: "italic" }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              • {method.method_display}:
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {formatCurrency(method.total_amount)} ({method.transaction_count}{" "}
-              {method.transaction_count === 1 ? "devolución" : "devoluciones"})
-            </Typography>
-          </Box>
-        ))}
+            No hay devoluciones
+          </Typography>
+        )}
       </Box>
 
       <Box
@@ -76,11 +85,10 @@ export const ReturnsSummaryCard: React.FC<ReturnsSummaryProps> = ({
         }}
       >
         <Typography variant="body2" sx={{ fontWeight: 600, color: "#e65100" }}>
-          Total devoluciones:
+          Total devoluciones ({totalTransactions}):
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 600, color: "#e65100" }}>
-          {formatCurrency(summary.total_amount)} ({summary.total_transactions}{" "}
-          {summary.total_transactions === 1 ? "devolución" : "devoluciones"})
+          {formatCurrency(totalAmount)}
         </Typography>
       </Box>
     </Paper>

@@ -88,10 +88,6 @@ export const Orders: React.FC = () => {
     refetchReturnsSummary();
   };
 
-  // Calculate totals for the difference card
-  const totalSales = ordersSummary?.total_amount || 0;
-  const totalReturns = returnsSummary?.total_amount || 0;
-
   // Maneja el cambio de fecha local
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -199,20 +195,30 @@ export const Orders: React.FC = () => {
       ) : (
         <>
           {/* Summary Cards Row */}
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              mb: 2,
+              width: "100%",
+              maxWidth: "80%",
+              justifyContent: "center",
+            }}
+          >
+            <Box sx={{ minWidth: 0, width: "30%" }}>
               <PaymentSummary summary={ordersSummary} loading={ordersLoading} />
             </Box>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, width: "30%" }}>
               <ReturnsSummaryCard
                 summary={returnsSummary}
                 loading={returnsLoading}
               />
             </Box>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, width: "30%" }}>
               <SalesDifferenceCard
-                totalSales={totalSales}
-                totalReturns={totalReturns}
+                ordersSummary={ordersSummary}
+                returnsSummary={returnsSummary}
                 loading={ordersLoading || returnsLoading}
               />
             </Box>

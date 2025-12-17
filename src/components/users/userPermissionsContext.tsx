@@ -99,6 +99,11 @@ export const useCanViewInventoryAdjustments = (): boolean => {
   return hasPermission(permissions, "view_inventory_adjustments");
 };
 
+export const useCanViewStockAvailable = (): boolean => {
+  const { permissions } = useUserPermissions();
+  return hasPermission(permissions, "view_stock_available");
+};
+
 export const hasPermission = (
   permissions: Permission[] | undefined,
   permissionName: string

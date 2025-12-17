@@ -11,12 +11,16 @@ def get_table_names(stage):
     if stage and stage.lower() == 'test':
         return {
             'CASH_REGISTER_CLOSEOUT_TABLE': os.getenv('TEST_CASH_REGISTER_CLOSEOUT_TABLE', 'test_stellar_cashRegisterCloseout'),
-            'RETURN_TICKET_TABLE': os.getenv('TEST_POS_RETURN_TICKET_TABLE', 'test_POS_returnTicket')
+            'RETURN_TICKET_TABLE': os.getenv('TEST_POS_RETURN_TICKET_TABLE', 'test_POS_returnTicket'),
+            'ORDER_TICKET_TABLE': os.getenv('TEST_ORDER_TICKET_TABLE', 'test_POS_orderTicket'),
+            'SPLIT_PAYMENT_TABLE': os.getenv('TEST_SPLIT_PAYMENT_TABLE', 'test_POS_orderSplitPayment')
         }
     else:
         return {
             'CASH_REGISTER_CLOSEOUT_TABLE': os.getenv('CASH_REGISTER_CLOSEOUT_TABLE', 'stellar_cashRegisterCloseout'),
-            'RETURN_TICKET_TABLE': os.getenv('POS_RETURN_TICKET_TABLE', 'POS_returnTicket')
+            'RETURN_TICKET_TABLE': os.getenv('POS_RETURN_TICKET_TABLE', 'POS_returnTicket'),
+            'ORDER_TICKET_TABLE': os.getenv('ORDER_TICKET_TABLE', 'POS_orderTicket'),
+            'SPLIT_PAYMENT_TABLE': os.getenv('SPLIT_PAYMENT_TABLE', 'POS_orderSplitPayment')
         }
 
 dynamodb = boto3.resource('dynamodb')
@@ -65,35 +69,117 @@ def get_cash_returns(return_ticket_table, cash_register_id):
         print(f"Error getting cash returns for cash register {cash_register_id}: {str(e)}")
         return decimal.Decimal('0.00').quantize(TWO_DECIMAL_PLACES)
 
+def get_cash_sales(order_ticket_table, split_payment_table, cash_register_id):
+    """
+    Get all cash sales for a specific cash register
+    Returns the total amount of cash sales
+    """
+    try:
+        # Scan the order ticket table for orders associated with this cash register
+        response = order_ticket_table.scan(
+            FilterExpression='cash_register_id = :cash_register_id',
+            ExpressionAttributeValues={
+                ':cash_register_id': cash_register_id
+            }
+        )
+        
+        orders = response.get('Items', [])
+        
+        # Handle pagination
+        while 'LastEvaluatedKey' in response:
+            response = order_ticket_table.scan(
+                FilterExpression='cash_register_id = :cash_register_id',
+                ExpressionAttributeValues={
+                    ':cash_register_id': cash_register_id
+                },
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            orders.extend(response.get('Items', []))
+        
+        # Calculate total cash sales
+        total_cash_sales = decimal.Decimal('0.00')
+        
+        for order in orders:
+            order_id = order.get('id')
+            order_change = decimal.Decimal(str(order.get('change', '0')))
+            
+            # Check for split payments
+            split_response = split_payment_table.scan(
+                FilterExpression='orderTicket_id = :order_id',
+                ExpressionAttributeValues={
+                    ':order_id': order_id
+                }
+            )
+            split_payments = split_response.get('Items', [])
+            
+            if split_payments:
+                # Has split payments - sum cash payments
+                for sp in split_payments:
+                    method = sp.get('payment_method', '')
+                    if method.lower() == 'cash':
+                        amount = decimal.Decimal(str(sp.get('amount', '0')))
+                        total_cash_sales += amount
+                # Subtract change from cash total (change is returned to customer)
+                total_cash_sales -= order_change
+            else:
+                # No split payments - use order's payment method
+                method = order.get('payment_method', '')
+                if method.lower() == 'cash':
+                    received_amount = decimal.Decimal(str(order.get('received_amount', '0')))
+                    total_cash_sales += received_amount - order_change
+        
+        return total_cash_sales.quantize(TWO_DECIMAL_PLACES)
+        
+    except Exception as e:
+        print(f"Error getting cash sales for cash register {cash_register_id}: {str(e)}")
+        return decimal.Decimal('0.00').quantize(TWO_DECIMAL_PLACES)
+
 def lambda_handler(event, context):
     try:
         stage = event.get('requestContext', {}).get('stage', 'dev')
         tables = get_table_names(stage)
         cash_register_closeout_table = dynamodb.Table(tables['CASH_REGISTER_CLOSEOUT_TABLE'])
         return_ticket_table = dynamodb.Table(tables['RETURN_TICKET_TABLE'])
+        order_ticket_table = dynamodb.Table(tables['ORDER_TICKET_TABLE'])
+        split_payment_table = dynamodb.Table(tables['SPLIT_PAYMENT_TABLE'])
 
         if 'body' in event:
             data = json.loads(event['body'])
 
-            # Required fields
+            # Required fields validation
             cash_register_id = data.get('id')
-            closing_amount = decimal.Decimal(str(data['closing_amount'])).quantize(TWO_DECIMAL_PLACES)
-            closed_at = data['closed_at']
-            status = data.get('status', 'closed')
-
-            # Validate required fields
             if not cash_register_id:
                 return {
                     'statusCode': 400,
-                    'body': json.dumps({'message': 'cash_register_id is required'})
+                    'body': json.dumps({'message': 'Missing required field: id'})
                 }
+            
+            if 'closing_amount' not in data:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'message': 'Missing required field: closing_amount'})
+                }
+            closing_amount = decimal.Decimal(str(data['closing_amount'])).quantize(TWO_DECIMAL_PLACES)
+            
+            if 'closed_at' not in data:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'message': 'Missing required field: closed_at'})
+                }
+            closed_at = data['closed_at']
+            
+            if not data.get('closed_user_id'):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'message': 'Missing required field: closed_user_id'})
+                }
+            closed_user_id = data['closed_user_id']
+            
+            # Status is automatically set to 'closed' - not from payload
+            status = 'closed'
 
             # Optional fields
-            closed_user_id = data.get('closed_user_id', '')
             notes = data.get('notes', '')
-
-            # New fields
-            cash_sales = decimal.Decimal(str(data.get('cash_sales', 0))).quantize(TWO_DECIMAL_PLACES)
 
             # Fetch opening_amount from DynamoDB
             opening_amount = decimal.Decimal('0.00')
@@ -107,12 +193,25 @@ def lambda_handler(event, context):
                     'body': json.dumps({'message': 'Opening amount not found for this closeout id'})
                 }
 
+            # Calculate cash_sales internally from orders
+            cash_sales = get_cash_sales(order_ticket_table, split_payment_table, cash_register_id)
+
             # Get cash returns for this cash register
             cash_returns = get_cash_returns(return_ticket_table, cash_register_id)
 
-            # Calculate expected_amount with new formula: opening_amount + cash_sales - cash_returns
+            # Log calculations for debugging
+            print(f"Cash Register Close - ID: {cash_register_id}")
+            print(f"  Opening Amount: {opening_amount}")
+            print(f"  Cash Sales (calculated): {cash_sales}")
+            print(f"  Cash Returns: {cash_returns}")
+
+            # Calculate expected_amount with formula: opening_amount + cash_sales - cash_returns
             expected_amount = (opening_amount + cash_sales - cash_returns).quantize(TWO_DECIMAL_PLACES)
             difference_amount = (closing_amount - expected_amount).quantize(TWO_DECIMAL_PLACES)
+            
+            print(f"  Expected Amount: {expected_amount}")
+            print(f"  Closing Amount: {closing_amount}")
+            print(f"  Difference Amount: {difference_amount}")
 
             # Update the item in DynamoDB
             update_expression = (
