@@ -34,6 +34,7 @@ interface ApiStockItem {
   product_id: string;
   product_variant_id: string | null;
   name: string;
+  display_order: number;
 }
 
 const InventoryConteoFisico: React.FC = () => {
@@ -65,7 +66,11 @@ const InventoryConteoFisico: React.FC = () => {
 
       const items: CountableItem[] = [];
       const productGroups: {
-        [key: string]: { name: string; variants: ApiStockItem[] };
+        [key: string]: {
+          name: string;
+          display_order: number;
+          variants: ApiStockItem[];
+        };
       } = {};
 
       // First, group by product_id (this is the most reliable)
@@ -88,6 +93,7 @@ const InventoryConteoFisico: React.FC = () => {
 
             productGroups[apiItem.product_id] = {
               name: productName,
+              display_order: apiItem.display_order, // display_order del producto padre
               variants: [],
             };
           }
@@ -103,6 +109,7 @@ const InventoryConteoFisico: React.FC = () => {
             is_variant: false,
             stock_available: 0,
             counted_quantity: "",
+            display_order: apiItem.display_order,
           });
         }
       });
@@ -133,6 +140,7 @@ const InventoryConteoFisico: React.FC = () => {
           stock_available: 0,
           counted_quantity: "",
           isProductHeader: true, // Mark as product header
+          display_order: group.display_order, // display_order del producto padre
         });
 
         // Add variants as subrows
@@ -162,13 +170,19 @@ const InventoryConteoFisico: React.FC = () => {
             is_variant: true,
             stock_available: 0,
             counted_quantity: "",
+            display_order: group.display_order, // Mismo display_order que el producto padre
           });
         });
       });
 
-      // Sort: keep product groups together
+      // Sort: keep product groups together, ordered by display_order
       items.sort((a, b) => {
-        // First sort by product_id to keep groups together
+        // First sort by display_order (products and their variants share the same display_order)
+        if (a.display_order !== b.display_order) {
+          return a.display_order - b.display_order;
+        }
+
+        // Within the same display_order, group by product_id to keep variants together
         if (a.product_id !== b.product_id) {
           return a.product_id.localeCompare(b.product_id);
         }
@@ -177,7 +191,7 @@ const InventoryConteoFisico: React.FC = () => {
         if (a.isProductHeader && !b.isProductHeader) return -1;
         if (!a.isProductHeader && b.isProductHeader) return 1;
 
-        // Between variants of the same product, sort by name
+        // Between variants of the same product, sort by variant name
         if (a.is_variant && b.is_variant) {
           return (a.variant_name || "").localeCompare(b.variant_name || "");
         }

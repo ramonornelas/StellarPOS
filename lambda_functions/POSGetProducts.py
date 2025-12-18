@@ -121,19 +121,16 @@ def get_products_with_stock(product_table, variant_table):
                     # Combine parent product name with variant name
                     full_name = f"{parent_product['name']} — {variant['name']}"
                     
+                    # Use parent product's display_order for grouping/sorting
                     items.append({
                         'product_id': variant['product_id'],
                         'product_variant_id': variant['id'],
                         'name': full_name,
-                        'display_order': int(variant.get('display_order', 999))
+                        'display_order': int(parent_product.get('display_order', 999))
                     })
         
-        # Sort by display_order ascending
+        # Sort by display_order ascending (products with same display_order will be grouped together)
         items.sort(key=lambda x: x['display_order'])
-        
-        # Remove display_order from response (internal field)
-        for item in items:
-            del item['display_order']
         
         return {
             'statusCode': 200,
@@ -196,19 +193,16 @@ def get_products_with_variants(product_table, variant_table):
                 # Combine parent product name with variant name
                 full_name = f"{parent_product['name']} — {variant['name']}"
                 
+                # Use parent product's display_order for grouping/sorting
                 items.append({
                     'product_id': variant['product_id'],
                     'product_variant_id': variant['id'],
                     'name': full_name,
-                    'display_order': int(variant.get('display_order', 999))
+                    'display_order': int(parent_product.get('display_order', 999))
                 })
         
-        # Sort by display_order ascending
+        # Sort by display_order ascending (products with same display_order will be grouped together)
         items.sort(key=lambda x: x['display_order'])
-        
-        # Remove display_order from response (internal field)
-        for item in items:
-            del item['display_order']
         
         return {
             'statusCode': 200,
