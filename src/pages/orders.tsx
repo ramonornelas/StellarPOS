@@ -273,44 +273,71 @@ export const Orders: React.FC = () => {
           </Box>
 
           {/* Ventas Section */}
-          <Accordion
-            expanded={salesExpanded}
-            onChange={() => setSalesExpanded(!salesExpanded)}
-            sx={{ mb: 2 }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              sx={{ backgroundColor: "#e3f2fd" }}
+          {isDetailedView ? (
+            <Accordion
+              expanded={salesExpanded}
+              onChange={() => setSalesExpanded(!salesExpanded)}
+              sx={{ mb: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Ventas ({orders.length})
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
-              <Box className={classes["orders-container"]}>
-                {ordersListLoading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                    <CircularProgress size={32} />
-                  </Box>
-                ) : ordersSortedByTicket.length === 0 ? (
-                  <Typography
-                    variant="body1"
-                    sx={{ p: 2, color: "text.secondary" }}
-                  >
-                    No hay ventas en esta fecha
-                  </Typography>
-                ) : (
-                  ordersSortedByTicket.map((order) => (
-                    <OrderItem
-                      key={order.id}
-                      order={order}
-                      onReturnClick={handleReturnClick}
-                    />
-                  ))
-                )}
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ backgroundColor: "#e3f2fd" }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Ventas ({orders.length})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <Box className={classes["orders-container"]}>
+                  {ordersListLoading ? (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", p: 3 }}
+                    >
+                      <CircularProgress size={32} />
+                    </Box>
+                  ) : ordersSortedByTicket.length === 0 ? (
+                    <Typography
+                      variant="body1"
+                      sx={{ p: 2, color: "text.secondary" }}
+                    >
+                      No hay ventas en esta fecha
+                    </Typography>
+                  ) : (
+                    ordersSortedByTicket.map((order) => (
+                      <OrderItem
+                        key={order.id}
+                        order={order}
+                        onReturnClick={handleReturnClick}
+                      />
+                    ))
+                  )}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          ) : (
+            <Box className={classes["orders-container"]} sx={{ mb: 2 }}>
+              {ordersListLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : ordersSortedByTicket.length === 0 ? (
+                <Typography
+                  variant="body1"
+                  sx={{ p: 2, color: "text.secondary" }}
+                >
+                  No hay ventas en esta fecha
+                </Typography>
+              ) : (
+                ordersSortedByTicket.map((order) => (
+                  <OrderItem
+                    key={order.id}
+                    order={order}
+                    onReturnClick={handleReturnClick}
+                  />
+                ))
+              )}
+            </Box>
+          )}
 
           {/* Devoluciones Section - Only in detailed view */}
           {isDetailedView && (

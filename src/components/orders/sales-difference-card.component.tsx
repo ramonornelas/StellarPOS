@@ -82,7 +82,7 @@ export const SalesDifferenceCard: React.FC<SalesDifferenceCardProps> = ({
           color: isPositive ? "#2e7d32" : "#c62828",
         }}
       >
-        📊 Ventas netas:
+        📊 Balance Ventas-Devoluciones
       </Typography>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>

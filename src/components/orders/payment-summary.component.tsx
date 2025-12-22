@@ -37,7 +37,7 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
           color: "primary.main",
         }}
       >
-        💰 Resumen por forma de pago:
+        💰 Resumen de ventas:
       </Typography>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
