@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Container,
@@ -8,6 +8,8 @@ import {
   AccordionSummary,
   AccordionDetails,
   CircularProgress,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
@@ -49,6 +51,20 @@ export const Orders: React.FC = () => {
   const [salesExpanded, setSalesExpanded] = useState(true);
   const [returnsExpanded, setReturnsExpanded] = useState(true);
 
+  // View mode state (simple view by default, with persistence)
+  const [isDetailedView, setIsDetailedView] = useState<boolean>(() => {
+    const saved = localStorage.getItem("ordersViewMode");
+    return saved !== null ? saved === "detailed" : false;
+  });
+
+  // Save view preference to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      "ordersViewMode",
+      isDetailedView ? "detailed" : "simple"
+    );
+  }, [isDetailedView]);
+
   const dateString = selectedDate;
 
   // Orders data
@@ -87,10 +103,6 @@ export const Orders: React.FC = () => {
     refetchReturns();
     refetchReturnsSummary();
   };
-
-  // Calculate totals for the difference card
-  const totalSales = ordersSummary?.total_amount || 0;
-  const totalReturns = returnsSummary?.total_amount || 0;
 
   // Maneja el cambio de fecha local
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,7 +191,16 @@ export const Orders: React.FC = () => {
 
   return (
     <Container maxWidth="xl" className={classes["main-container"]}>
-      <Box mb={2}>
+      <Box
+        mb={2}
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <div style={{ flexGrow: 1 }}></div>
         <TextField
           label="Selecciona la fecha"
           type="date"
@@ -190,6 +211,22 @@ export const Orders: React.FC = () => {
           }}
           size="small"
         />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={isDetailedView}
+              onChange={(e) => setIsDetailedView(e.target.checked)}
+              color="primary"
+            />
+          }
+          label={
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {isDetailedView ? "Vista Detallada" : "Vista Simple"}
+            </Typography>
+          }
+          labelPlacement="top"
+        />
       </Box>
 
       {hasNoData ? (
@@ -199,102 +236,150 @@ export const Orders: React.FC = () => {
       ) : (
         <>
           {/* Summary Cards Row */}
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              mb: 2,
+              width: "100%",
+              maxWidth: isDetailedView ? "80%" : "40%",
+              justifyContent: "center",
+            }}
+          >
+            {/* Sales Summary - Always visible */}
+            <Box sx={{ minWidth: 0, width: isDetailedView ? "30%" : "100%" }}>
               <PaymentSummary summary={ordersSummary} loading={ordersLoading} />
             </Box>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
-              <ReturnsSummaryCard
-                summary={returnsSummary}
-                loading={returnsLoading}
-              />
-            </Box>
-            <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
-              <SalesDifferenceCard
-                totalSales={totalSales}
-                totalReturns={totalReturns}
-                loading={ordersLoading || returnsLoading}
-              />
-            </Box>
+
+            {/* Returns and Balance - Only in detailed view */}
+            {isDetailedView && (
+              <>
+                <Box sx={{ minWidth: 0, width: "30%" }}>
+                  <ReturnsSummaryCard
+                    summary={returnsSummary}
+                    loading={returnsLoading}
+                  />
+                </Box>
+                <Box sx={{ minWidth: 0, width: "30%" }}>
+                  <SalesDifferenceCard
+                    ordersSummary={ordersSummary}
+                    returnsSummary={returnsSummary}
+                    loading={ordersLoading || returnsLoading}
+                  />
+                </Box>
+              </>
+            )}
           </Box>
 
           {/* Ventas Section */}
-          <Accordion
-            expanded={salesExpanded}
-            onChange={() => setSalesExpanded(!salesExpanded)}
-            sx={{ mb: 2 }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              sx={{ backgroundColor: "#e3f2fd" }}
+          {isDetailedView ? (
+            <Accordion
+              expanded={salesExpanded}
+              onChange={() => setSalesExpanded(!salesExpanded)}
+              sx={{ mb: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Ventas ({orders.length})
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
-              <Box className={classes["orders-container"]}>
-                {ordersListLoading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                    <CircularProgress size={32} />
-                  </Box>
-                ) : ordersSortedByTicket.length === 0 ? (
-                  <Typography
-                    variant="body1"
-                    sx={{ p: 2, color: "text.secondary" }}
-                  >
-                    No hay ventas en esta fecha
-                  </Typography>
-                ) : (
-                  ordersSortedByTicket.map((order) => (
-                    <OrderItem
-                      key={order.id}
-                      order={order}
-                      onReturnClick={handleReturnClick}
-                    />
-                  ))
-                )}
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Devoluciones Section */}
-          <Accordion
-            expanded={returnsExpanded}
-            onChange={() => setReturnsExpanded(!returnsExpanded)}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              sx={{ backgroundColor: "#fff3e0" }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, color: "#e65100" }}
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ backgroundColor: "#e3f2fd" }}
               >
-                Devoluciones ({returns.length})
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
-              <Box className={classes["orders-container"]}>
-                {returnsListLoading ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                    <CircularProgress size={32} sx={{ color: "#e65100" }} />
-                  </Box>
-                ) : returnsSortedByTicket.length === 0 ? (
-                  <Typography
-                    variant="body1"
-                    sx={{ p: 2, color: "text.secondary" }}
-                  >
-                    No hay devoluciones en esta fecha
-                  </Typography>
-                ) : (
-                  returnsSortedByTicket.map((returnItem) => (
-                    <ReturnItem key={returnItem.id} returnItem={returnItem} />
-                  ))
-                )}
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Ventas ({orders.length})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <Box className={classes["orders-container"]}>
+                  {ordersListLoading ? (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", p: 3 }}
+                    >
+                      <CircularProgress size={32} />
+                    </Box>
+                  ) : ordersSortedByTicket.length === 0 ? (
+                    <Typography
+                      variant="body1"
+                      sx={{ p: 2, color: "text.secondary" }}
+                    >
+                      No hay ventas en esta fecha
+                    </Typography>
+                  ) : (
+                    ordersSortedByTicket.map((order) => (
+                      <OrderItem
+                        key={order.id}
+                        order={order}
+                        onReturnClick={handleReturnClick}
+                      />
+                    ))
+                  )}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          ) : (
+            <Box className={classes["orders-container"]} sx={{ mb: 2 }}>
+              {ordersListLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : ordersSortedByTicket.length === 0 ? (
+                <Typography
+                  variant="body1"
+                  sx={{ p: 2, color: "text.secondary" }}
+                >
+                  No hay ventas en esta fecha
+                </Typography>
+              ) : (
+                ordersSortedByTicket.map((order) => (
+                  <OrderItem
+                    key={order.id}
+                    order={order}
+                    onReturnClick={handleReturnClick}
+                  />
+                ))
+              )}
+            </Box>
+          )}
+
+          {/* Devoluciones Section - Only in detailed view */}
+          {isDetailedView && (
+            <Accordion
+              expanded={returnsExpanded}
+              onChange={() => setReturnsExpanded(!returnsExpanded)}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ backgroundColor: "#fff3e0" }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 600, color: "#e65100" }}
+                >
+                  Devoluciones ({returns.length})
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <Box className={classes["orders-container"]}>
+                  {returnsListLoading ? (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", p: 3 }}
+                    >
+                      <CircularProgress size={32} sx={{ color: "#e65100" }} />
+                    </Box>
+                  ) : returnsSortedByTicket.length === 0 ? (
+                    <Typography
+                      variant="body1"
+                      sx={{ p: 2, color: "text.secondary" }}
+                    >
+                      No hay devoluciones en esta fecha
+                    </Typography>
+                  ) : (
+                    returnsSortedByTicket.map((returnItem) => (
+                      <ReturnItem key={returnItem.id} returnItem={returnItem} />
+                    ))
+                  )}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          )}
         </>
       )}
 

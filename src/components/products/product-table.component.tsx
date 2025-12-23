@@ -13,7 +13,7 @@ import {
   openSnackBarDeleteError,
   openSnackBarSaveChangesFirst,
 } from "../snackbar/snackbar.motor";
-import { Product } from "./products.model";
+import { Product, ProductVariant } from "./products.model";
 import {
   Button,
   Table,
@@ -53,11 +53,15 @@ import { formatCurrency } from "../../functions/generalFunctions";
 import { ProductVariantsModal } from "./product-variants-modal.component";
 import { BarcodeModal } from "./barcode-modal.component";
 import { DataContext } from "../../dataContext";
+import { useBarcodeScanner } from "./useBarcodeScanner";
 
 const ProductTable: React.FC = () => {
   const dataContext = useContext(DataContext);
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsVariants, setProductsVariants] = useState<ProductVariant[]>(
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof Product;
@@ -68,6 +72,9 @@ const ProductTable: React.FC = () => {
   const [addMode, setAddMode] = useState(false);
   const [showOnlyVisible, setShowOnlyVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchMode, setSearchMode] = useState<
+    "name" | "barcode_manual" | "barcode_scanner"
+  >("name");
   const [uploadingImages, setUploadingImages] = useState<
     Record<string, boolean>
   >({});
@@ -121,7 +128,19 @@ const ProductTable: React.FC = () => {
 
   // Create stable references to avoid dependency warnings
   const contextProducts = dataContext?.products;
+  const contextProductVariants = dataContext?.productVariants;
   const hasInitialized = useRef(false);
+
+  // Barcode scanner integration
+  const handleBarcodeScanned = (barcode: string) => {
+    setSearchTerm(barcode);
+    setSearchMode("barcode_scanner");
+  };
+
+  useBarcodeScanner({
+    onBarcodeScanned: handleBarcodeScanned,
+    enabled: true,
+  });
 
   // Initialize by ensuring global data is loaded (only runs once on mount)
   useEffect(() => {
@@ -149,7 +168,10 @@ const ProductTable: React.FC = () => {
   // Keep local products list synchronized with DataContext changes
   useEffect(() => {
     setProducts(Array.isArray(contextProducts) ? contextProducts : []);
-  }, [contextProducts]);
+    setProductsVariants(
+      Array.isArray(contextProductVariants) ? contextProductVariants : []
+    );
+  }, [contextProducts, contextProductVariants]);
 
   const filteredAndSortedProducts = React.useMemo(() => {
     const normalizeText = (text: string): string => {
@@ -161,17 +183,55 @@ const ProductTable: React.FC = () => {
 
     const filterProductsBySearch = (
       productList: Product[],
-      searchText: string
+      searchText: string,
+      mode: "name" | "barcode_manual" | "barcode_scanner"
     ): Product[] => {
       if (!searchText || searchText.trim() === "") {
         return productList;
       }
 
-      const normalizedSearch = normalizeText(searchText.trim());
+      if (mode === "name") {
+        // Current name search (partial, normalized)
+        const normalizedSearch = normalizeText(searchText.trim());
+        return productList.filter((product: Product) => {
+          const normalizedName = normalizeText(product.name || "");
+          return normalizedName.includes(normalizedSearch);
+        });
+      }
+
+      // Barcode search
+      const searchBarcode = searchText.trim();
+      const isExactMatch = mode === "barcode_scanner";
 
       return productList.filter((product: Product) => {
-        const normalizedName = normalizeText(product.name || "");
-        return normalizedName.includes(normalizedSearch);
+        // Check product barcode
+        if (product.barcode) {
+          if (isExactMatch) {
+            if (product.barcode === searchBarcode) return true;
+          } else {
+            if (product.barcode.includes(searchBarcode)) return true;
+          }
+        }
+
+        // Check variant barcodes (only for this product)
+        if (product.has_variants) {
+          const productVariants = productsVariants.filter(
+            (variant: ProductVariant) => variant.product_id === product.id
+          );
+
+          return productVariants.some((variant: ProductVariant) => {
+            if (variant.barcode) {
+              if (isExactMatch) {
+                return variant.barcode === searchBarcode;
+              } else {
+                return variant.barcode.includes(searchBarcode);
+              }
+            }
+            return false;
+          });
+        }
+
+        return false;
       });
     };
 
@@ -182,7 +242,7 @@ const ProductTable: React.FC = () => {
     // Exclude combos from product administration
     filtered = filtered.filter((product) => !product.is_combo);
 
-    filtered = filterProductsBySearch(filtered, searchTerm);
+    filtered = filterProductsBySearch(filtered, searchTerm, searchMode);
 
     if (!sortConfig) {
       return [...filtered].sort((a, b) => {
@@ -229,7 +289,14 @@ const ProductTable: React.FC = () => {
       }
       return 0;
     });
-  }, [products, sortConfig, showOnlyVisible, searchTerm]);
+  }, [
+    products,
+    sortConfig,
+    showOnlyVisible,
+    searchTerm,
+    searchMode,
+    productsVariants,
+  ]);
 
   const handleSort = (key: keyof Product) => {
     setSortConfig((prev) => {
@@ -655,6 +722,31 @@ const ProductTable: React.FC = () => {
     setBarcodeModalProduct(null);
   };
 
+  // Helper function to detect if search term looks like a barcode
+  const isBarcodeSearch = (term: string): boolean => {
+    const trimmed = term.trim();
+    if (trimmed.length === 0) return false;
+
+    // If starts with numbers and is reasonable length, treat as barcode
+    const numericChars = (trimmed.match(/\d/g) || []).length;
+    return numericChars >= 1 && numericChars / trimmed.length > 0.7;
+  };
+
+  // Handle manual search input
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+
+    // Detect search mode based on input
+    if (value.trim() === "") {
+      setSearchMode("name");
+    } else if (isBarcodeSearch(value)) {
+      setSearchMode("barcode_manual");
+    } else {
+      setSearchMode("name");
+    }
+  };
+
   return (
     <TableContainer component={Paper} sx={{ px: 1.5, py: 2 }}>
       <Box sx={{ margin: "10px" }}>
@@ -688,9 +780,9 @@ const ProductTable: React.FC = () => {
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Buscar productos por nombre..."
+              placeholder="Buscar por nombre o código de barras..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               size="small"
               InputProps={{
                 startAdornment: (
@@ -702,7 +794,10 @@ const ProductTable: React.FC = () => {
                   <InputAdornment position="end">
                     <IconButton
                       aria-label="limpiar búsqueda"
-                      onClick={() => setSearchTerm("")}
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSearchMode("name");
+                      }}
                       edge="end"
                       size="small"
                     >

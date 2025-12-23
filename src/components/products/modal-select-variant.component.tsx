@@ -14,6 +14,7 @@ import { formatCurrency } from "../../functions/generalFunctions";
 import { updateCart } from "../cart/cart.utils";
 import { useComboConfirmation } from "../cart/useComboConfirmation.hook";
 import { ComboConfirmationDialog } from "../cart/combo-confirmation-dialog.component";
+import { useCanViewStockAvailable } from "../users/userPermissionsContext";
 
 interface SelectVariantProps {
   product: Product;
@@ -33,6 +34,8 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
     dialogOpen,
     combos,
   } = useComboConfirmation();
+
+  const canViewStock = useCanViewStockAvailable();
 
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
@@ -156,7 +159,22 @@ export const SelectVariant: React.FC<SelectVariantProps> = (props) => {
                       justifyContent="space-between"
                       alignItems="center"
                     >
-                      <span>{variant.name}</span>
+                      <Box display="flex" alignItems="center">
+                        <span> {variant.name || ""} </span>
+                        {canViewStock && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            component="span"
+                            sx={{ marginLeft: "4px", fontSize: "10px" }}
+                          >
+                            / Disp:{" "}
+                            {typeof variant.stock_available === "string"
+                              ? parseFloat(variant.stock_available) || 0
+                              : variant.stock_available || 0}
+                          </Typography>
+                        )}
+                      </Box>
                       <span>
                         {formatCurrency(
                           typeof variant.price === "string"

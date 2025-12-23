@@ -22,9 +22,9 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
     );
   }
 
-  if (!summary || summary.payment_methods.length === 0) {
-    return null;
-  }
+  const paymentMethods = summary?.payment_methods || [];
+  const totalAmount = summary?.total_amount || 0;
+  const totalTransactions = summary?.total_transactions || 0;
 
   return (
     <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
@@ -37,29 +37,38 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
           color: "primary.main",
         }}
       >
-        💰 Resumen por forma de pago:
+        💰 Resumen de ventas:
       </Typography>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-        {summary.payment_methods.map((method) => (
-          <Box
-            key={method.method}
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "0.9rem",
-            }}
+        {paymentMethods.length > 0 ? (
+          paymentMethods.map((method) => (
+            <Box
+              key={method.method}
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "0.9rem",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                • {method.method_display} ({method.transaction_count}):
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {formatCurrency(method.total_amount)}
+              </Typography>
+            </Box>
+          ))
+        ) : (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontStyle: "italic" }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              • {method.method_display}:
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {formatCurrency(method.total_amount)} ({method.transaction_count}{" "}
-              {method.transaction_count === 1 ? "venta" : "ventas"})
-            </Typography>
-          </Box>
-        ))}
+            No hay ventas
+          </Typography>
+        )}
       </Box>
 
       <Box
@@ -73,11 +82,10 @@ export const PaymentSummary: React.FC<PaymentSummaryProps> = ({
         }}
       >
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          Total:
+          Total ({totalTransactions}):
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {formatCurrency(summary.total_amount)} ({summary.total_transactions}{" "}
-          {summary.total_transactions === 1 ? "venta" : "ventas"})
+          {formatCurrency(totalAmount)}
         </Typography>
       </Box>
     </Paper>

@@ -21,6 +21,12 @@ export interface Product {
 export interface ComboProduct {
   product_id: string;
   quantity_per_combo: number;
+  combo_products?: ComboProduct[];
+}
+
+export interface ComboProduct {
+  product_id: string;
+  quantity_per_combo: number;
 }
 
 export interface ProductVariant {
@@ -40,6 +46,7 @@ export interface ProductVariant {
   created_datetime: string;
   updated_user_id: string;
   is_deleted: boolean;
+  barcode?: string;
 }
 
 export interface Category {
@@ -56,7 +63,7 @@ export interface ProductVariantModal {
   description: string;
   product_id: string;
   product_name: string;
-  barcode: string;
+  barcode?: string;
 }
 
 // Types for inventory movements
@@ -161,4 +168,5 @@ export interface CountableItem {
   stock_available: number;
   counted_quantity: number | string;
   isProductHeader?: boolean; // Para marcar filas de encabezado de producto
+  display_order: number; // display_order del producto padre, usado para ordenar grupos
 }

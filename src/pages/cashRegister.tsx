@@ -14,7 +14,6 @@ import HomeIcon from "@mui/icons-material/Home";
 import {
   postOpenCashRegister,
   putCloseCashRegister,
-  fetchOrderTotalsByCashRegister,
 } from "../functions/apiFunctions";
 import { useNavigate, useLocation } from "react-router-dom";
 import { appContext } from "../appContext";
@@ -38,7 +37,6 @@ export const CashRegister: React.FC = () => {
   );
   const [justOpened, setJustOpened] = useState<boolean>(false);
   const [justClosed, setJustClosed] = useState<boolean>(false);
-  const [cashSales, setCashSales] = useState<number>(0);
   const navigate = useNavigate();
   const location = useLocation();
   const redirectMessage = location.state?.message || "";
@@ -63,23 +61,6 @@ export const CashRegister: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [justClosed]);
-
-  useEffect(() => {
-    // Solo busca el total si la caja está abierta
-    if (isOpen) {
-      const fetchTotals = async () => {
-        const cashRegisterId = sessionStorage.getItem("cashRegisterId");
-        if (!cashRegisterId) return;
-        const response = await fetchOrderTotalsByCashRegister(cashRegisterId);
-        let cash = 0;
-        if (response && response.paymentMethodTotals) {
-          cash = parseFloat(response.paymentMethodTotals.cash ?? "0");
-        }
-        setCashSales(isNaN(cash) ? 0 : cash);
-      };
-      fetchTotals();
-    }
-  }, [isOpen, dateString]);
 
   useEffect(() => {
     // If the cash register is open, and it was not just closed or just opened, focus the closing input
@@ -145,9 +126,7 @@ export const CashRegister: React.FC = () => {
       id: cashRegisterId,
       closing_amount: value,
       closed_at: new Date().toISOString(),
-      status: "closed",
       closed_user_id: sessionStorage.getItem("stellar_userid"),
-      cash_sales: cashSales,
     });
 
     if (result && result.status === "closed") {
