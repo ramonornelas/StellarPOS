@@ -13,11 +13,20 @@ def test_TEST_environment():
             'resourcePath': '/orders'
         },
         'body': json.dumps({
-            'date': '2025-11-17',
-            'ticket': '#400',
-            'subtotal': 15,
-            'payment_method': 'cash',
+            'date': '2026-01-02',
+            'ticket': '#008',
+            'subtotal': 351,
+            'payment_method': 'card',
             'products': [
+                {
+                    'id': 'bd6ecb7c-6c47-44cc-adf5-7032bbee7250',
+                    'name': 'Miel Aguacate y Árnica 1.5 kg',
+                    'price': 330,
+                    'quantity': 1,
+                    'category_name': 'Mieles',
+                    'is_combo': False,
+                    'product_variant_id': 'a3c9e5f2-78d4-4b61-9f2e-b0d1c74a68e9'
+                },
                 {
                     'id': 'e1c3b8a2-4f7d-4c8e-9a1b-2d5e6f7c8b9a',
                     'name': 'Combo paletas',
@@ -28,25 +37,33 @@ def test_TEST_environment():
                     'combo_products': [
                         {
                             'product_id': 'b26083e1-c89c-488b-bbed-6e087cac460d',
-                            'quantity_per_combo': 3
+                            'quantity_per_combo': '3'
                         }
                     ]
+                },
+                {
+                    'id': 'b26083e1-c89c-488b-bbed-6e087cac460d',
+                    'name': 'Paleta',
+                    'price': 6,
+                    'quantity': 1,
+                    'category_name': 'Derivados de miel',
+                    'is_combo': False
                 }
             ],
             'split_payments': [
                 {
                     'id': 1,
-                    'amount': 15,
-                    'payment_method': 'cash'
+                    'amount': 351,
+                    'payment_method': 'card'
                 }
             ],
             'discount': 0,
             'tip': 0,
-            'received_amount': 15,
+            'received_amount': 351,
             'change': 0,
             'notes': '',
-            'cash_register_id': 'dc2934e5-6637-4c5c-8592-d946fd1021ad',
-            'updated_user_id': 'd1af46ca-0fdd-43f4-8443-64c8d20c4e71'
+            'cash_register_id': '38c530db-5195-418e-80cf-f28f0962c6a3',
+            'updated_user_id': '62acd544-63a5-4c6a-92dc-cb4090a5f747'
         })
     }
     
