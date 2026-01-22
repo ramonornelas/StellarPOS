@@ -19,6 +19,9 @@ jobs:
         with:
           submodules: true
           lfs: false
+      - name: Set TEST env for preview
+        if: github.event_name == 'pull_request'
+        run: echo "VITE_API_STAGE=TEST" >> $GITHUB_ENV
       - name: Set PROD env for merge
         if: github.event_name == 'push'
         run: echo "VITE_API_STAGE=PROD" >> $GITHUB_ENV
