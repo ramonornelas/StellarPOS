@@ -52,11 +52,23 @@ def lambda_handler(event, context):
             orders = response['Items']
             for order in orders:
                 order_id = order['id']
+                
+                # Handle pagination for products
+                products = []
                 products_response = order_product_table.scan(
                     FilterExpression=Attr('orderTicket_id').eq(order_id)
                 )
-                if 'Items' in products_response and products_response['Items']:
-                    products = products_response['Items']
+                products.extend(products_response.get('Items', []))
+                
+                # Continue fetching if there are more pages
+                while 'LastEvaluatedKey' in products_response:
+                    products_response = order_product_table.scan(
+                        FilterExpression=Attr('orderTicket_id').eq(order_id),
+                        ExclusiveStartKey=products_response['LastEvaluatedKey']
+                    )
+                    products.extend(products_response.get('Items', []))
+                
+                if products:
                     
                     # Track total quantities for return_status calculation
                     total_ordered_quantity = Decimal('0')
@@ -134,14 +146,23 @@ def lambda_handler(event, context):
                 else:
                     order['products'] = []
                     order['return_status'] = 'none'
-                    
+                
+                # Handle pagination for split payments
+                split_payments = []
                 split_payment_response = order_split_payment_table.scan(
                     FilterExpression=Attr('orderTicket_id').eq(order_id)
                 )
-                if 'Items' in split_payment_response and split_payment_response['Items']:
-                    order['splitPayments'] = split_payment_response['Items']
-                else:
-                    order['splitPayments'] = []
+                split_payments.extend(split_payment_response.get('Items', []))
+                
+                # Continue fetching if there are more pages
+                while 'LastEvaluatedKey' in split_payment_response:
+                    split_payment_response = order_split_payment_table.scan(
+                        FilterExpression=Attr('orderTicket_id').eq(order_id),
+                        ExclusiveStartKey=split_payment_response['LastEvaluatedKey']
+                    )
+                    split_payments.extend(split_payment_response.get('Items', []))
+                
+                order['splitPayments'] = split_payments
 
             return {
                 'statusCode': 200,
