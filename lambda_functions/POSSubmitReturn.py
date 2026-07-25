@@ -607,6 +607,8 @@ def execute_return_transaction(return_ticket_table, return_product_table, produc
             
             # Find matching order product record
             try:
+                # Scan may be paginated; collect all pages to ensure we find the record
+                order_products_list = []
                 response = order_product_table.scan(
                     FilterExpression='orderTicket_id = :order_id AND product_id = :product_id',
                     ExpressionAttributeValues={
@@ -614,8 +616,19 @@ def execute_return_transaction(return_ticket_table, return_product_table, produc
                         ':product_id': product_id
                     }
                 )
-                
-                order_products_list = response.get('Items', [])
+                order_products_list.extend(response.get('Items', []))
+
+                # Handle pagination
+                while 'LastEvaluatedKey' in response:
+                    response = order_product_table.scan(
+                        FilterExpression='orderTicket_id = :order_id AND product_id = :product_id',
+                        ExpressionAttributeValues={
+                            ':order_id': order_id,
+                            ':product_id': product_id
+                        },
+                        ExclusiveStartKey=response['LastEvaluatedKey']
+                    )
+                    order_products_list.extend(response.get('Items', []))
                 
                 # Find the matching product (considering variant)
                 for order_product in order_products_list:
